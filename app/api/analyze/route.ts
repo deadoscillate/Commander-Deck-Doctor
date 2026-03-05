@@ -8,7 +8,7 @@ import {
   computeMassLandDenial,
   estimateBracket
 } from "@/lib/brackets";
-import type { AnalyzeRequest, ExpectedWinTurn } from "@/lib/contracts";
+import type { AnalyzeRequest, DeckPriceSummary, ExpectedWinTurn } from "@/lib/contracts";
 import { buildDeckHealthReport } from "@/lib/deckHealth";
 import { parseDecklistWithCommander } from "@/lib/decklist";
 import { GAME_CHANGERS_VERSION, findGameChangerName } from "@/lib/gameChangers";
@@ -97,6 +97,91 @@ function getPreferredManaCost(card: ScryfallCard | null): string | null {
   return null;
 }
 
+function parsePriceNumber(value: string | null | undefined): number | null {
+  if (typeof value !== "string" || !value.trim()) {
+    return null;
+  }
+
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function buildDeckPriceSummary(cards: Array<{ qty: number; card: ScryfallCard }>): DeckPriceSummary {
+  const totals = {
+    usd: 0,
+    usdFoil: 0,
+    usdEtched: 0,
+    tix: 0
+  };
+  const pricedCardQty = {
+    usd: 0,
+    usdFoil: 0,
+    usdEtched: 0,
+    tix: 0
+  };
+  let totalKnownCardQty = 0;
+
+  for (const entry of cards) {
+    totalKnownCardQty += entry.qty;
+
+    const usd = parsePriceNumber(entry.card.prices?.usd);
+    const usdFoil = parsePriceNumber(entry.card.prices?.usd_foil);
+    const usdEtched = parsePriceNumber(entry.card.prices?.usd_etched);
+    const tix = parsePriceNumber(entry.card.prices?.tix);
+
+    if (usd !== null) {
+      totals.usd += usd * entry.qty;
+      pricedCardQty.usd += entry.qty;
+    }
+    if (usdFoil !== null) {
+      totals.usdFoil += usdFoil * entry.qty;
+      pricedCardQty.usdFoil += entry.qty;
+    }
+    if (usdEtched !== null) {
+      totals.usdEtched += usdEtched * entry.qty;
+      pricedCardQty.usdEtched += entry.qty;
+    }
+    if (tix !== null) {
+      totals.tix += tix * entry.qty;
+      pricedCardQty.tix += entry.qty;
+    }
+  }
+
+  function finalizeTotal(value: number, pricedQty: number): number | null {
+    if (pricedQty === 0) {
+      return null;
+    }
+
+    return Number(value.toFixed(2));
+  }
+
+  function coverage(pricedQty: number): number {
+    if (totalKnownCardQty <= 0) {
+      return 0;
+    }
+
+    return Number((pricedQty / totalKnownCardQty).toFixed(4));
+  }
+
+  return {
+    totals: {
+      usd: finalizeTotal(totals.usd, pricedCardQty.usd),
+      usdFoil: finalizeTotal(totals.usdFoil, pricedCardQty.usdFoil),
+      usdEtched: finalizeTotal(totals.usdEtched, pricedCardQty.usdEtched),
+      tix: finalizeTotal(totals.tix, pricedCardQty.tix)
+    },
+    pricedCardQty,
+    totalKnownCardQty,
+    coverage: {
+      usd: coverage(pricedCardQty.usd),
+      usdFoil: coverage(pricedCardQty.usdFoil),
+      usdEtched: coverage(pricedCardQty.usdEtched),
+      tix: coverage(pricedCardQty.tix)
+    },
+    disclaimer: "Totals are quantity-weighted Scryfall prices for resolved cards only and may change over time."
+  };
+}
+
 export async function POST(request: Request) {
   let payload: AnalyzeRequest;
 
@@ -111,233 +196,245 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Decklist is required." }, { status: 400 });
   }
 
-  const { entries: parsedDeck, commanderFromSection } = parseDecklistWithCommander(decklist);
-  if (parsedDeck.length === 0) {
-    return NextResponse.json(
-      { error: "No valid deck entries found. Check formatting and try again." },
-      { status: 400 }
+  try {
+    const { entries: parsedDeck, commanderFromSection } = parseDecklistWithCommander(decklist);
+    if (parsedDeck.length === 0) {
+      return NextResponse.json(
+        { error: "No valid deck entries found. Check formatting and try again." },
+        { status: 400 }
+      );
+    }
+
+    const inputDeckSize = parsedDeck.reduce((sum, card) => sum + card.qty, 0);
+
+    // Fetch only the cards we can resolve; unknown names are reported separately.
+    const { knownCards, unknownCards } = await fetchDeckCards(parsedDeck, 8);
+    const summary = computeDeckSummary(knownCards);
+    const roles = computeRoleCounts(knownCards);
+
+    const knownByInputName = new Map(
+      knownCards.map((entry) => [entry.name.toLowerCase(), entry.card.name])
     );
-  }
 
-  const inputDeckSize = parsedDeck.reduce((sum, card) => sum + card.qty, 0);
+    const parsedDeckView = parsedDeck.map((entry) => {
+      const resolvedName = knownByInputName.get(entry.name.toLowerCase()) ?? null;
+      const matchedGameChanger = findGameChangerName(resolvedName ?? entry.name);
 
-  // Fetch only the cards we can resolve; unknown names are reported separately.
-  const { knownCards, unknownCards } = await fetchDeckCards(parsedDeck, 8);
-  const summary = computeDeckSummary(knownCards);
-  const roles = computeRoleCounts(knownCards);
+      return {
+        name: entry.name,
+        qty: entry.qty,
+        resolvedName,
+        known: Boolean(resolvedName),
+        isGameChanger: Boolean(matchedGameChanger),
+        gameChangerName: matchedGameChanger
+      };
+    });
 
-  const knownByInputName = new Map(
-    knownCards.map((entry) => [entry.name.toLowerCase(), entry.card.name])
-  );
+    const { gcCount, found: gameChangersFound } = computeGameChangersFromEntries(
+      parsedDeckView.map((entry) => ({
+        name: entry.name,
+        qty: entry.qty,
+        aliases: entry.resolvedName ? [entry.resolvedName] : undefined
+      }))
+    );
+    const { count: extraTurnsCount, cards: extraTurnCards } = computeExtraTurns(knownCards);
+    const { count: massLandDenialCount, cards: massLandDenialCards } = computeMassLandDenial(knownCards);
+    const checksBase = buildDeckChecks(parsedDeck, unknownCards);
 
-  const parsedDeckView = parsedDeck.map((entry) => {
-    const resolvedName = knownByInputName.get(entry.name.toLowerCase()) ?? null;
-    const matchedGameChanger = findGameChangerName(resolvedName ?? entry.name);
+    const commanderOptions = [
+      ...new Map(
+        knownCards
+          .filter((entry) => isLegendaryCreature(entry.card.type_line))
+          .map((entry) => [
+            normalizeLookupName(entry.card.name),
+            {
+              name: entry.card.name,
+              colorIdentity: entry.card.color_identity
+            }
+          ])
+      ).values()
+    ].sort((a, b) => a.name.localeCompare(b.name));
 
-    return {
-      name: entry.name,
-      qty: entry.qty,
-      resolvedName,
-      known: Boolean(resolvedName),
-      isGameChanger: Boolean(matchedGameChanger),
-      gameChangerName: matchedGameChanger
-    };
-  });
+    const manualCommanderName = parseCommanderName(payload.commanderName);
+    const selectedCommanderName =
+      commanderFromSection ?? (!commanderFromSection && manualCommanderName ? manualCommanderName : null);
+    const commanderSource = commanderFromSection
+      ? "section"
+      : manualCommanderName
+        ? "manual"
+        : "none";
 
-  const { gcCount, found: gameChangersFound } = computeGameChangersFromEntries(
-    parsedDeckView.map((entry) => ({
-      name: entry.name,
-      qty: entry.qty,
-      aliases: entry.resolvedName ? [entry.resolvedName] : undefined
-    }))
-  );
-  const { count: extraTurnsCount, cards: extraTurnCards } = computeExtraTurns(knownCards);
-  const { count: massLandDenialCount, cards: massLandDenialCards } = computeMassLandDenial(knownCards);
-  const checksBase = buildDeckChecks(parsedDeck, unknownCards);
+    const knownCommander = selectedCommanderName
+      ? knownCards.find(
+          (entry) =>
+            normalizeLookupName(entry.name) === normalizeLookupName(selectedCommanderName) ||
+            normalizeLookupName(entry.card.name) === normalizeLookupName(selectedCommanderName)
+        )?.card
+      : null;
 
-  const commanderOptions = [
-    ...new Map(
-      knownCards
-        .filter((entry) => isLegendaryCreature(entry.card.type_line))
-        .map((entry) => [
-          normalizeLookupName(entry.card.name),
-          {
-            name: entry.card.name,
-            colorIdentity: entry.card.color_identity
+    const selectedCommanderCard =
+      knownCommander ??
+      (selectedCommanderName ? await getCardByName(selectedCommanderName) : null);
+
+    const colorIdentityCheck = selectedCommanderCard
+      ? buildColorIdentityCheck(
+          knownCards,
+          selectedCommanderCard.name,
+          selectedCommanderCard.color_identity
+        )
+      : selectedCommanderName
+        ? {
+            ok: false,
+            enabled: false,
+            commanderName: selectedCommanderName,
+            commanderColorIdentity: [],
+            offColorCount: 0,
+            offColorCards: [],
+            message: `Could not resolve commander card data for "${selectedCommanderName}".`
           }
-        ])
-    ).values()
-  ].sort((a, b) => a.name.localeCompare(b.name));
+        : checksBase.colorIdentity;
 
-  const manualCommanderName = parseCommanderName(payload.commanderName);
-  const selectedCommanderName =
-    commanderFromSection ?? (!commanderFromSection && manualCommanderName ? manualCommanderName : null);
-  const commanderSource = commanderFromSection
-    ? "section"
-    : manualCommanderName
-      ? "manual"
-      : "none";
-
-  const knownCommander = selectedCommanderName
-    ? knownCards.find(
-        (entry) =>
-          normalizeLookupName(entry.name) === normalizeLookupName(selectedCommanderName) ||
-          normalizeLookupName(entry.card.name) === normalizeLookupName(selectedCommanderName)
-      )?.card
-    : null;
-
-  const selectedCommanderCard =
-    knownCommander ??
-    (selectedCommanderName ? await getCardByName(selectedCommanderName) : null);
-
-  const colorIdentityCheck = selectedCommanderCard
-    ? buildColorIdentityCheck(
-        knownCards,
-        selectedCommanderCard.name,
-        selectedCommanderCard.color_identity
-      )
-    : selectedCommanderName
-      ? {
-          ok: false,
-          enabled: false,
-          commanderName: selectedCommanderName,
-          commanderColorIdentity: [],
-          offColorCount: 0,
-          offColorCards: [],
-          message: `Could not resolve commander card data for "${selectedCommanderName}".`
-        }
-      : checksBase.colorIdentity;
-
-  const checks = {
-    ...checksBase,
-    colorIdentity: colorIdentityCheck
-  };
-  const roundedSummary = {
-    ...summary,
-    deckSize: inputDeckSize,
-    uniqueCards: parsedDeck.length,
-    averageManaValue: Number(summary.averageManaValue.toFixed(2))
-  };
-  const deckHealth = buildDeckHealthReport({
-    counts: {
-      lands: roundedSummary.types.land,
-      ramp: roles.ramp,
-      draw: roles.draw,
-      removal: roles.removal,
-      wipes: roles.wipes,
-      protection: roles.protection,
-      finishers: roles.finishers
-    },
-    deckSize: inputDeckSize,
-    unknownCardsCount: unknownCards.length
-  });
-  const archetypeReport = computeDeckArchetypes(knownCards, inputDeckSize);
-  const comboReport = detectCombosInDeck(
-    parsedDeckView.flatMap((entry) =>
-      entry.resolvedName ? [entry.name, entry.resolvedName] : [entry.name]
-    )
-  );
-  const ruleZero = computePlayerHeuristics({
-    deckCards: knownCards,
-    averageManaValue: roundedSummary.averageManaValue,
-    drawCount: roles.draw,
-    tutorCount: roles.tutors,
-    comboDetectedCount: comboReport.detected.length,
-    commanderCard: selectedCommanderCard
-  });
-
-  const suggestionColorIdentity =
-    selectedCommanderCard?.color_identity && selectedCommanderCard.color_identity.length > 0
-      ? selectedCommanderCard.color_identity
-      : roundedSummary.colors;
-
-  const improvementSuggestions = {
-    colorIdentity: suggestionColorIdentity,
-    items: buildRoleSuggestions({
-      lowRoles: deckHealth.rows,
-      deckColorIdentity: suggestionColorIdentity,
-      existingCardNames: parsedDeckView.flatMap((entry) =>
+    const checks = {
+      ...checksBase,
+      colorIdentity: colorIdentityCheck
+    };
+    const roundedSummary = {
+      ...summary,
+      deckSize: inputDeckSize,
+      uniqueCards: parsedDeck.length,
+      averageManaValue: Number(summary.averageManaValue.toFixed(2))
+    };
+    const deckHealth = buildDeckHealthReport({
+      counts: {
+        lands: roundedSummary.types.land,
+        ramp: roles.ramp,
+        draw: roles.draw,
+        removal: roles.removal,
+        wipes: roles.wipes,
+        protection: roles.protection,
+        finishers: roles.finishers
+      },
+      deckSize: inputDeckSize,
+      unknownCardsCount: unknownCards.length
+    });
+    const deckPrice = buildDeckPriceSummary(knownCards);
+    const archetypeReport = computeDeckArchetypes(knownCards, inputDeckSize);
+    const comboReport = detectCombosInDeck(
+      parsedDeckView.flatMap((entry) =>
         entry.resolvedName ? [entry.name, entry.resolvedName] : [entry.name]
-      ),
-      limit: 5
-    }),
-    disclaimer:
-      "Suggestions are role-focused and heuristic. They are filtered by color identity and exclude cards already in your list."
-  };
+      )
+    );
+    const ruleZero = computePlayerHeuristics({
+      deckCards: knownCards,
+      averageManaValue: roundedSummary.averageManaValue,
+      drawCount: roles.draw,
+      tutorCount: roles.tutors,
+      comboDetectedCount: comboReport.detected.length,
+      commanderCard: selectedCommanderCard
+    });
 
-  const userCedhFlag = Boolean(payload.userCedhFlag);
-  const userHighPowerNoGCFlag = Boolean(payload.userHighPowerNoGCFlag);
-  const estimate = estimateBracket({
-    gcCount,
-    userCedhFlag,
-    userHighPowerNoGCFlag
-  });
+    const suggestionColorIdentity =
+      selectedCommanderCard?.color_identity && selectedCommanderCard.color_identity.length > 0
+        ? selectedCommanderCard.color_identity
+        : roundedSummary.colors;
 
-  const targetBracket = parseOptionalBracket(payload.targetBracket);
-  const expectedWinTurn = parseExpectedWinTurn(payload.expectedWinTurn);
+    const improvementSuggestions = {
+      colorIdentity: suggestionColorIdentity,
+      items: buildRoleSuggestions({
+        lowRoles: deckHealth.rows,
+        deckColorIdentity: suggestionColorIdentity,
+        existingCardNames: parsedDeckView.flatMap((entry) =>
+          entry.resolvedName ? [entry.name, entry.resolvedName] : [entry.name]
+        ),
+        limit: 5
+      }),
+      disclaimer:
+        "Suggestions are role-focused and heuristic. They are filtered by color identity and exclude cards already in your list."
+    };
 
-  const explanation = buildBracketExplanation({
-    estimate,
-    gcCount,
-    extraTurnsCount,
-    massLandDenialCount,
-    userTargetBracket: targetBracket,
-    expectedWinTurn
-  });
-
-  const bracketReport = {
-    estimatedBracket: estimate.value,
-    estimatedLabel: estimate.label,
-    gameChangersVersion: GAME_CHANGERS_VERSION,
-    gameChangersCount: gcCount,
-    bracket3AllowanceText: estimate.value === 3 ? `${gcCount} / 3 allowed in Bracket 3` : null,
-    gameChangersFound,
-    extraTurnsCount,
-    extraTurnCards,
-    massLandDenialCount,
-    massLandDenialCards,
-    notes: explanation.notes,
-    warnings: explanation.warnings,
-    explanation: explanation.explanation,
-    disclaimer: explanation.disclaimer
-  };
-
-  // Preserve parsed deck size/unique count even when some cards are unresolved.
-  return NextResponse.json({
-    schemaVersion: "1.0",
-    input: {
-      targetBracket,
-      expectedWinTurn,
-      commanderName: selectedCommanderName,
+    const userCedhFlag = Boolean(payload.userCedhFlag);
+    const userHighPowerNoGCFlag = Boolean(payload.userHighPowerNoGCFlag);
+    const estimate = estimateBracket({
+      gcCount,
       userCedhFlag,
       userHighPowerNoGCFlag
-    },
-    commander: {
-      detectedFromSection: commanderFromSection,
-      selectedName: selectedCommanderCard?.name ?? selectedCommanderName,
-      selectedColorIdentity: selectedCommanderCard?.color_identity ?? [],
-      selectedManaCost: getPreferredManaCost(selectedCommanderCard),
-      selectedCmc:
-        typeof selectedCommanderCard?.cmc === "number" && Number.isFinite(selectedCommanderCard.cmc)
-          ? selectedCommanderCard.cmc
-          : null,
-      selectedArtUrl: getPreferredArtUrl(selectedCommanderCard),
-      source: commanderSource,
-      options: commanderOptions,
-      needsManualSelection: !commanderFromSection && !selectedCommanderName && commanderOptions.length > 0
-    },
-    parsedDeck: parsedDeckView,
-    unknownCards,
-    summary: roundedSummary,
-    metrics: roundedSummary,
-    roles,
-    checks,
-    deckHealth,
-    archetypeReport,
-    comboReport,
-    ruleZero,
-    improvementSuggestions,
-    warnings: [...new Set([...deckHealth.warnings, ...explanation.warnings])],
-    bracketReport
-  });
+    });
+
+    const targetBracket = parseOptionalBracket(payload.targetBracket);
+    const expectedWinTurn = parseExpectedWinTurn(payload.expectedWinTurn);
+
+    const explanation = buildBracketExplanation({
+      estimate,
+      gcCount,
+      extraTurnsCount,
+      massLandDenialCount,
+      userTargetBracket: targetBracket,
+      expectedWinTurn
+    });
+
+    const bracketReport = {
+      estimatedBracket: estimate.value,
+      estimatedLabel: estimate.label,
+      gameChangersVersion: GAME_CHANGERS_VERSION,
+      gameChangersCount: gcCount,
+      bracket3AllowanceText: estimate.value === 3 ? `${gcCount} / 3 allowed in Bracket 3` : null,
+      gameChangersFound,
+      extraTurnsCount,
+      extraTurnCards,
+      massLandDenialCount,
+      massLandDenialCards,
+      notes: explanation.notes,
+      warnings: explanation.warnings,
+      explanation: explanation.explanation,
+      disclaimer: explanation.disclaimer
+    };
+
+    // Preserve parsed deck size/unique count even when some cards are unresolved.
+    return NextResponse.json({
+      schemaVersion: "1.0",
+      input: {
+        targetBracket,
+        expectedWinTurn,
+        commanderName: selectedCommanderName,
+        userCedhFlag,
+        userHighPowerNoGCFlag
+      },
+      commander: {
+        detectedFromSection: commanderFromSection,
+        selectedName: selectedCommanderCard?.name ?? selectedCommanderName,
+        selectedColorIdentity: selectedCommanderCard?.color_identity ?? [],
+        selectedManaCost: getPreferredManaCost(selectedCommanderCard),
+        selectedCmc:
+          typeof selectedCommanderCard?.cmc === "number" && Number.isFinite(selectedCommanderCard.cmc)
+            ? selectedCommanderCard.cmc
+            : null,
+        selectedArtUrl: getPreferredArtUrl(selectedCommanderCard),
+        source: commanderSource,
+        options: commanderOptions,
+        needsManualSelection: !commanderFromSection && !selectedCommanderName && commanderOptions.length > 0
+      },
+      parsedDeck: parsedDeckView,
+      unknownCards,
+      summary: roundedSummary,
+      metrics: roundedSummary,
+      roles,
+      checks,
+      deckHealth,
+      deckPrice,
+      archetypeReport,
+      comboReport,
+      ruleZero,
+      improvementSuggestions,
+      warnings: [...new Set([...deckHealth.warnings, ...explanation.warnings])],
+      bracketReport
+    });
+  } catch (error) {
+    console.error("Analyze route failed", {
+      error: error instanceof Error ? error.message : String(error)
+    });
+    return NextResponse.json(
+      { error: "Analysis failed due to a server error. Please retry." },
+      { status: 500 }
+    );
+  }
 }

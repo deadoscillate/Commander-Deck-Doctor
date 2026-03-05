@@ -12,6 +12,22 @@ function toStringArray(value: unknown): string[] {
   return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
 }
 
+function formatUsd(value: number | null | undefined): string {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return "N/A";
+  }
+
+  return `$${value.toFixed(2)}`;
+}
+
+function formatTix(value: number | null | undefined): string {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return "N/A";
+  }
+
+  return `${value.toFixed(2)} tix`;
+}
+
 /**
  * Generates share-friendly plaintext for clipboard export.
  */
@@ -149,7 +165,10 @@ export function buildPlaintextReport(result: AnalyzeResponse): string {
     `- Deck Size: ${result.summary.deckSize}`,
     `- Unique Cards: ${result.summary.uniqueCards}`,
     `- Avg Mana Value: ${result.summary.averageManaValue.toFixed(2)}`,
-    `- Colors: ${result.summary.colors.length > 0 ? result.summary.colors.join(", ") : "Colorless"}`
+    `- Colors: ${result.summary.colors.length > 0 ? result.summary.colors.join(", ") : "Colorless"}`,
+    `- Deck Price (USD): ${formatUsd(result.deckPrice?.totals.usd)}`,
+    `- Deck Price (Foil): ${formatUsd(result.deckPrice?.totals.usdFoil)}`,
+    `- Deck Price (MTGO): ${formatTix(result.deckPrice?.totals.tix)}`
   ];
 
   const archetypeLines = [

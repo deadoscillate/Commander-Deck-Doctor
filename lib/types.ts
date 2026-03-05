@@ -20,6 +20,13 @@ export type ScryfallCardFace = {
   image_uris?: ScryfallImageUris;
 };
 
+export type ScryfallPrices = {
+  usd: string | null;
+  usd_foil: string | null;
+  usd_etched: string | null;
+  tix: string | null;
+};
+
 export type ScryfallCard = {
   name: string;
   type_line: string;
@@ -30,6 +37,7 @@ export type ScryfallCard = {
   oracle_text: string;
   image_uris: ScryfallImageUris | null;
   card_faces: ScryfallCardFace[];
+  prices: ScryfallPrices | null;
 };
 
 /**

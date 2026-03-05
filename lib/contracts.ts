@@ -50,6 +50,29 @@ export type DeckHealthReport = {
   disclaimer: string;
 };
 
+export type DeckPriceSummary = {
+  totals: {
+    usd: number | null;
+    usdFoil: number | null;
+    usdEtched: number | null;
+    tix: number | null;
+  };
+  pricedCardQty: {
+    usd: number;
+    usdFoil: number;
+    usdEtched: number;
+    tix: number;
+  };
+  totalKnownCardQty: number;
+  coverage: {
+    usd: number;
+    usdFoil: number;
+    usdEtched: number;
+    tix: number;
+  };
+  disclaimer: string;
+};
+
 export type DeckChecks = {
   deckSize: {
     ok: boolean;
@@ -200,6 +223,7 @@ export type AnalyzeResponse = {
   roles: RoleCounts;
   checks: DeckChecks;
   deckHealth: DeckHealthReport;
+  deckPrice?: DeckPriceSummary;
   archetypeReport: DeckArchetypeReport;
   comboReport: ComboReport;
   ruleZero: RuleZeroReport;

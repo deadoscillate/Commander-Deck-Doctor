@@ -7,19 +7,23 @@ type CommanderHeroHeaderProps = {
     colorIdentity: string[];
     cmc?: number | null;
     artUrl?: string | null;
-    manaCost?: string | null;
   };
+  archetypeLabel?: string | null;
   bracketLabel?: string | null;
 };
 
-export function CommanderHeroHeader({ commander, bracketLabel }: CommanderHeroHeaderProps) {
+export function CommanderHeroHeader({
+  commander,
+  archetypeLabel,
+  bracketLabel
+}: CommanderHeroHeaderProps) {
   const backgroundStyle = commander.artUrl
     ? {
-        backgroundImage: `linear-gradient(120deg, rgba(10, 15, 20, 0.82) 0%, rgba(10, 15, 20, 0.44) 45%, rgba(10, 15, 20, 0.64) 100%), url("${commander.artUrl}")`
+        backgroundImage: `linear-gradient(120deg, rgba(8, 13, 18, 0.9) 0%, rgba(8, 13, 18, 0.58) 48%, rgba(8, 13, 18, 0.86) 100%), url("${commander.artUrl}")`
       }
     : {
         backgroundImage:
-          "linear-gradient(120deg, rgba(12, 20, 28, 0.85) 0%, rgba(24, 36, 49, 0.7) 50%, rgba(12, 20, 28, 0.88) 100%)"
+          "linear-gradient(120deg, rgba(10, 16, 24, 0.94) 0%, rgba(19, 30, 42, 0.82) 50%, rgba(10, 16, 24, 0.94) 100%)"
       };
 
   return (
@@ -29,6 +33,7 @@ export function CommanderHeroHeader({ commander, bracketLabel }: CommanderHeroHe
         <h2 className="commander-hero-title">
           <CardNameHover name={commander.name} />
         </h2>
+        {archetypeLabel ? <p className="commander-hero-archetype">{archetypeLabel}</p> : null}
         <div className="commander-hero-meta">
           <div className="commander-hero-meta-left">
             <ColorIdentityIcons identity={commander.colorIdentity} size={22} />

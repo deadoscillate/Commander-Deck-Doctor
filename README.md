@@ -1,18 +1,47 @@
-## Commander Deck Doctor (MVP + Commander Brackets)
+## Commander Deck Doctor (Current MVP)
 
-Next.js + TypeScript app that:
+Commander deck analysis app built with Next.js + TypeScript.
 
-- parses Commander decklists
-- fetches card data from Scryfall (`exact` then `fuzzy`)
-- reports deck summary, mana curve, card type counts, and role counts
-- provides Deck Health diagnostics + recommended count comparisons
-- runs legality/sanity checks (deck size, singleton, unknown names)
-- detects commander (section-first, manual fallback) and validates color identity
-- estimates Commander Bracket using Game Changers + heuristics
-- supports plaintext copy + JSON export of analysis reports
-- saves shareable reports and serves them at `/report/{hash}`
-- provides color-aware card suggestions for LOW roles (excluding cards already in deck)
-- imports decklists directly from Moxfield and Archidekt URLs
+### Current MVP features
+
+- Parse free-form Commander decklists (including Commander section detection).
+- Resolve card data from Scryfall (`exact` then `fuzzy` fallback).
+- Show summary metrics:
+  - deck size, unique cards, average mana value
+  - mana curve and card-type counts
+  - role counts (ramp/draw/removal/wipes/tutors/protection/finishers)
+- Run core deck checks:
+  - deck size
+  - singleton (basic-land exceptions)
+  - unknown card names
+  - commander color identity validation
+- Commander UI:
+  - commander hero header with art background (`art_crop` fallback logic)
+  - commander name hover image preview
+  - color identity shown as mana icons
+  - manual commander selector in the right report panel (auto re-analyzes on change)
+- Card hover previews:
+  - image preview from Scryfall
+  - Scryfall prices in preview (USD/Foil/Etched/TIX when available)
+  - local cache for hover metadata
+- Archetype detection (keyword heuristic).
+- Combo detection from local combo database.
+- Rule 0 snapshot (player-facing heuristic layer):
+  - win style
+  - speed band
+  - consistency score
+  - table-impact flags
+- Commander Bracket heuristic report:
+  - Game Changer detection
+  - extra-turn and mass-land-denial flags
+  - explanation + notes + warnings
+- Deck improvement suggestions for low role buckets.
+- Deck import from Moxfield and Archidekt URLs.
+- Local saved deck history (`localStorage`).
+- Report sharing/export:
+  - copy plaintext report
+  - download JSON
+  - shared report URLs at `/report/{hash}` via local SQLite store
 
 ### Run locally
 
@@ -23,46 +52,66 @@ npm run dev
 
 Open `http://localhost:3000`.
 
-### Project structure
+Production build:
 
-- `app/page.tsx`: single-page UI with deck input/options and report rendering
-- `app/api/analyze/route.ts`: orchestration endpoint for parse -> fetch -> analyze -> bracket report
-- `app/api/import-url/route.ts`: URL import endpoint for supported deck providers
-- `app/api/share-report/route.ts`: saves analysis snapshots and returns share links
-- `app/report/[hash]/page.tsx`: shared report page renderer
-- `components/DeckHealth.tsx`: warning/okay diagnostics panel
-- `components/RecommendedCounts.tsx`: role-vs-threshold comparison table
-- `components/Checks.tsx`: deck size/singleton/unknown sanity checks
-- `components/ExportButtons.tsx`: clipboard and JSON export actions
-- `components/AnalysisReport.tsx`: reusable report renderer used by main and shared pages
-- `components/ImprovementSuggestions.tsx`: LOW-role card suggestions panel
-- `lib/decklist.ts`: deck text parser and duplicate merge logic
-- `lib/scryfall.ts`: Scryfall named lookup client with exact/fuzzy fallback, cache, and concurrency control
-- `lib/analysis.ts`: summary metrics, mana curve, type counts, role heuristics
-- `lib/gameChangers.ts`: pinned Game Changers list and source version
-- `lib/brackets.ts`: Game Changers detection, red-flag detection, bracket estimate + explanations
-- `lib/thresholds.ts`: centralized recommended ranges/limits
-- `lib/status.ts`: LOW/OK/HIGH status helper
-- `lib/deckHealth.ts`: deck-health diagnosis builder
-- `lib/checks.ts`: legality/sanity check helper
-- `lib/suggestions.ts`: color-aware suggestion pools and filtering logic
-- `lib/reportText.ts`: plaintext report formatter for sharing
-- `lib/deckUrlImport.ts`: provider URL parsing + decklist extraction
-- `lib/reportStore.ts`: local SQLite-backed storage and hash helpers for shared reports
-- `lib/contracts.ts`: request/response contracts shared between API and UI
-- `lib/types.ts`: domain model types for analysis internals
+```bash
+npm run build
+npm run start
+```
 
-### Request flow
+### Testing
 
-1. Parse input decklist into normalized rows.
-2. Resolve card data from Scryfall (`exact`, then `fuzzy`).
-3. Compute summary and role counts from known cards.
-4. Compute Game Changers/extra-turns/mass-land-denial signals.
-5. Build bracket estimate, explanation, notes, and warnings.
-6. Return JSON consumed directly by the UI.
+```bash
+npm run test
+```
+
+Watch mode:
+
+```bash
+npm run test:watch
+```
+
+Current regression coverage includes:
+- decklist parsing edge cases (commander section + split cards/comments)
+- `/api/analyze` guardrails (empty input 400 + controlled 500 on dependency failure)
+- deck price total calculations in analysis responses
+
+### Project structure (key files)
+
+- `app/page.tsx`: main UI and analysis flow orchestration on client.
+- `app/api/analyze/route.ts`: parse -> fetch -> analyze -> response assembly.
+- `app/api/import-url/route.ts`: Moxfield/Archidekt import endpoint.
+- `app/api/share-report/route.ts`: stores shared report snapshots.
+- `app/report/[hash]/page.tsx`: shared report page.
+- `components/AnalysisReport.tsx`: report renderer (player snapshot + technical details).
+- `components/CommanderHeroHeader.tsx`: commander hero art header.
+- `components/CardNameHover.tsx`: hover image + prices preview.
+- `components/ManaIcon.tsx`, `components/ManaCost.tsx`, `components/ColorIdentityIcons.tsx`: mana/icon UI.
+- `components/Checks.tsx`: legality/sanity checks panel.
+- `components/DeckHealth.tsx`, `components/RecommendedCounts.tsx`: deck-health diagnostics.
+- `components/ImprovementSuggestions.tsx`: low-role suggestions panel.
+- `lib/decklist.ts`: deck parsing and commander section extraction.
+- `lib/scryfall.ts`: Scryfall client + cache/concurrency handling.
+- `lib/analysis.ts`: summary/curve/types/roles calculations.
+- `lib/archetypes.ts`: archetype heuristics.
+- `lib/combos.ts`, `lib/combos.json`: combo detection and data.
+- `lib/playerHeuristics.ts`: Rule 0 summary logic.
+- `lib/brackets.ts`, `lib/gameChangers.ts`: bracket heuristics and dataset.
+- `lib/checks.ts`: deck checks and color-identity validation.
+- `lib/reportText.ts`: plaintext export formatter.
+- `lib/reportStore.ts`: SQLite persistence for share links.
+- `lib/contracts.ts`, `lib/types.ts`: shared contracts/domain types.
+
+### Known gaps (post-MVP backlog)
+
+- Full Commander legality engine is not complete yet:
+  - partner/friends forever/doctor/background pair-rule validation
+  - companion-specific full deckbuilding rule map
+  - versioned Commander banlist dataset enforcement panel
+- Heuristics are intentionally approximate (Rule 0, archetype, bracket).
+- Test coverage is focused on high-risk analysis paths; UI interaction coverage is still limited.
 
 ### Notes
 
-- Game Changers list is hardcoded from the 2026-02-09 update image.
-- Bracket estimation is intentionally heuristic and conversation-oriented.
-- Tutor counts are reported as a role only, not used for bracket estimation.
+- Bracket and Rule 0 outputs are conversation aids, not tournament legality rulings.
+- If dev mode throws chunk/module errors on Windows (e.g. missing `.next` chunk), clear `.next` and restart `npm run dev`.

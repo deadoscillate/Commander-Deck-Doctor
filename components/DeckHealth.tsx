@@ -1,10 +1,14 @@
 import type { DeckHealthReport } from "@/lib/contracts";
+import { getStatusMeta } from "@/lib/ui/statusStyles";
 
 type DeckHealthProps = {
   report: DeckHealthReport;
 };
 
 export function DeckHealth({ report }: DeckHealthProps) {
+  const warnMeta = getStatusMeta("LOW");
+  const okMeta = getStatusMeta("OK");
+
   return (
     <section>
       <h2>Deck Health</h2>
@@ -14,7 +18,9 @@ export function DeckHealth({ report }: DeckHealthProps) {
         <ul className="health-list health-list-warn">
           {report.warnings.map((item) => (
             <li key={`warn-${item}`}>
-              <span className="health-icon">{"\u26A0"}</span>
+              <span className={`status-badge ${warnMeta.className}`}>
+                {warnMeta.icon} {warnMeta.label}
+              </span>
               <span>{item}</span>
             </li>
           ))}
@@ -27,7 +33,9 @@ export function DeckHealth({ report }: DeckHealthProps) {
         <ul className="health-list">
           {report.okays.map((item) => (
             <li key={`ok-${item}`}>
-              <span className="health-icon">{"\u2713"}</span>
+              <span className={`status-badge ${okMeta.className}`}>
+                {okMeta.icon} {okMeta.label}
+              </span>
               <span>{item}</span>
             </li>
           ))}

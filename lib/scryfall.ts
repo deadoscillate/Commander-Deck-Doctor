@@ -1,4 +1,11 @@
-import { DeckCard, ParsedDeckEntry, ScryfallCard, ScryfallCardFace, ScryfallImageUris } from "./types";
+﻿import {
+  DeckCard,
+  ParsedDeckEntry,
+  ScryfallCard,
+  ScryfallCardFace,
+  ScryfallImageUris,
+  ScryfallPrices
+} from "./types";
 
 /**
  * Scryfall integration for named-card lookups.
@@ -6,6 +13,10 @@ import { DeckCard, ParsedDeckEntry, ScryfallCard, ScryfallCardFace, ScryfallImag
  */
 const NAMED_ENDPOINT = "https://api.scryfall.com/cards/named";
 const DEFAULT_CONCURRENCY = 8;
+const SCRYFALL_HEADERS = {
+  Accept: "application/json",
+  "User-Agent": "CommanderDeckDoctor/1.0"
+} as const;
 // Promise cache deduplicates repeated lookups for identical names.
 const cardCache = new Map<string, Promise<ScryfallCard | null>>();
 
@@ -20,6 +31,7 @@ type ScryfallApiCard = {
   oracle_text?: string;
   image_uris?: ScryfallImageUris | null;
   card_faces?: ScryfallCardFace[];
+  prices?: ScryfallPrices | null;
 };
 
 async function fetchNamedCard(
@@ -32,7 +44,7 @@ async function fetchNamedCard(
 
     const response = await fetch(url.toString(), {
       method: "GET",
-      headers: { Accept: "application/json" },
+      headers: SCRYFALL_HEADERS,
       cache: "no-store"
     });
 
@@ -60,7 +72,8 @@ async function fetchNamedCard(
       color_identity: Array.isArray(data.color_identity) ? data.color_identity : [],
       oracle_text: oracleText,
       image_uris: data.image_uris ?? null,
-      card_faces: Array.isArray(data.card_faces) ? data.card_faces : []
+      card_faces: Array.isArray(data.card_faces) ? data.card_faces : [],
+      prices: data.prices ?? null
     };
   } catch {
     return null;

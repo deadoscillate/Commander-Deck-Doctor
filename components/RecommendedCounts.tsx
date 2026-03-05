@@ -1,4 +1,5 @@
 import type { RecommendedCountRow } from "@/lib/contracts";
+import { getStatusMeta } from "@/lib/ui/statusStyles";
 
 type RecommendedCountsProps = {
   rows: RecommendedCountRow[];
@@ -24,15 +25,22 @@ export function RecommendedCounts({ rows }: RecommendedCountsProps) {
             </tr>
           </thead>
           <tbody>
-            {rows.map((row) => (
-              <tr key={row.key} className={statusClass(row.status)}>
-                <td>{row.label}</td>
-                <td>
-                  {row.value} <span className="status-chip">{row.status}</span>
-                </td>
-                <td>{row.recommendedText}</td>
-              </tr>
-            ))}
+            {rows.map((row) => {
+              const meta = getStatusMeta(row.status);
+
+              return (
+                <tr key={row.key} className={statusClass(row.status)}>
+                  <td>{row.label}</td>
+                  <td>
+                    {row.value}{" "}
+                    <span className={`status-badge ${meta.className}`}>
+                      {meta.icon} {meta.label}
+                    </span>
+                  </td>
+                  <td>{row.recommendedText}</td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>

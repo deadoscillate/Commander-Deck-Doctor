@@ -1,4 +1,4 @@
-[
+﻿[
   {
     "combo_name": "Oracle Consultation",
     "cards": ["Thassa's Oracle", "Demonic Consultation"]
@@ -8,27 +8,351 @@
     "cards": ["Thassa's Oracle", "Tainted Pact"]
   },
   {
-    "combo_name": "Heliod Ballista",
-    "cards": ["Heliod, Sun-Crowned", "Walking Ballista"]
+    "combo_name": "Doomsday Oracle",
+    "cards": ["Doomsday", "Thassa's Oracle"]
   },
   {
-    "combo_name": "Exquisite Bond",
-    "cards": ["Exquisite Blood", "Sanguine Bond"]
-  },
-  {
-    "combo_name": "Twinflame Breach",
+    "combo_name": "Breach Freeze (Infinite)",
     "cards": ["Underworld Breach", "Lion's Eye Diamond", "Brain Freeze"]
   },
   {
-    "combo_name": "Kiki Conscripts",
-    "cards": ["Kiki-Jiki, Mirror Breaker", "Zealous Conscripts"]
+    "combo_name": "Breach Station (Infinite)",
+    "cards": ["Underworld Breach", "Grinding Station", "Mox Amber"]
   },
   {
-    "combo_name": "Dramatic Scepter",
+    "combo_name": "Breach Wheel Loop",
+    "cards": ["Underworld Breach", "Lion's Eye Diamond", "Wheel of Fortune"]
+  },
+  {
+    "combo_name": "Dramatic Scepter (Infinite)",
     "cards": ["Isochron Scepter", "Dramatic Reversal"]
   },
   {
-    "combo_name": "Basalt Rings",
+    "combo_name": "Basalt Rings (Infinite)",
     "cards": ["Basalt Monolith", "Rings of Brighthearth"]
+  },
+  {
+    "combo_name": "Basalt Monument (Infinite)",
+    "cards": ["Basalt Monolith", "Forsaken Monument"]
+  },
+  {
+    "combo_name": "Grim Power Artifact (Infinite)",
+    "cards": ["Grim Monolith", "Power Artifact"]
+  },
+  {
+    "combo_name": "Basalt Power Artifact (Infinite)",
+    "cards": ["Basalt Monolith", "Power Artifact"]
+  },
+  {
+    "combo_name": "Heliod Ballista (Infinite)",
+    "cards": ["Heliod, Sun-Crowned", "Walking Ballista"]
+  },
+  {
+    "combo_name": "Mikaeus Ballista (Infinite)",
+    "cards": ["Mikaeus, the Unhallowed", "Walking Ballista"]
+  },
+  {
+    "combo_name": "Mikaeus Trike (Infinite)",
+    "cards": ["Mikaeus, the Unhallowed", "Triskelion"]
+  },
+  {
+    "combo_name": "Devoted Druid Vizier (Infinite)",
+    "cards": ["Devoted Druid", "Vizier of Remedies"]
+  },
+  {
+    "combo_name": "Devoted Druid Reconfiguration (Infinite)",
+    "cards": ["Devoted Druid", "Swift Reconfiguration"]
+  },
+  {
+    "combo_name": "Freed Bloom Tender (Infinite)",
+    "cards": ["Freed from the Real", "Bloom Tender"]
+  },
+  {
+    "combo_name": "Freed Faeburrow (Infinite)",
+    "cards": ["Freed from the Real", "Faeburrow Elder"]
+  },
+  {
+    "combo_name": "Pemmin Bloom Tender (Infinite)",
+    "cards": ["Pemmin's Aura", "Bloom Tender"]
+  },
+  {
+    "combo_name": "Deadeye Drake (Infinite)",
+    "cards": ["Deadeye Navigator", "Peregrine Drake"]
+  },
+  {
+    "combo_name": "Deadeye Palinchron (Infinite)",
+    "cards": ["Deadeye Navigator", "Palinchron"]
+  },
+  {
+    "combo_name": "Peregrine Ghostly (Infinite)",
+    "cards": ["Peregrine Drake", "Ghostly Flicker", "Archaeomancer"]
+  },
+  {
+    "combo_name": "Worldgorger Animate Dead (Infinite)",
+    "cards": ["Worldgorger Dragon", "Animate Dead"]
+  },
+  {
+    "combo_name": "Worldgorger Dance (Infinite)",
+    "cards": ["Worldgorger Dragon", "Dance of the Dead"]
+  },
+  {
+    "combo_name": "Worldgorger Necromancy (Infinite)",
+    "cards": ["Worldgorger Dragon", "Necromancy"]
+  },
+  {
+    "combo_name": "Kiki Conscripts (Infinite)",
+    "cards": ["Kiki-Jiki, Mirror Breaker", "Zealous Conscripts"]
+  },
+  {
+    "combo_name": "Kiki Restoration Angel (Infinite)",
+    "cards": ["Kiki-Jiki, Mirror Breaker", "Restoration Angel"]
+  },
+  {
+    "combo_name": "Kiki Felidar Guardian (Infinite)",
+    "cards": ["Kiki-Jiki, Mirror Breaker", "Felidar Guardian"]
+  },
+  {
+    "combo_name": "Kiki Bell-Ringer (Infinite)",
+    "cards": ["Kiki-Jiki, Mirror Breaker", "Village Bell-Ringer"]
+  },
+  {
+    "combo_name": "Twin Exarch (Infinite)",
+    "cards": ["Splinter Twin", "Deceiver Exarch"]
+  },
+  {
+    "combo_name": "Twin Pestermite (Infinite)",
+    "cards": ["Splinter Twin", "Pestermite"]
+  },
+  {
+    "combo_name": "Twin Bell-Ringer (Infinite)",
+    "cards": ["Splinter Twin", "Village Bell-Ringer"]
+  },
+  {
+    "combo_name": "Curiosity Niv-Parun (Infinite)",
+    "cards": ["Niv-Mizzet, Parun", "Curiosity"]
+  },
+  {
+    "combo_name": "Ophidian Eye Niv-Parun (Infinite)",
+    "cards": ["Niv-Mizzet, Parun", "Ophidian Eye"]
+  },
+  {
+    "combo_name": "Curiosity Niv-Firemind (Infinite)",
+    "cards": ["Niv-Mizzet, the Firemind", "Curiosity"]
+  },
+  {
+    "combo_name": "Ophidian Eye Niv-Firemind (Infinite)",
+    "cards": ["Niv-Mizzet, the Firemind", "Ophidian Eye"]
+  },
+  {
+    "combo_name": "Exquisite Bond (Infinite)",
+    "cards": ["Exquisite Blood", "Sanguine Bond"]
+  },
+  {
+    "combo_name": "Exquisite Vito (Infinite)",
+    "cards": ["Exquisite Blood", "Vito, Thorn of the Dusk Rose"]
+  },
+  {
+    "combo_name": "Chain Smog Apprentice (Infinite)",
+    "cards": ["Chain of Smog", "Witherbloom Apprentice"]
+  },
+  {
+    "combo_name": "Chain Smog Onyx (Infinite)",
+    "cards": ["Chain of Smog", "Professor Onyx"]
+  },
+  {
+    "combo_name": "Painter Grindstone",
+    "cards": ["Painter's Servant", "Grindstone"]
+  },
+  {
+    "combo_name": "Helm Peace",
+    "cards": ["Helm of Obedience", "Rest in Peace"]
+  },
+  {
+    "combo_name": "Citadel Top Reservoir",
+    "cards": ["Bolas's Citadel", "Sensei's Divining Top", "Aetherflux Reservoir"]
+  },
+  {
+    "combo_name": "Top Future Helm (Infinite)",
+    "cards": ["Sensei's Divining Top", "Future Sight", "Helm of Awakening"]
+  },
+  {
+    "combo_name": "Top Forge Sculptor (Infinite)",
+    "cards": ["Sensei's Divining Top", "Mystic Forge", "Etherium Sculptor"]
+  },
+  {
+    "combo_name": "Necrotic Ooze Devourer Trike",
+    "cards": ["Necrotic Ooze", "Phyrexian Devourer", "Triskelion"]
+  },
+  {
+    "combo_name": "Squirrel Earthcraft (Infinite)",
+    "cards": ["Squirrel Nest", "Earthcraft"]
+  },
+  {
+    "combo_name": "Sliver Queen Echoes (Infinite)",
+    "cards": ["Sliver Queen", "Mana Echoes"]
+  },
+  {
+    "combo_name": "Food Chain Griffin (Infinite)",
+    "cards": ["Food Chain", "Misthollow Griffin"]
+  },
+  {
+    "combo_name": "Food Chain Scourge (Infinite)",
+    "cards": ["Food Chain", "Eternal Scourge"]
+  },
+  {
+    "combo_name": "Food Chain Squee (Infinite)",
+    "cards": ["Food Chain", "Squee, the Immortal"]
+  },
+  {
+    "combo_name": "Dockside Sabertooth (Infinite)",
+    "cards": ["Dockside Extortionist", "Temur Sabertooth"]
+  },
+  {
+    "combo_name": "Dockside Curio (Infinite)",
+    "cards": ["Dockside Extortionist", "Cloudstone Curio"]
+  },
+  {
+    "combo_name": "Dockside Emiel (Infinite)",
+    "cards": ["Dockside Extortionist", "Emiel the Blessed"]
+  },
+  {
+    "combo_name": "Dockside Deadeye (Infinite)",
+    "cards": ["Dockside Extortionist", "Deadeye Navigator"]
+  },
+  {
+    "combo_name": "Aluren Acererak (Infinite)",
+    "cards": ["Aluren", "Acererak the Archlich"]
+  },
+  {
+    "combo_name": "Godo Helm",
+    "cards": ["Godo, Bandit Warlord", "Helm of the Host"]
+  },
+  {
+    "combo_name": "Thopter Sword (Infinite)",
+    "cards": ["Thopter Foundry", "Sword of the Meek"]
+  },
+  {
+    "combo_name": "Time Sieve Assembly (Infinite)",
+    "cards": ["Time Sieve", "Thopter Assembly"]
+  },
+  {
+    "combo_name": "Sharuum Sculpting Steel (Infinite)",
+    "cards": ["Sharuum the Hegemon", "Sculpting Steel"]
+  },
+  {
+    "combo_name": "Reveillark Karmic Altar (Infinite)",
+    "cards": ["Reveillark", "Karmic Guide", "Altar of Dementia"]
+  },
+  {
+    "combo_name": "Saffi Sun Titan Altar (Infinite)",
+    "cards": ["Saffi Eriksdotter", "Sun Titan", "Altar of Dementia"]
+  },
+  {
+    "combo_name": "Leonin Animate Blood Artist (Infinite)",
+    "cards": ["Leonin Relic-Warder", "Animate Dead", "Blood Artist"]
+  },
+  {
+    "combo_name": "Gravecrawler Altar Rooftop (Infinite)",
+    "cards": ["Gravecrawler", "Phyrexian Altar", "Rooftop Storm"]
+  },
+  {
+    "combo_name": "Gravecrawler Altar Captain (Infinite)",
+    "cards": ["Gravecrawler", "Phyrexian Altar", "Diregraf Captain"]
+  },
+  {
+    "combo_name": "Pitiless Reassembling Altar (Infinite)",
+    "cards": ["Pitiless Plunderer", "Reassembling Skeleton", "Phyrexian Altar"]
+  },
+  {
+    "combo_name": "Malcolm Buccaneer (Infinite)",
+    "cards": ["Malcolm, Keen-Eyed Navigator", "Glint-Horn Buccaneer"]
+  },
+  {
+    "combo_name": "Heliod Scurry Oak (Infinite)",
+    "cards": ["Heliod, Sun-Crowned", "Scurry Oak"]
+  },
+  {
+    "combo_name": "Ivy Lane Scurry Oak (Infinite)",
+    "cards": ["Ivy Lane Denizen", "Scurry Oak"]
+  },
+  {
+    "combo_name": "Rosie Scurry Oak (Infinite)",
+    "cards": ["Rosie Cotton of South Lane", "Scurry Oak"]
+  },
+  {
+    "combo_name": "Yedora Life and Limb Altar (Infinite)",
+    "cards": ["Yedora, Grave Gardener", "Life and Limb", "Ashnod's Altar"]
+  },
+  {
+    "combo_name": "Abdel Animate (Infinite)",
+    "cards": ["Abdel Adrian, Gorion's Ward", "Animate Dead"]
+  },
+  {
+    "combo_name": "Abdel Dance (Infinite)",
+    "cards": ["Abdel Adrian, Gorion's Ward", "Dance of the Dead"]
+  },
+  {
+    "combo_name": "Abdel Necromancy (Infinite)",
+    "cards": ["Abdel Adrian, Gorion's Ward", "Necromancy"]
+  },
+  {
+    "combo_name": "Teshar Station Loop (Infinite)",
+    "cards": ["Teshar, Ancestor's Apostle", "Grinding Station", "Myr Retriever"]
+  },
+  {
+    "combo_name": "Krark Sakashima Storm",
+    "cards": ["Krark, the Thumbless", "Sakashima of a Thousand Faces"]
+  },
+  {
+    "combo_name": "Dualcaster Twinflame (Infinite)",
+    "cards": ["Dualcaster Mage", "Twinflame"]
+  },
+  {
+    "combo_name": "Dualcaster Heat Shimmer (Infinite)",
+    "cards": ["Dualcaster Mage", "Heat Shimmer"]
+  },
+  {
+    "combo_name": "Spellseeker Intuition Breach",
+    "cards": ["Spellseeker", "Intuition", "Underworld Breach"]
+  },
+  {
+    "combo_name": "Hermit Druid Oracle",
+    "cards": ["Hermit Druid", "Thassa's Oracle"]
+  },
+  {
+    "combo_name": "Cephalid Breakfast Oracle",
+    "cards": ["Cephalid Illusionist", "Nomads en-Kor", "Thassa's Oracle"]
+  },
+  {
+    "combo_name": "Laboratory Maniac Consultation",
+    "cards": ["Laboratory Maniac", "Demonic Consultation"]
+  },
+  {
+    "combo_name": "Jace Consultation",
+    "cards": ["Jace, Wielder of Mysteries", "Demonic Consultation"]
+  },
+  {
+    "combo_name": "Auriok Salvagers LED (Infinite)",
+    "cards": ["Auriok Salvagers", "Lion's Eye Diamond"]
+  },
+  {
+    "combo_name": "Bomberman Walking Ballista",
+    "cards": ["Auriok Salvagers", "Lion's Eye Diamond", "Walking Ballista"]
+  },
+  {
+    "combo_name": "Urza Scepter (Infinite)",
+    "cards": ["Urza, Lord High Artificer", "Isochron Scepter", "Dramatic Reversal"]
+  },
+  {
+    "combo_name": "Rona Retraction Amber (Infinite)",
+    "cards": ["Rona, Herald of Invasion", "Retraction Helix", "Mox Amber"]
+  },
+  {
+    "combo_name": "Kinnan Basalt (Infinite)",
+    "cards": ["Kinnan, Bonder Prodigy", "Basalt Monolith"]
+  },
+  {
+    "combo_name": "Anikthea Altar Deathmantle (Infinite)",
+    "cards": ["Anikthea, Hand of Erebos", "Ashnod's Altar", "Nim Deathmantle"]
   }
 ]

@@ -2,8 +2,10 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import { AnalysisReport } from "@/components/AnalysisReport";
+import { CardLink } from "@/components/CardLink";
 import { ExportButtons } from "@/components/ExportButtons";
 import type { AnalyzeResponse } from "@/lib/contracts";
+import { parseDecklist } from "@/lib/decklist";
 
 const SAMPLE_DECKLIST = `1 Sol Ring
 1 Arcane Signet
@@ -102,6 +104,7 @@ export default function Page() {
   const [userCedhFlag, setUserCedhFlag] = useState(false);
   const [userHighPowerNoGCFlag, setUserHighPowerNoGCFlag] = useState(false);
   const [savedDecks, setSavedDecks] = useState<SavedDeck[]>([]);
+  const [previewMode, setPreviewMode] = useState(false);
   const [saveError, setSaveError] = useState("");
   const [saveInfo, setSaveInfo] = useState("");
   const [result, setResult] = useState<AnalyzeResponse | null>(null);
@@ -255,6 +258,8 @@ export default function Page() {
     }
   }, [result]);
 
+  const previewRows = previewMode ? parseDecklist(decklist) : [];
+
   async function runAnalysis(overrides?: { commanderName?: string | null }) {
     setLoading(true);
     setError("");
@@ -374,14 +379,43 @@ export default function Page() {
           </section>
 
           <label htmlFor="decklist">Decklist</label>
-          <textarea
-            id="decklist"
-            value={decklist}
-            onChange={(event) => setDecklist(event.target.value)}
-            placeholder="1 Sol Ring"
-            rows={16}
-            required
-          />
+          <label className="checkbox decklist-preview-toggle">
+            <input
+              type="checkbox"
+              checked={previewMode}
+              onChange={(event) => setPreviewMode(event.target.checked)}
+            />
+            Preview mode (hover/tap card names for preview)
+          </label>
+
+          {previewMode ? (
+            <div className="decklist-preview">
+              {previewRows.length === 0 ? (
+                <p className="muted">No valid deck lines to preview yet.</p>
+              ) : (
+                <ul>
+                  {previewRows.map((entry) => (
+                    <li key={`${entry.name}-${entry.qty}`}>
+                      {entry.qty} <CardLink name={entry.name} />
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          ) : null}
+
+          {!previewMode ? (
+            <textarea
+              id="decklist"
+              value={decklist}
+              onChange={(event) => setDecklist(event.target.value)}
+              placeholder="1 Sol Ring"
+              rows={16}
+              required
+            />
+          ) : (
+            <p className="muted">Preview mode is on. Disable it to edit the raw decklist text.</p>
+          )}
 
           <div className="row">
             <label htmlFor="target-bracket">I&apos;m aiming for bracket</label>
