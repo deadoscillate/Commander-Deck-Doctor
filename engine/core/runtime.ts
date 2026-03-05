@@ -223,7 +223,7 @@ function resolveCombatDamageStep(state: GameState): GameState {
     });
   }
 
-  return next;
+  return processStateBasedActions(next);
 }
 
 function lookupBehavior(state: GameState, db: CardDatabase, cardId: string): CardBehavior | null {

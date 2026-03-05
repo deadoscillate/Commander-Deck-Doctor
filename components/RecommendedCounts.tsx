@@ -15,6 +15,7 @@ export function RecommendedCounts({ rows }: RecommendedCountsProps) {
   return (
     <section>
       <h2>Recommended Counts</h2>
+      <p className="muted">Role counts are engine-tagged and may overlap when one card fills multiple jobs.</p>
       <div className="counts-table-wrap">
         <table className="counts-table">
           <thead>

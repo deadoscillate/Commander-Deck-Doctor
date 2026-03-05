@@ -355,6 +355,7 @@ describe("engine core loop + commander layer", () => {
     const bob = state.players.find((row) => row.id === "p2");
     expect(state.commander.damageByCommanderToPlayer[commanderId]?.p2).toBeGreaterThanOrEqual(21);
     expect(bob?.lost).toBe(true);
+    expect(bob?.life).toBeGreaterThan(0);
   });
 
   it("replays deterministic state snapshots from event timeline indexes", () => {

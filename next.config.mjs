@@ -3,6 +3,10 @@ import { withSentryConfig } from "@sentry/nextjs";
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  outputFileTracingIncludes: {
+    "/api/analyze": ["./data/scryfall/oracle-cards.compiled.json"],
+    "/api/**/*": ["./data/scryfall/oracle-cards.compiled.json"]
+  },
   typescript: {
     tsconfigPath: "./tsconfig.build.json"
   },

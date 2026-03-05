@@ -21,13 +21,13 @@ const FALLBACK_RULE_ZERO = {
   speedBand: {
     value: "MID",
     turnBand: "7-9",
-    explanation: "No speed heuristics available."
+    explanation: "No speed signals available."
   },
   consistency: {
     score: 0,
     bucket: "LOW",
     commanderEngine: false,
-    explanation: "No consistency heuristics available."
+    explanation: "No consistency signals available."
   },
   tableImpact: {
     flags: [],
@@ -37,7 +37,7 @@ const FALLBACK_RULE_ZERO = {
     freeInteractionCount: 0,
     fastManaCount: 0
   },
-  disclaimer: "Rule 0 Snapshot is a heuristic conversation layer."
+  disclaimer: "Rule 0 Snapshot is a conversation layer built from deck signals."
 } as const;
 
 const TABLE_TALK_META: Record<string, { icon: string; label: string }> = {
@@ -286,7 +286,7 @@ function normalizeOpeningHandSimulation(result: AnalyzeResponse): {
     disclaimer:
       typeof record.disclaimer === "string" && record.disclaimer.trim()
         ? record.disclaimer
-        : "Simulation is an estimate using simplified opening-hand heuristics."
+        : "Simulation is an estimate using deterministic engine runs."
   };
 }
 
@@ -481,7 +481,7 @@ export function AnalysisReport({ result }: AnalysisReportProps) {
     secondary: null,
     confidence: 0,
     counts: [],
-    disclaimer: "Archetype detection is keyword-based and heuristic."
+    disclaimer: "Archetype detection is pattern-based and intended as directional signal."
   };
   const comboReport = result.comboReport ?? {
     detected: [],
@@ -545,7 +545,7 @@ export function AnalysisReport({ result }: AnalysisReportProps) {
       label: TABLE_TALK_META.tutors.label,
       icon: TABLE_TALK_META.tutors.icon,
       count: result.roles.tutors,
-      message: `${result.roles.tutors} tutor signal${result.roles.tutors === 1 ? "" : "s"} detected.`,
+      message: `${result.roles.tutors} true tutor${result.roles.tutors === 1 ? "" : "s"} detected.`,
       cards: []
     });
   }
@@ -621,11 +621,11 @@ export function AnalysisReport({ result }: AnalysisReportProps) {
           Rule 0 Snapshot is a quick read of how this deck may feel at the table.
         </p>
         <p className="table-talk-intro muted">
-          Signals include fast mana, tutors, free interaction, extra turns, and lock pressure.
+          Signals include fast mana, true tutors, free interaction, extra turns, and lock pressure.
         </p>
 
         {tableTalkRows.length === 0 ? (
-          <p className="muted">No major table talk flags detected from current heuristics.</p>
+          <p className="muted">No major table talk flags detected from current signal set.</p>
         ) : (
           <div className="table-talk-grid">
             {tableTalkRows.map((row) => {
@@ -713,6 +713,9 @@ export function AnalysisReport({ result }: AnalysisReportProps) {
 
       <section>
         <h2>Core Composition</h2>
+        <p className="muted">
+          Role tags use the shared rules engine classifier (behavior templates + structured oracle patterns).
+        </p>
         <RoleBars roles={result.roles} roleBreakdown={roleBreakdown} />
 
         <div className="technical-group">

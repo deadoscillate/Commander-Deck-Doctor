@@ -108,6 +108,6 @@ export function buildDeckHealthReport({
     rows,
     warnings,
     okays,
-    disclaimer: "Role counts are heuristic and can overlap across categories."
+    disclaimer: "Role counts use engine-backed role tags and can overlap across categories."
   };
 }

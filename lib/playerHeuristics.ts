@@ -472,7 +472,7 @@ function buildTableImpactFlags(input: {
 }
 
 /**
- * Rule-0 style "player heuristic" layer. This intentionally summarizes signals and
+ * Rule-0 style player snapshot layer. This intentionally summarizes signals and
  * does not enforce gameplay legality or bracket policy.
  */
 export function computePlayerHeuristics({
@@ -529,6 +529,6 @@ export function computePlayerHeuristics({
     consistency,
     tableImpact,
     disclaimer:
-      "Rule 0 Snapshot is a conversation layer built from heuristic card signals, not a hard power-level or legality verdict."
+      "Rule 0 Snapshot is a conversation layer built from card signals, not a hard power-level or legality verdict."
   };
 }

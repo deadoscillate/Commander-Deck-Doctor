@@ -48,7 +48,7 @@ export type DeckCard = ParsedDeckEntry & {
 };
 
 /**
- * Counts by gameplay role. These are heuristic tags, not oracle-accurate rules.
+ * Counts by gameplay role using engine behavior templates plus structured card-text patterns.
  */
 export type RoleCounts = {
   ramp: number;

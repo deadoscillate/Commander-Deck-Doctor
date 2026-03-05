@@ -392,7 +392,7 @@ export default function Page() {
         <h1>Commander Deck Doctor</h1>
         <p>
           Paste a decklist and get summary stats, role coverage, commander validation checks, deck health, and
-          Commander Bracket heuristics.
+          Commander Bracket guidance.
         </p>
         <div className="hero-actions">
           <button type="button" className="btn-secondary" onClick={() => void onTrySampleDeck()}>
@@ -521,7 +521,7 @@ export default function Page() {
               <strong>Tuning Targets (affects recommendations, not legality)</strong>
               <span
                 className="info-pill"
-                title="Bracket and expected turn tune recommendation heuristics. They do not enforce deck legality."
+                title="Bracket and expected turn tune recommendation targets. They do not enforce deck legality."
               >
                 i
               </span>

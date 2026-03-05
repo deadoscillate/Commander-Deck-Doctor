@@ -14,7 +14,6 @@ import { parseDecklistWithCommander } from "@/lib/decklist";
 import { GAME_CHANGERS_VERSION, findGameChangerName } from "@/lib/gameChangers";
 import { buildColorIdentityCheck, buildDeckChecks } from "@/lib/checks";
 import { detectCombosInDeck } from "@/lib/combos";
-import { simulateOpeningHands } from "@/lib/openingHandSimulation";
 import { computePlayerHeuristics } from "@/lib/playerHeuristics";
 import { buildRoleSuggestions } from "@/lib/suggestions";
 import { evaluateCommanderRules } from "@/lib/rulesEngine";
@@ -23,6 +22,8 @@ import type { ScryfallCard } from "@/lib/types";
 import { apiJson, getRequestId, parseJsonBody } from "@/lib/api/http";
 import { buildRateLimitHeaders, checkRateLimit } from "@/lib/api/rateLimit";
 import { reportApiError } from "@/lib/api/monitoring";
+
+export const runtime = "nodejs";
 
 const ANALYZE_REQUEST_MAX_BYTES = 500_000;
 const ANALYZE_DECKLIST_MAX_CHARS = 50_000;
@@ -135,6 +136,25 @@ function parsePriceNumber(value: string | null | undefined): number | null {
 
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : null;
+}
+
+function stableSimulationSeed(
+  parsedDeck: Array<{ name: string; qty: number; resolvedName: string | null }>,
+  commanderName: string | null
+): string {
+  const normalized = parsedDeck
+    .map((entry) => `${entry.qty}x:${(entry.resolvedName ?? entry.name).trim().toLowerCase()}`)
+    .sort((a, b) => a.localeCompare(b))
+    .join("|");
+  const input = `${normalized}|commander:${(commanderName ?? "none").trim().toLowerCase()}`;
+
+  let hash = 2166136261;
+  for (let i = 0; i < input.length; i += 1) {
+    hash ^= input.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+
+  return `analyze-${(hash >>> 0).toString(16)}`;
 }
 
 function buildDeckPriceSummary(cards: Array<{ qty: number; card: ScryfallCard }>): DeckPriceSummary {
@@ -260,10 +280,10 @@ export async function POST(request: Request) {
     const { knownCards, unknownCards } = await fetchDeckCards(parsedDeck, 8);
     const summary = computeDeckSummary(knownCards);
     const analyzer = getAnalyzerEngine();
-    const behaviorIdByCardName = (cardName: string) =>
-      analyzer.cardDatabase.getCardByName(cardName)?.behaviorId ?? null;
-    const roles = computeRoleCounts(knownCards, { behaviorIdByCardName });
-    const roleBreakdown = computeRoleBreakdown(knownCards, { behaviorIdByCardName });
+    const engineCardByName = (cardName: string) => analyzer.cardDatabase.getCardByName(cardName);
+    const behaviorIdByCardName = (cardName: string) => engineCardByName(cardName)?.behaviorId ?? null;
+    const roles = computeRoleCounts(knownCards, { engineCardByName, behaviorIdByCardName });
+    const roleBreakdown = computeRoleBreakdown(knownCards, { engineCardByName, behaviorIdByCardName });
 
     const knownByInputName = new Map(
       knownCards.map((entry) => [entry.name.toLowerCase(), entry.card.name])
@@ -387,11 +407,70 @@ export async function POST(request: Request) {
         entry.resolvedName ? [entry.name, entry.resolvedName] : [entry.name]
       )
     );
-    const openingHandSimulation = simulateOpeningHands({
-      knownCards,
-      totalDeckSize: inputDeckSize,
-      commanderCmc: selectedCommanderCard?.cmc ?? null
+    const simulationDeck = parsedDeckView.map((entry) => ({
+      name: entry.resolvedName ?? entry.name,
+      qty: entry.qty
+    }));
+    const simulationSeed = stableSimulationSeed(
+      parsedDeckView,
+      selectedCommanderCard?.name ?? selectedCommanderName
+    );
+    const simulationCommander = selectedCommanderCard?.name ?? selectedCommanderName ?? undefined;
+    const openingSimulation = analyzer.simulate({
+      type: "OPENING_HAND",
+      deck: simulationDeck,
+      runs: 1000,
+      seed: simulationSeed,
+      commander: simulationCommander
     });
+    const goldfishSimulation = analyzer.simulate({
+      type: "GOLDFISH",
+      deck: simulationDeck,
+      runs: 1000,
+      seed: simulationSeed,
+      commander: simulationCommander
+    });
+    const knownCardQty = knownCards.reduce((sum, entry) => sum + entry.qty, 0);
+    const manaRocks = knownCards.reduce((sum, entry) => {
+      const engineCard = engineCardByName(entry.card.name);
+      const behaviorId = engineCard?.behaviorId ?? "";
+      const typeLine = (engineCard?.typeLine ?? entry.card.type_line).toLowerCase();
+      const text = (engineCard?.oracleText ?? entry.card.oracle_text).toLowerCase();
+      const manaRockLike =
+        !typeLine.includes("land") &&
+        typeLine.includes("artifact") &&
+        (behaviorId.startsWith("TAP_ADD_") ||
+          /\{t\}:\s*add\s+\{[wubrgc]/.test(text) ||
+          /\badd\b[\s\S]{0,50}\bmana\b/.test(text));
+      return manaRockLike ? sum + entry.qty : sum;
+    }, 0);
+    const openingHandSimulation =
+      openingSimulation.type === "OPENING_HAND" && goldfishSimulation.type === "GOLDFISH"
+        ? {
+            simulations: openingSimulation.runs,
+            playableHands: openingSimulation.playableHands,
+            deadHands: openingSimulation.deadHands,
+            rampInOpening: Math.max(
+              0,
+              Math.round((openingSimulation.rampInOpeningPct / 100) * openingSimulation.runs)
+            ),
+            playablePct: openingSimulation.playableHandsPct,
+            deadPct: openingSimulation.deadHandsPct,
+            rampInOpeningPct: openingSimulation.rampInOpeningPct,
+            averageFirstSpellTurn: goldfishSimulation.avgFirstSpellTurn,
+            estimatedCommanderCastTurn: goldfishSimulation.avgCommanderCastTurn,
+            cardCounts: {
+              lands: roundedSummary.types.land,
+              rampCards: roles.ramp,
+              manaRocks: manaRocks
+            },
+            totalDeckSize: inputDeckSize,
+            unknownCardCount: Math.max(0, inputDeckSize - knownCardQty),
+            disclaimer:
+              "Deterministic seeded engine simulation (opening hand + simplified goldfish). " +
+              "Cards outside current behavior templates use metadata-level approximations."
+          }
+        : null;
     const ruleZero = computePlayerHeuristics({
       deckCards: knownCards,
       averageManaValue: roundedSummary.averageManaValue,
@@ -417,7 +496,7 @@ export async function POST(request: Request) {
         limit: 5
       }),
       disclaimer:
-        "Suggestions are role-focused and heuristic. They are filtered by color identity and exclude cards already in your list."
+        "Suggestions are role-focused and filtered by commander color identity. Existing deck cards are excluded."
     };
 
     const userCedhFlag = Boolean(payload.userCedhFlag);

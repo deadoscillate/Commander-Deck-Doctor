@@ -14,16 +14,66 @@ type RoleConfig = {
   min: number;
   max: number;
   cap: number;
+  definition: string;
 };
 
 const ROLE_CONFIG: RoleConfig[] = [
-  { key: "ramp", label: "Ramp", min: 8, max: 12, cap: 16 },
-  { key: "draw", label: "Card Draw", min: 8, max: 12, cap: 16 },
-  { key: "removal", label: "Removal", min: 6, max: 10, cap: 16 },
-  { key: "wipes", label: "Board Wipes", min: 2, max: 4, cap: 8 },
-  { key: "tutors", label: "Tutors", min: 2, max: 6, cap: 12 },
-  { key: "protection", label: "Protection", min: 3, max: 7, cap: 12 },
-  { key: "finishers", label: "Finishers", min: 2, max: 6, cap: 12 }
+  {
+    key: "ramp",
+    label: "Ramp",
+    min: 8,
+    max: 12,
+    cap: 16,
+    definition: "Nonland acceleration: mana rocks, dorks, treasures, rituals, and extra-land effects."
+  },
+  {
+    key: "draw",
+    label: "Card Draw",
+    min: 8,
+    max: 12,
+    cap: 16,
+    definition: "Cards that generate card advantage or repeated draw."
+  },
+  {
+    key: "removal",
+    label: "Removal",
+    min: 6,
+    max: 10,
+    cap: 16,
+    definition: "Targeted interaction: destroy/exile/bounce/counter/fight style answers."
+  },
+  {
+    key: "wipes",
+    label: "Board Wipes",
+    min: 2,
+    max: 4,
+    cap: 8,
+    definition: "Mass interaction affecting all or each major permanent groups."
+  },
+  {
+    key: "tutors",
+    label: "Tutors",
+    min: 2,
+    max: 6,
+    cap: 12,
+    definition: "True tutors only: library search for nonland cards."
+  },
+  {
+    key: "protection",
+    label: "Protection",
+    min: 3,
+    max: 7,
+    cap: 12,
+    definition: "Cards that shield your board/plan (hexproof, indestructible, phasing, protection, anti-counter)."
+  },
+  {
+    key: "finishers",
+    label: "Finishers",
+    min: 2,
+    max: 6,
+    cap: 12,
+    definition: "Cards that reliably close games (win effects, lethal drains, decisive overrun lines)."
+  }
 ];
 
 function toPercent(value: number, cap: number): number {
@@ -71,6 +121,7 @@ export function RoleBars({ roles, roleBreakdown }: RoleBarsProps) {
                 style={{ left: `${rangeStart}%`, width: `${Math.max(2, rangeEnd - rangeStart)}%` }}
               />
             </div>
+            <p className="role-bar-copy muted">{config.definition}</p>
             <p className="role-bar-copy">Recommended {config.min}-{config.max}</p>
             {taggedCards.length > 0 ? (
               <details className="role-tagged-cards">

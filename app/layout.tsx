@@ -4,7 +4,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Commander Deck Doctor",
-  description: "Commander deck analysis with Game Changers and bracket heuristics."
+  description: "Commander deck analysis with engine-backed role tags, legality checks, and bracket guidance."
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

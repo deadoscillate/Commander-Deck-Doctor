@@ -46,9 +46,39 @@ function legendaryGroups(state: GameState): Map<string, CardInstance[]> {
  */
 export function collectStateBasedActions(state: GameState): StateBasedActionCommand[] {
   const commands: StateBasedActionCommand[] = [];
+  const losingPlayers = new Set<string>();
 
   for (const player of state.players) {
-    if (!player.lost && player.life <= 0) {
+    if (player.lost) {
+      continue;
+    }
+
+    let lethalCommander: { commanderName: string; total: number } | null = null;
+    for (const [commanderId, damageByPlayer] of Object.entries(state.commander.damageByCommanderToPlayer)) {
+      const total = damageByPlayer[player.id] ?? 0;
+      if (total < 21) {
+        continue;
+      }
+
+      const commanderName = state.cardInstances[commanderId]?.definition.name ?? commanderId;
+      lethalCommander = { commanderName, total };
+      break;
+    }
+
+    if (!lethalCommander) {
+      continue;
+    }
+
+    losingPlayers.add(player.id);
+    commands.push({
+      kind: "PLAYER_LOSES",
+      playerId: player.id,
+      message: `${player.name} loses the game for taking ${lethalCommander.total} commander combat damage from ${lethalCommander.commanderName}.`
+    });
+  }
+
+  for (const player of state.players) {
+    if (!player.lost && player.life <= 0 && !losingPlayers.has(player.id)) {
       commands.push({
         kind: "PLAYER_LOSES",
         playerId: player.id,

@@ -54,7 +54,7 @@ export function buildPlaintextReport(result: AnalyzeResponse): string {
     secondary: null,
     confidence: 0,
     counts: [],
-    disclaimer: "Archetype detection is keyword-based and heuristic."
+    disclaimer: "Archetype detection is pattern-based and directional."
   };
   const comboReport = result.comboReport ?? {
     detected: [],
@@ -70,13 +70,13 @@ export function buildPlaintextReport(result: AnalyzeResponse): string {
     speedBand: {
       value: "MID",
       turnBand: "7-9",
-      explanation: "No speed heuristics available."
+      explanation: "No speed signals available."
     },
     consistency: {
       score: 0,
       bucket: "LOW",
       commanderEngine: false,
-      explanation: "No consistency heuristics available."
+      explanation: "No consistency signals available."
     },
     tableImpact: {
       flags: [],
@@ -86,7 +86,7 @@ export function buildPlaintextReport(result: AnalyzeResponse): string {
       freeInteractionCount: 0,
       fastManaCount: 0
     },
-    disclaimer: "Rule 0 Snapshot is a heuristic conversation layer."
+    disclaimer: "Rule 0 Snapshot is a conversation layer built from deck signals."
   };
   const rawRuleZero = (result as { ruleZero?: unknown }).ruleZero;
   const ruleZeroRecord =

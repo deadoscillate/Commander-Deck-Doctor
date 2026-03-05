@@ -2,6 +2,7 @@ import { isLand } from "./Card";
 import { createRngState, shuffleDeterministic } from "./RNG";
 import type { CardDefinition } from "./types";
 import type { CardDatabase } from "../cards/CardDatabase";
+import { classifyCardRoles } from "../cards/roleClassifier";
 
 export type SimulationDeckEntry = {
   name: string;
@@ -73,8 +74,38 @@ function resolveDeck(db: CardDatabase, entries: SimulationDeckEntry[]): CardDefi
   return cards;
 }
 
+const roleFlagsCache = new Map<string, ReturnType<typeof classifyCardRoles>>();
+
+function cardRoleFlags(card: CardDefinition): ReturnType<typeof classifyCardRoles> {
+  const cacheKey = card.oracleId || card.name;
+  const cached = roleFlagsCache.get(cacheKey);
+  if (cached) {
+    return cached;
+  }
+
+  const computed = classifyCardRoles({
+    typeLine: card.typeLine,
+    oracleText: card.oracleText,
+    keywords: card.keywords,
+    behaviorId: card.behaviorId ?? null
+  });
+
+  roleFlagsCache.set(cacheKey, computed);
+  return computed;
+}
+
 function isManaRock(card: CardDefinition): boolean {
-  return typeof card.behaviorId === "string" && card.behaviorId.startsWith("TAP_ADD_");
+  if (typeof card.behaviorId === "string" && card.behaviorId.startsWith("TAP_ADD_")) {
+    return true;
+  }
+
+  const lowerType = card.typeLine.toLowerCase();
+  if (!lowerType.includes("artifact") || lowerType.includes("land")) {
+    return false;
+  }
+
+  const text = card.oracleText.toLowerCase();
+  return /\{t\}:\s*add\s+\{[wubrgc]/.test(text) || /\badd\b[\s\S]{0,50}\bmana\b/.test(text);
 }
 
 function manaRockProduction(card: CardDefinition): number {
@@ -88,7 +119,15 @@ function manaRockProduction(card: CardDefinition): number {
 }
 
 function isRampCard(card: CardDefinition): boolean {
-  return isManaRock(card) || card.behaviorId === "TAP_ADD_G";
+  if (isLand(card)) {
+    return false;
+  }
+
+  if (isManaRock(card)) {
+    return true;
+  }
+
+  return cardRoleFlags(card).ramp;
 }
 
 function drawFromLibrary(library: CardDefinition[], hand: CardDefinition[], count = 1): void {

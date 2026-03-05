@@ -9,7 +9,7 @@ Commander deck analysis app built with Next.js + TypeScript.
 - Show summary metrics:
   - deck size, unique cards, average mana value
   - mana curve and card-type counts
-  - role counts (ramp/draw/removal/wipes/tutors/protection/finishers)
+  - engine-backed role counts (ramp/draw/removal/wipes/tutors/protection/finishers)
 - Run core deck checks:
   - deck size
   - singleton (basic-land exceptions)
@@ -24,13 +24,16 @@ Commander deck analysis app built with Next.js + TypeScript.
   - image preview from Scryfall
   - Scryfall prices in preview (USD/Foil/Etched/TIX when available)
   - local cache for hover metadata
-- Archetype detection (keyword heuristic).
+- Archetype detection using Commander parlance categories (for example: tokens, aristocrats, spellslinger, stax, pillow fort, group hug/slug, lands, kindred, infect, cheat-into-play).
 - Combo detection from local combo database.
 - Rule 0 snapshot (player-facing heuristic layer):
   - win style
   - speed band
   - consistency score
   - table-impact flags
+- Deterministic engine simulations in reports:
+  - opening hand quality (playable/dead/ramp percentages)
+  - simplified goldfish pacing (first spell turn, commander cast turn)
 - Commander Bracket heuristic report:
   - Game Changer detection
   - extra-turn and mass-land-denial flags
@@ -71,6 +74,7 @@ This runs:
 
 - `npm run scryfall:download` to fetch the latest `oracle_cards` bulk file metadata + raw dataset.
 - `npm run scryfall:compile` to generate `data/scryfall/oracle-cards.compiled.json` (engine-friendly subset).
+- `npm run scryfall:verify` to validate that the compiled file exists and is structurally usable.
 
 Update data later with the same command:
 
@@ -83,6 +87,9 @@ Notes:
 - Only `data/scryfall/oracle-cards.compiled.json` is committed for deploy/runtime use.
 - Raw download artifacts (`oracle-cards.raw.json`, `oracle-cards.meta.json`) remain ignored by git.
 - Engine/tests load card metadata from the local compiled file and do not call Scryfall at runtime.
+- Production build runs `npm run scryfall:verify` before `next build` and fails fast if data is missing.
+- `next.config.mjs` uses `outputFileTracingIncludes` so Vercel packages the compiled Scryfall file with API functions.
+- `/api/analyze` is pinned to Node runtime (`export const runtime = "nodejs"`) so filesystem loading works consistently on Vercel.
 - If the compiled file is missing, run `npm run scryfall:update`.
 
 ## Testing
@@ -235,6 +242,14 @@ Current regression coverage includes:
 - `.github/workflows/ci.yml`, `.github/workflows/smoke-prod.yml`: quality and production smoke workflows.
 - `scripts/export-shared-reports.mjs`, `scripts/import-shared-reports.mjs`: backup/restore runbook scripts.
 
+## Rules engine correctness status (current)
+
+- Deterministic core loop is implemented (zones, stack, priority passing, seeded RNG, event logs).
+- Commander format support exists for command zone, commander tax, commander replacement choice, and commander damage tracking.
+- State-based actions include life<=0, toughness<=0, planeswalker loyalty<=0, legend rule, token cleanup, and commander-damage lethal checks.
+- Engine-backed role classification now uses shared rule classifier logic (behavior templates + structured oracle patterns).
+- Remaining gap to "judge-level correctness": card behavior coverage and advanced rules interactions are still incomplete.
+
 ## Known gaps (post-MVP backlog)
 
 - Full Commander legality engine is not complete yet:
@@ -252,6 +267,13 @@ Current regression coverage includes:
    - Add integration tests for `/api/analyze` and `/api/import-url` with representative real decklists.
    - Add stricter runtime validation for API payloads and responses.
    - Harden error surfaces in UI (clear user-facing error messages, retry actions, no silent failures).
+
+1. Judge-level engine track (next major phase)
+
+   - Build conformance scenarios for priority/stack/SBA/replacement/trigger ordering against Comprehensive Rules references.
+   - Expand layer system correctness (type/color/ability/P/T interactions) with golden replay tests.
+   - Add APNAP ordering and multiplayer trigger-choice edge cases.
+   - Continue replacing shortcut implementations with rule-accurate SBA-driven outcomes (current milestone includes commander-damage SBA loss).
 
 1. Full Commander legality engine
 

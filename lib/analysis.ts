@@ -1,16 +1,10 @@
+import { classifyCardRoles, classifyTypeBuckets, type RoleClassifierCardInput } from "@/engine/cards/roleClassifier";
+import type { CardDefinition as EngineCardDefinition } from "@/engine/core/types";
 import { DeckCard, DeckSummary, RoleCounts, TypeCounts } from "./types";
 import type { RoleBreakdown } from "./contracts";
 
-/**
- * Lightweight statistical/heuristic deck analysis.
- */
-// Keep WUBRG ordering stable in UI output.
 const COLORS_IN_ORDER = ["W", "U", "B", "R", "G"];
 const CURVE_BUCKETS = ["0", "1", "2", "3", "4", "5", "6", "7+"];
-
-function includesType(typeLine: string, typeName: string): boolean {
-  return typeLine.toLowerCase().includes(typeName.toLowerCase());
-}
 
 function emptyTypeCounts(): TypeCounts {
   return {
@@ -50,26 +44,8 @@ function emptyRoleBreakdown(): RoleBreakdown {
 }
 
 type RoleComputationOptions = {
+  engineCardByName?: (cardName: string) => EngineCardDefinition | null;
   behaviorIdByCardName?: (cardName: string) => string | null;
-};
-
-const ROLE_HINTS_BY_BEHAVIOR_ID: Record<string, Array<keyof RoleCounts>> = {
-  TAP_ADD_W: ["ramp"],
-  TAP_ADD_U: ["ramp"],
-  TAP_ADD_B: ["ramp"],
-  TAP_ADD_R: ["ramp"],
-  TAP_ADD_G: ["ramp"],
-  TAP_ADD_C2: ["ramp"],
-  TAP_ADD_ANY: ["ramp"],
-  ETB_DRAW_1: ["draw"],
-  DRAW_1: ["draw"],
-  DRAW_2: ["draw"],
-  DAMAGE_2: ["removal"],
-  DAMAGE_3: ["removal"],
-  DAMAGE_5: ["removal"],
-  DESTROY_TARGET_CREATURE: ["removal"],
-  SORCERY_DESTROY_TARGET_CREATURE: ["removal"],
-  COUNTER_TARGET_SPELL: ["removal"]
 };
 
 function toCurveBucket(cmc: number): string {
@@ -80,159 +56,42 @@ function toCurveBucket(cmc: number): string {
   return String(Math.max(0, Math.floor(cmc)));
 }
 
-function matchesAny(text: string, patterns: RegExp[]): boolean {
-  return patterns.some((pattern) => pattern.test(text));
-}
-
-function isBoardWipeByText(text: string): boolean {
-  return matchesAny(text, [
-    /\bdestroy\s+(?:all|each)\s+[^.]{0,80}\b(?:creatures?|artifacts?|enchantments?|planeswalkers?|nonland permanents?|permanents?)\b/,
-    /\bexile\s+(?:all|each)\s+[^.]{0,80}\b(?:creatures?|artifacts?|enchantments?|planeswalkers?|nonland permanents?|permanents?|graveyards?)\b/,
-    /\breturn\s+(?:all|each)\s+[^.]{0,80}\b(?:creatures?|artifacts?|enchantments?|planeswalkers?|nonland permanents?|permanents?)\b[^.]{0,80}\bto\s+(?:its|their)\s+owner'?s\s+hand\b/,
-    /\b(?:all|each)\s+creatures?\s+get\s+-\d+\/-\d+/,
-    /\bdeals?\s+(?:x|\d+)\s+damage\s+to\s+each\s+creature\b/,
-    /\beach\s+player\s+sacrifices\s+(?:all\s+)?(?:creatures?|artifacts?|enchantments?|planeswalkers?)\b/
-  ]);
-}
-
-function searchClauses(text: string): string[] {
-  const clauses: string[] = [];
-  const pattern = /search your library for ([^.]+)/g;
-  for (const match of text.matchAll(pattern)) {
-    const clause = match[1]?.trim();
-    if (clause) {
-      clauses.push(clause);
-    }
+function scryfallKeywords(card: DeckCard["card"]): string[] {
+  const value = (card as { keywords?: unknown }).keywords;
+  if (!Array.isArray(value)) {
+    return [];
   }
 
-  return clauses;
+  return value.filter((item): item is string => typeof item === "string");
 }
 
-function isLandOnlySearchClause(clause: string): boolean {
-  if (/\bnonland\b/.test(clause)) {
-    return false;
+function toRoleClassifierInput(
+  card: DeckCard,
+  options?: RoleComputationOptions
+): RoleClassifierCardInput {
+  const engineCard = options?.engineCardByName?.(card.card.name) ?? null;
+  if (engineCard) {
+    return {
+      typeLine: engineCard.typeLine,
+      oracleText: engineCard.oracleText,
+      keywords: engineCard.keywords,
+      behaviorId: engineCard.behaviorId ?? null
+    };
   }
 
-  return matchesAny(clause, [
-    /\bbasic land\b/,
-    /\bland cards?\b/,
-    /\b(?:plains|island|swamp|mountain|forest|wastes) cards?\b/
-  ]);
-}
-
-function isTutorByText(text: string): boolean {
-  const clauses = searchClauses(text);
-  if (clauses.length === 0) {
-    return false;
-  }
-
-  return clauses.some((clause) => {
-    if (/\b(any|a)\s+card\b/.test(clause)) {
-      return true;
-    }
-
-    if (isLandOnlySearchClause(clause)) {
-      return false;
-    }
-
-    return /\b(?:artifact|battle|creature|enchantment|instant|planeswalker|sorcery|nonland)\s+card\b/.test(clause);
-  });
-}
-
-function isRampByText(typeLine: string, text: string): boolean {
-  const manaRockLike = !typeLine.includes("land") && typeLine.includes("artifact") && /\badd\b/.test(text);
-  if (manaRockLike) {
-    return true;
-  }
-
-  return matchesAny(text, [
-    /search your library for (?:up to )?\d*\s*(?:basic )?land/,
-    /search your library for [^.]{0,80}\b(?:plains|island|swamp|mountain|forest|wastes)\b/,
-    /put (?:that|those|a|an) [^\.]*land[^\.]* onto the battlefield/,
-    /\{t\}:\s*add\s+\{[wubrgc]/,
-    /\badd\b[\s\S]{0,50}\bmana\b/,
-    /\bcreate\b[\s\S]{0,30}\btreasure\b/,
-    /for each land you control, add/
-  ]);
-}
-
-function isDrawByText(text: string): boolean {
-  return matchesAny(text, [
-    /\bdraw\b[\s\S]{0,20}\bcard/,
-    /whenever you draw/,
-    /\bconnive\b/,
-    /\bsurveil\b/,
-    /\binvestigate\b/
-  ]);
-}
-
-function isRemovalByText(text: string): boolean {
-  return matchesAny(text, [
-    /\bdestroy target\b/,
-    /\bexile target\b/,
-    /\bcounter target\b/,
-    /\btarget .* gets -\d+\/-\d+/,
-    /\bdeals? (?:x|\d+) damage to target\b/,
-    /\breturn target .* to .* hand\b/,
-    /\btarget player sacrifices\b[\s\S]{0,30}\bcreature\b/,
-    /\bfight target\b/
-  ]);
-}
-
-function isProtectionByText(text: string): boolean {
-  return matchesAny(text, [
-    /\bindestructible\b/,
-    /\bhexproof\b/,
-    /\bward\b/,
-    /\bphases? out\b/,
-    /\bprotection from\b/,
-    /\bcannot be countered\b/,
-    /\bcan't be countered\b/,
-    /\bprevent all\b[\s\S]{0,20}\bdamage\b/,
-    /\bcounter target spell that targets\b/
-  ]);
-}
-
-function isFinisherByText(text: string): boolean {
-  return matchesAny(text, [
-    /\byou win the game\b/,
-    /\beach opponent loses (?:x|[2-9]|\d{2,}) life\b/,
-    /\beach opponent loses life equal to\b/,
-    /\bdouble damage\b/,
-    /\bextra combat phase\b/,
-    /\bcreatures you control gain trample and get \+[x\d]+\/\+[x\d]+\b/,
-    /\bcreatures you control get \+[x\d]+\/\+[x\d]+ and gain trample\b/
-  ]);
+  return {
+    typeLine: card.card.type_line,
+    oracleText: card.card.oracle_text,
+    keywords: scryfallKeywords(card.card),
+    behaviorId: options?.behaviorIdByCardName?.(card.card.name) ?? null
+  };
 }
 
 function roleFlags(
   card: DeckCard,
   options?: RoleComputationOptions
 ): Record<keyof RoleCounts, boolean> {
-  const typeLine = card.card.type_line.toLowerCase();
-  const text = card.card.oracle_text.toLowerCase();
-  const behaviorId = options?.behaviorIdByCardName?.(card.card.name) ?? null;
-  const behaviorHints = behaviorId ? ROLE_HINTS_BY_BEHAVIOR_ID[behaviorId] ?? [] : [];
-
-  const rampByText = isRampByText(typeLine, text);
-  const drawByText = isDrawByText(text);
-  const removalByText = isRemovalByText(text);
-
-  const wipesByText = isBoardWipeByText(text);
-
-  const tutorsByText = isTutorByText(text);
-  const protectionByText = isProtectionByText(text);
-  const finishersByText = isFinisherByText(text);
-
-  return {
-    ramp: behaviorHints.includes("ramp") || rampByText,
-    draw: behaviorHints.includes("draw") || drawByText,
-    removal: behaviorHints.includes("removal") || removalByText,
-    wipes: behaviorHints.includes("wipes") || wipesByText,
-    tutors: behaviorHints.includes("tutors") || tutorsByText,
-    protection: behaviorHints.includes("protection") || protectionByText,
-    finishers: behaviorHints.includes("finishers") || finishersByText
-  };
+  return classifyCardRoles(toRoleClassifierInput(card, options));
 }
 
 /**
@@ -258,17 +117,17 @@ export function computeDeckSummary(cards: DeckCard[]): DeckSummary {
       colorIdentity.add(color);
     }
 
-    if (includesType(card.type_line, "Creature")) typeCounts.creature += qty;
-    if (includesType(card.type_line, "Instant")) typeCounts.instant += qty;
-    if (includesType(card.type_line, "Sorcery")) typeCounts.sorcery += qty;
-    if (includesType(card.type_line, "Artifact")) typeCounts.artifact += qty;
-    if (includesType(card.type_line, "Enchantment")) typeCounts.enchantment += qty;
-    if (includesType(card.type_line, "Planeswalker")) typeCounts.planeswalker += qty;
-    if (includesType(card.type_line, "Land")) typeCounts.land += qty;
-    if (includesType(card.type_line, "Battle")) typeCounts.battle += qty;
+    const typeFlags = classifyTypeBuckets(card.type_line);
+    if (typeFlags.creature) typeCounts.creature += qty;
+    if (typeFlags.instant) typeCounts.instant += qty;
+    if (typeFlags.sorcery) typeCounts.sorcery += qty;
+    if (typeFlags.artifact) typeCounts.artifact += qty;
+    if (typeFlags.enchantment) typeCounts.enchantment += qty;
+    if (typeFlags.planeswalker) typeCounts.planeswalker += qty;
+    if (typeFlags.land) typeCounts.land += qty;
+    if (typeFlags.battle) typeCounts.battle += qty;
 
-    const isLand = includesType(card.type_line, "Land");
-    if (!isLand) {
+    if (!typeFlags.land) {
       totalNonLandCmc += card.cmc * qty;
       nonLandSpellQty += qty;
       manaCurve[toCurveBucket(card.cmc)] += qty;
@@ -289,7 +148,7 @@ export function computeDeckSummary(cards: DeckCard[]): DeckSummary {
 }
 
 /**
- * Computes role counts by applying lightweight oracle-text heuristics.
+ * Computes role counts from engine card behaviors plus structured oracle-pattern rules.
  */
 export function computeRoleCounts(cards: DeckCard[], options?: RoleComputationOptions): RoleCounts {
   const roles = emptyRoleCounts();
@@ -307,7 +166,7 @@ export function computeRoleCounts(cards: DeckCard[], options?: RoleComputationOp
 }
 
 /**
- * Returns the specific cards tagged for each heuristic role bucket.
+ * Returns specific cards tagged in each role bucket.
  */
 export function computeRoleBreakdown(cards: DeckCard[], options?: RoleComputationOptions): RoleBreakdown {
   const breakdown = emptyRoleBreakdown();

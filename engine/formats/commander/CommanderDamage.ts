@@ -1,4 +1,4 @@
-import { adjustPlayerLife, appendLog, updatePlayer } from "../../engine-internal";
+import { appendLog } from "../../engine-internal";
 import type { GameState } from "../../core/types";
 
 export function addCommanderCombatDamage(
@@ -30,19 +30,6 @@ export function addCommanderCombatDamage(
     amount,
     total: nextAmount
   });
-
-  if (nextAmount >= 21) {
-    next = adjustPlayerLife(next, damagedPlayerId, -1000, "Commander damage lethal");
-    next = updatePlayer(next, damagedPlayerId, (player) => ({
-      ...player,
-      lost: true
-    }));
-    next = appendLog(next, "PLAYER_LOSES_COMMANDER_DAMAGE", {
-      playerId: damagedPlayerId,
-      commanderCardId,
-      total: nextAmount
-    });
-  }
 
   return next;
 }

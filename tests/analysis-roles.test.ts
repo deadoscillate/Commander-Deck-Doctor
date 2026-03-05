@@ -112,6 +112,30 @@ describe("analysis role tagging - all core roles", () => {
     expect(roles.protection).toBe(1);
     expect(roles.finishers).toBe(1);
   });
+
+  it("does not count basic lands as ramp sources", () => {
+    const cards: DeckCard[] = [
+      {
+        name: "Forest",
+        qty: 10,
+        card: buildCard({
+          name: "Forest",
+          type_line: "Basic Land - Forest",
+          cmc: 0,
+          mana_cost: "",
+          oracle_text: "({T}: Add {G}.)"
+        })
+      },
+      buildDeckCard("Arcane Signet", 1, "{T}: Add one mana of any color in your commander's color identity."),
+      buildDeckCard("Cultivate", 1, "Search your library for up to two basic land cards, reveal those cards, put one onto the battlefield tapped and the other into your hand, then shuffle.")
+    ];
+
+    const roles = computeRoleCounts(cards);
+    const breakdown = computeRoleBreakdown(cards);
+
+    expect(roles.ramp).toBe(2);
+    expect(breakdown.ramp.map((row) => row.name)).toEqual(["Arcane Signet", "Cultivate"]);
+  });
 });
 
 describe("analysis category counting", () => {
