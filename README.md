@@ -111,6 +111,76 @@ Current regression coverage includes:
 - Heuristics are intentionally approximate (Rule 0, archetype, bracket).
 - Test coverage is focused on high-risk analysis paths; UI interaction coverage is still limited.
 
+### Development roadmap (proposed)
+
+1. Stability and correctness (next sprint)
+- Expand analyzer test coverage for legality, archetypes, combo detection, and preview behaviors.
+- Add integration tests for `/api/analyze` and `/api/import-url` with representative real decklists.
+- Add stricter runtime validation for API payloads and responses.
+- Harden error surfaces in UI (clear user-facing error messages, retry actions, no silent failures).
+
+2. Full Commander legality engine
+- Complete commander pair rules: Partner, Partner With, Friends Forever, Doctor's Companion, Background.
+- Add companion deckbuilding rule validators with deterministic outputs.
+- Introduce versioned banlist dataset and legality panel with explicit source/date.
+- Return machine-readable legality issues/warnings for UI and export.
+
+3. Analysis quality upgrades
+- Expand archetype taxonomy and weighting beyond keyword-only matching.
+- Grow combo dataset with tags (infinite/combat/drain/lock) and confidence/evidence.
+- Add matchup/table-profile summary (what this deck pressures, what it folds to).
+- Improve suggestion quality using role deficits + color identity + curve context.
+
+4. Product features (post-core)
+- User accounts and cloud deck history (replace local-only storage option).
+- Saved report diffing (compare two deck versions).
+- Import/export improvements (more deck sites, CSV/clipboard quality-of-life).
+- Team sharing and immutable report snapshots.
+
+5. Performance and scale
+- Add optional response caching for repeated analyzes of same deck hash.
+- Add background warm-cache jobs for frequent card lookups.
+- Profile and reduce server response latency for large decklists.
+- Add benchmark suite with baseline latency thresholds.
+
+### Live product standards (production bar)
+
+1. Reliability and operations
+- Define SLOs (API success rate and p95 latency) and monitor continuously.
+- Structured logs with request IDs on all API routes.
+- Error tracking with alerting for 5xx spikes and failed external calls.
+- Runbooks for common incidents (Scryfall outage, DB issues, deploy rollback).
+
+2. Testing and release gates
+- Required CI checks: `npm run test`, `npm run lint`, `npm run build`.
+- Block merge on failing checks.
+- Add smoke tests against deployed environment before promoting release.
+- Maintain changelog/release notes per deploy.
+
+3. Security and compliance
+- Validate and sanitize all inputs at API boundaries.
+- Rate limit public endpoints and share/report creation.
+- Secrets only via environment variables, never committed.
+- Dependency vulnerability scanning with scheduled updates.
+
+4. Data and storage
+- Backup and restore plan for report storage.
+- Versioned datasets (banlist/game changers) with source attribution and update date.
+- Data retention policy for shared reports.
+- Migration strategy for schema changes.
+
+5. UX and accessibility standards
+- Keyboard-accessible interactions for all core flows.
+- Basic WCAG color/contrast checks on critical report UI.
+- Clear loading/empty/error states across all analysis panels.
+- No blocking runtime errors in client; graceful fallback for unsupported browser APIs.
+
+6. Performance standards
+- Target p95 analyze latency budget and track regression over time.
+- Budget client bundle size and monitor with build reports.
+- Cache strategy documented for card previews and analysis routes.
+- Prevent hydration mismatches and extension-related hydration noise in production logs.
+
 ### Notes
 
 - Bracket and Rule 0 outputs are conversation aids, not tournament legality rulings.
