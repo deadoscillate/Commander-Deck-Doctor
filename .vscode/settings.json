@@ -1,0 +1,7 @@
+{
+  "vercel.deployments.autorefresh": true,
+  "vercel.deployments.autorefreshPeriod": 20,
+  "vercel.logs.autorefresh": true,
+  "vercel.checks.autorefresh": true,
+  "vercel.files.exclude": ["**/node_modules"]
+}

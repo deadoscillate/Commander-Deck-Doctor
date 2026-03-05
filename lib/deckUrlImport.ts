@@ -1,4 +1,5 @@
 type Provider = "moxfield" | "archidekt";
+const PROVIDER_FETCH_TIMEOUT_MS = 10_000;
 
 type DeckEntry = {
   name: string;
@@ -193,6 +194,10 @@ function parseProvider(urlInput: string): { provider: Provider; id: string } {
     throw new Error("Invalid URL.");
   }
 
+  if (parsedUrl.protocol !== "https:") {
+    throw new Error("Only HTTPS deck URLs are supported.");
+  }
+
   const host = parsedUrl.hostname.toLowerCase();
   const path = parsedUrl.pathname;
 
@@ -222,14 +227,29 @@ function looksLikeCloudflareBlock(body: string): boolean {
 }
 
 async function fetchJson(url: string, provider: Provider): Promise<unknown> {
-  const response = await fetch(url, {
-    method: "GET",
-    headers: {
-      Accept: "application/json",
-      "User-Agent": "Commander-Deck-Doctor/1.0"
-    },
-    cache: "no-store"
-  });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), PROVIDER_FETCH_TIMEOUT_MS);
+
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      method: "GET",
+      headers: {
+        Accept: "application/json",
+        "User-Agent": "Commander-Deck-Doctor/1.0"
+      },
+      cache: "no-store",
+      signal: controller.signal
+    });
+  } catch (error) {
+    if (error instanceof Error && error.name === "AbortError") {
+      throw new Error("Provider API timed out. Please retry.");
+    }
+
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
 
   if (!response.ok) {
     const body = await response.text().catch(() => "");

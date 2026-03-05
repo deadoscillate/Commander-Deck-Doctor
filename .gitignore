@@ -6,3 +6,6 @@ npm-debug.log*
 .env.local
 .DS_Store
 .data/
+*.tsbuildinfo
+
+.vercel

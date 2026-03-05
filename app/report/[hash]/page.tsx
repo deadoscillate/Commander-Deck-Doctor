@@ -24,7 +24,7 @@ export default async function ReportPage({ params }: ReportPageProps) {
     notFound();
   }
 
-  const report = getReport(hash);
+  const report = await getReport(hash);
   if (!report) {
     notFound();
   }

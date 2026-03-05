@@ -1,8 +1,8 @@
-## Commander Deck Doctor (Current MVP)
+# Commander Deck Doctor (Current MVP)
 
 Commander deck analysis app built with Next.js + TypeScript.
 
-### Current MVP features
+## Current MVP features
 
 - Parse free-form Commander decklists (including Commander section detection).
 - Resolve card data from Scryfall (`exact` then `fuzzy` fallback).
@@ -43,7 +43,7 @@ Commander deck analysis app built with Next.js + TypeScript.
   - download JSON
   - shared report URLs at `/report/{hash}` via local SQLite store
 
-### Run locally
+## Run locally
 
 ```bash
 npm install
@@ -59,7 +59,7 @@ npm run build
 npm run start
 ```
 
-### Testing
+## Testing
 
 ```bash
 npm run test
@@ -71,12 +71,39 @@ Watch mode:
 npm run test:watch
 ```
 
+## Vercel Free-Tier Storage Setup
+
+Shared report links (`/report/{hash}`) need persistent storage on Vercel.
+
+1. In Vercel, open this project and add the Neon integration from Marketplace.
+1. Select the free Neon plan and connect it to this project.
+1. Confirm `POSTGRES_URL` (or `DATABASE_URL`) appears in project env vars.
+1. Redeploy after linking storage.
+
+Without those env vars, `/api/share-report` is disabled on Vercel by design.
+
+## Security Baseline (Implemented)
+
+- API boundaries validate JSON content type and enforce request body size limits.
+- Public API routes (`/api/analyze`, `/api/import-url`, `/api/share-report`) have per-IP rate limits.
+- API responses include `x-request-id` and no-store caching headers.
+- Structured server logs include request IDs for API failures.
+- Import URL flow enforces HTTPS-only provider URLs and provider fetch timeouts.
+- Global response headers include `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, and `Permissions-Policy`.
+
+## Automation (Implemented)
+
+- GitHub CI workflow runs on PRs and `main` pushes: lint, test, and build.
+- Dependabot is configured for weekly npm and GitHub Actions updates.
+- Vercel project is connected to GitHub repository `deadoscillate/Commander-Deck-Doctor` for push-based deployments.
+
 Current regression coverage includes:
+
 - decklist parsing edge cases (commander section + split cards/comments)
 - `/api/analyze` guardrails (empty input 400 + controlled 500 on dependency failure)
 - deck price total calculations in analysis responses
 
-### Project structure (key files)
+## Project structure (key files)
 
 - `app/page.tsx`: main UI and analysis flow orchestration on client.
 - `app/api/analyze/route.ts`: parse -> fetch -> analyze -> response assembly.
@@ -102,7 +129,7 @@ Current regression coverage includes:
 - `lib/reportStore.ts`: SQLite persistence for share links.
 - `lib/contracts.ts`, `lib/types.ts`: shared contracts/domain types.
 
-### Known gaps (post-MVP backlog)
+## Known gaps (post-MVP backlog)
 
 - Full Commander legality engine is not complete yet:
   - partner/friends forever/doctor/background pair-rule validation
@@ -111,77 +138,88 @@ Current regression coverage includes:
 - Heuristics are intentionally approximate (Rule 0, archetype, bracket).
 - Test coverage is focused on high-risk analysis paths; UI interaction coverage is still limited.
 
-### Development roadmap (proposed)
+## Development roadmap (proposed)
 
 1. Stability and correctness (next sprint)
-- Expand analyzer test coverage for legality, archetypes, combo detection, and preview behaviors.
-- Add integration tests for `/api/analyze` and `/api/import-url` with representative real decklists.
-- Add stricter runtime validation for API payloads and responses.
-- Harden error surfaces in UI (clear user-facing error messages, retry actions, no silent failures).
 
-2. Full Commander legality engine
-- Complete commander pair rules: Partner, Partner With, Friends Forever, Doctor's Companion, Background.
-- Add companion deckbuilding rule validators with deterministic outputs.
-- Introduce versioned banlist dataset and legality panel with explicit source/date.
-- Return machine-readable legality issues/warnings for UI and export.
+   - Expand analyzer test coverage for legality, archetypes, combo detection, and preview behaviors.
+   - Add integration tests for `/api/analyze` and `/api/import-url` with representative real decklists.
+   - Add stricter runtime validation for API payloads and responses.
+   - Harden error surfaces in UI (clear user-facing error messages, retry actions, no silent failures).
 
-3. Analysis quality upgrades
-- Expand archetype taxonomy and weighting beyond keyword-only matching.
-- Grow combo dataset with tags (infinite/combat/drain/lock) and confidence/evidence.
-- Add matchup/table-profile summary (what this deck pressures, what it folds to).
-- Improve suggestion quality using role deficits + color identity + curve context.
+1. Full Commander legality engine
 
-4. Product features (post-core)
-- User accounts and cloud deck history (replace local-only storage option).
-- Saved report diffing (compare two deck versions).
-- Import/export improvements (more deck sites, CSV/clipboard quality-of-life).
-- Team sharing and immutable report snapshots.
+   - Complete commander pair rules: Partner, Partner With, Friends Forever, Doctor's Companion, Background.
+   - Add companion deckbuilding rule validators with deterministic outputs.
+   - Introduce versioned banlist dataset and legality panel with explicit source/date.
+   - Return machine-readable legality issues/warnings for UI and export.
 
-5. Performance and scale
-- Add optional response caching for repeated analyzes of same deck hash.
-- Add background warm-cache jobs for frequent card lookups.
-- Profile and reduce server response latency for large decklists.
-- Add benchmark suite with baseline latency thresholds.
+1. Analysis quality upgrades
 
-### Live product standards (production bar)
+   - Expand archetype taxonomy and weighting beyond keyword-only matching.
+   - Grow combo dataset with tags (infinite/combat/drain/lock) and confidence/evidence.
+   - Add matchup/table-profile summary (what this deck pressures, what it folds to).
+   - Improve suggestion quality using role deficits + color identity + curve context.
+
+1. Product features (post-core)
+
+   - User accounts and cloud deck history (replace local-only storage option).
+   - Saved report diffing (compare two deck versions).
+   - Import/export improvements (more deck sites, CSV/clipboard quality-of-life).
+   - Team sharing and immutable report snapshots.
+
+1. Performance and scale
+
+   - Add optional response caching for repeated analyzes of same deck hash.
+   - Add background warm-cache jobs for frequent card lookups.
+   - Profile and reduce server response latency for large decklists.
+   - Add benchmark suite with baseline latency thresholds.
+
+## Live product standards (production bar)
 
 1. Reliability and operations
-- Define SLOs (API success rate and p95 latency) and monitor continuously.
-- Structured logs with request IDs on all API routes.
-- Error tracking with alerting for 5xx spikes and failed external calls.
-- Runbooks for common incidents (Scryfall outage, DB issues, deploy rollback).
 
-2. Testing and release gates
-- Required CI checks: `npm run test`, `npm run lint`, `npm run build`.
-- Block merge on failing checks.
-- Add smoke tests against deployed environment before promoting release.
-- Maintain changelog/release notes per deploy.
+   - Define SLOs (API success rate and p95 latency) and monitor continuously.
+   - Structured logs with request IDs on all API routes.
+   - Error tracking with alerting for 5xx spikes and failed external calls.
+   - Runbooks for common incidents (Scryfall outage, DB issues, deploy rollback).
 
-3. Security and compliance
-- Validate and sanitize all inputs at API boundaries.
-- Rate limit public endpoints and share/report creation.
-- Secrets only via environment variables, never committed.
-- Dependency vulnerability scanning with scheduled updates.
+1. Testing and release gates
 
-4. Data and storage
-- Backup and restore plan for report storage.
-- Versioned datasets (banlist/game changers) with source attribution and update date.
-- Data retention policy for shared reports.
-- Migration strategy for schema changes.
+   - Required CI checks: `npm run test`, `npm run lint`, `npm run build`.
+   - Block merge on failing checks.
+   - Add smoke tests against deployed environment before promoting release.
+   - Maintain changelog/release notes per deploy.
 
-5. UX and accessibility standards
-- Keyboard-accessible interactions for all core flows.
-- Basic WCAG color/contrast checks on critical report UI.
-- Clear loading/empty/error states across all analysis panels.
-- No blocking runtime errors in client; graceful fallback for unsupported browser APIs.
+1. Security and compliance
 
-6. Performance standards
-- Target p95 analyze latency budget and track regression over time.
-- Budget client bundle size and monitor with build reports.
-- Cache strategy documented for card previews and analysis routes.
-- Prevent hydration mismatches and extension-related hydration noise in production logs.
+   - Validate and sanitize all inputs at API boundaries.
+   - Rate limit public endpoints and share/report creation.
+   - Secrets only via environment variables, never committed.
+   - Dependency vulnerability scanning with scheduled updates.
 
-### Notes
+1. Data and storage
+
+   - Backup and restore plan for report storage.
+   - Versioned datasets (banlist/game changers) with source attribution and update date.
+   - Data retention policy for shared reports.
+   - Migration strategy for schema changes.
+
+1. UX and accessibility standards
+
+   - Keyboard-accessible interactions for all core flows.
+   - Basic WCAG color/contrast checks on critical report UI.
+   - Clear loading/empty/error states across all analysis panels.
+   - No blocking runtime errors in client; graceful fallback for unsupported browser APIs.
+
+1. Performance standards
+
+   - Target p95 analyze latency budget and track regression over time.
+   - Budget client bundle size and monitor with build reports.
+   - Cache strategy documented for card previews and analysis routes.
+   - Prevent hydration mismatches and extension-related hydration noise in production logs.
+
+## Notes
 
 - Bracket and Rule 0 outputs are conversation aids, not tournament legality rulings.
 - If dev mode throws chunk/module errors on Windows (e.g. missing `.next` chunk), clear `.next` and restart `npm run dev`.

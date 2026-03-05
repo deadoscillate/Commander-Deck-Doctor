@@ -1,4 +1,3 @@
-import { NextResponse } from "next/server";
 import { computeDeckSummary, computeRoleCounts } from "@/lib/analysis";
 import { computeDeckArchetypes } from "@/lib/archetypes";
 import {
@@ -19,6 +18,16 @@ import { computePlayerHeuristics } from "@/lib/playerHeuristics";
 import { buildRoleSuggestions } from "@/lib/suggestions";
 import { fetchDeckCards, getCardByName } from "@/lib/scryfall";
 import type { ScryfallCard } from "@/lib/types";
+import { apiJson, getRequestId, parseJsonBody } from "@/lib/api/http";
+import { buildRateLimitHeaders, checkRateLimit } from "@/lib/api/rateLimit";
+
+const ANALYZE_REQUEST_MAX_BYTES = 500_000;
+const ANALYZE_DECKLIST_MAX_CHARS = 50_000;
+const ANALYZE_RATE_LIMIT = {
+  scope: "analyze" as const,
+  limit: 45,
+  windowSeconds: 60
+};
 
 /**
  * POST /api/analyze
@@ -184,25 +193,43 @@ function buildDeckPriceSummary(cards: Array<{ qty: number; card: ScryfallCard }>
 }
 
 export async function POST(request: Request) {
-  let payload: AnalyzeRequest;
-
-  try {
-    payload = (await request.json()) as AnalyzeRequest;
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON payload." }, { status: 400 });
+  const requestId = getRequestId(request);
+  const rateLimit = await checkRateLimit(request, ANALYZE_RATE_LIMIT);
+  const rateLimitHeaders = buildRateLimitHeaders(rateLimit);
+  if (!rateLimit.allowed) {
+    return apiJson(
+      { error: "Rate limit exceeded. Please retry shortly." },
+      { status: 429, requestId, headers: rateLimitHeaders }
+    );
   }
 
+  const parsedBody = await parseJsonBody<AnalyzeRequest>(request, { maxBytes: ANALYZE_REQUEST_MAX_BYTES });
+  if (!parsedBody.ok) {
+    return apiJson(
+      { error: parsedBody.error },
+      { status: parsedBody.status, requestId, headers: rateLimitHeaders }
+    );
+  }
+
+  const payload = parsedBody.data;
   const decklist = typeof payload.decklist === "string" ? payload.decklist : "";
   if (!decklist.trim()) {
-    return NextResponse.json({ error: "Decklist is required." }, { status: 400 });
+    return apiJson({ error: "Decklist is required." }, { status: 400, requestId, headers: rateLimitHeaders });
+  }
+
+  if (decklist.length > ANALYZE_DECKLIST_MAX_CHARS) {
+    return apiJson(
+      { error: "Decklist is too large. Reduce size and retry." },
+      { status: 413, requestId, headers: rateLimitHeaders }
+    );
   }
 
   try {
     const { entries: parsedDeck, commanderFromSection } = parseDecklistWithCommander(decklist);
     if (parsedDeck.length === 0) {
-      return NextResponse.json(
+      return apiJson(
         { error: "No valid deck entries found. Check formatting and try again." },
-        { status: 400 }
+        { status: 400, requestId, headers: rateLimitHeaders }
       );
     }
 
@@ -396,52 +423,56 @@ export async function POST(request: Request) {
     };
 
     // Preserve parsed deck size/unique count even when some cards are unresolved.
-    return NextResponse.json({
-      schemaVersion: "1.0",
-      input: {
-        targetBracket,
-        expectedWinTurn,
-        commanderName: selectedCommanderName,
-        userCedhFlag,
-        userHighPowerNoGCFlag
+    return apiJson(
+      {
+        schemaVersion: "1.0",
+        input: {
+          targetBracket,
+          expectedWinTurn,
+          commanderName: selectedCommanderName,
+          userCedhFlag,
+          userHighPowerNoGCFlag
+        },
+        commander: {
+          detectedFromSection: commanderFromSection,
+          selectedName: selectedCommanderCard?.name ?? selectedCommanderName,
+          selectedColorIdentity: selectedCommanderCard?.color_identity ?? [],
+          selectedManaCost: getPreferredManaCost(selectedCommanderCard),
+          selectedCmc:
+            typeof selectedCommanderCard?.cmc === "number" && Number.isFinite(selectedCommanderCard.cmc)
+              ? selectedCommanderCard.cmc
+              : null,
+          selectedArtUrl: getPreferredArtUrl(selectedCommanderCard),
+          source: commanderSource,
+          options: commanderOptions,
+          needsManualSelection: !commanderFromSection && !selectedCommanderName && commanderOptions.length > 0
+        },
+        parsedDeck: parsedDeckView,
+        unknownCards,
+        summary: roundedSummary,
+        metrics: roundedSummary,
+        roles,
+        checks,
+        deckHealth,
+        deckPrice,
+        openingHandSimulation,
+        archetypeReport,
+        comboReport,
+        ruleZero,
+        improvementSuggestions,
+        warnings: [...new Set([...deckHealth.warnings, ...explanation.warnings])],
+        bracketReport
       },
-      commander: {
-        detectedFromSection: commanderFromSection,
-        selectedName: selectedCommanderCard?.name ?? selectedCommanderName,
-        selectedColorIdentity: selectedCommanderCard?.color_identity ?? [],
-        selectedManaCost: getPreferredManaCost(selectedCommanderCard),
-        selectedCmc:
-          typeof selectedCommanderCard?.cmc === "number" && Number.isFinite(selectedCommanderCard.cmc)
-            ? selectedCommanderCard.cmc
-            : null,
-        selectedArtUrl: getPreferredArtUrl(selectedCommanderCard),
-        source: commanderSource,
-        options: commanderOptions,
-        needsManualSelection: !commanderFromSection && !selectedCommanderName && commanderOptions.length > 0
-      },
-      parsedDeck: parsedDeckView,
-      unknownCards,
-      summary: roundedSummary,
-      metrics: roundedSummary,
-      roles,
-      checks,
-      deckHealth,
-      deckPrice,
-      openingHandSimulation,
-      archetypeReport,
-      comboReport,
-      ruleZero,
-      improvementSuggestions,
-      warnings: [...new Set([...deckHealth.warnings, ...explanation.warnings])],
-      bracketReport
-    });
+      { status: 200, requestId, headers: rateLimitHeaders }
+    );
   } catch (error) {
     console.error("Analyze route failed", {
+      requestId,
       error: error instanceof Error ? error.message : String(error)
     });
-    return NextResponse.json(
+    return apiJson(
       { error: "Analysis failed due to a server error. Please retry." },
-      { status: 500 }
+      { status: 500, requestId, headers: rateLimitHeaders }
     );
   }
 }
