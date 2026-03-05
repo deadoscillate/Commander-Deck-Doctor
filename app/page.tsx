@@ -50,6 +50,11 @@ type DeckPrintingOverride = {
   label: string;
 };
 
+type ActivePrintingPicker = {
+  cardKey: string;
+  cardName: string;
+};
+
 type CardPrintingsResponse = {
   name: string;
   count: number;
@@ -221,6 +226,7 @@ export default function Page() {
   const [printingOptionsByCard, setPrintingOptionsByCard] = useState<Record<string, DeckPrintingOption[]>>({});
   const [printingLoadByCard, setPrintingLoadByCard] = useState<Record<string, boolean>>({});
   const [printingErrorByCard, setPrintingErrorByCard] = useState<Record<string, string>>({});
+  const [activePrintingPicker, setActivePrintingPicker] = useState<ActivePrintingPicker | null>(null);
   const [targetBracket, setTargetBracket] = useState("");
   const [expectedWinTurn, setExpectedWinTurn] = useState("");
   const [commanderName, setCommanderName] = useState("");
@@ -309,6 +315,7 @@ export default function Page() {
     setPrintingOptionsByCard({});
     setPrintingLoadByCard({});
     setPrintingErrorByCard({});
+    setActivePrintingPicker(null);
     setTargetBracket(saved.targetBracket);
     setExpectedWinTurn(saved.expectedWinTurn);
     setCommanderName(saved.commanderName);
@@ -375,6 +382,7 @@ export default function Page() {
       setPrintingOptionsByCard({});
       setPrintingLoadByCard({});
       setPrintingErrorByCard({});
+      setActivePrintingPicker(null);
       setCommanderName("");
       setResult(null);
       const label = imported.provider === "moxfield" ? "Moxfield" : "Archidekt";
@@ -404,6 +412,12 @@ export default function Page() {
   const tuningSummary = targetBracket && expectedWinTurn
     ? `Target: Bracket ${targetBracket} | Win/Lock: ${expectedWinTurn}`
     : null;
+  const activePrintingCardKey = activePrintingPicker?.cardKey ?? "";
+  const activePrintingCardName = activePrintingPicker?.cardName ?? "";
+  const activePrintingOptions = activePrintingCardKey ? (printingOptionsByCard[activePrintingCardKey] ?? []) : [];
+  const activePrintingLoading = activePrintingCardKey ? Boolean(printingLoadByCard[activePrintingCardKey]) : false;
+  const activePrintingError = activePrintingCardKey ? (printingErrorByCard[activePrintingCardKey] ?? "") : "";
+  const activePrintingOverride = activePrintingCardKey ? printingOverrides[activePrintingCardKey] : undefined;
 
   useEffect(() => {
     const deckCardKeys = new Set(parseDecklist(decklist).map((entry) => normalizeCardKey(entry.name)));
@@ -417,7 +431,21 @@ export default function Page() {
 
       return filtered;
     });
+
+    setActivePrintingPicker((previous) => {
+      if (!previous) {
+        return null;
+      }
+
+      return deckCardKeys.has(previous.cardKey) ? previous : null;
+    });
   }, [decklist]);
+
+  useEffect(() => {
+    if (!previewMode) {
+      setActivePrintingPicker(null);
+    }
+  }, [previewMode]);
 
   async function ensurePrintingsLoaded(cardName: string) {
     const cardKey = normalizeCardKey(cardName);
@@ -446,6 +474,12 @@ export default function Page() {
     } finally {
       setPrintingLoadByCard((previous) => ({ ...previous, [cardKey]: false }));
     }
+  }
+
+  function openPrintingPicker(cardName: string) {
+    const cardKey = normalizeCardKey(cardName);
+    setActivePrintingPicker({ cardKey, cardName });
+    void ensurePrintingsLoaded(cardName);
   }
 
   function onSelectPrinting(cardName: string, printingId: string) {
@@ -537,6 +571,7 @@ export default function Page() {
     setPrintingOptionsByCard({});
     setPrintingLoadByCard({});
     setPrintingErrorByCard({});
+    setActivePrintingPicker(null);
     setCommanderName("");
     setImportError("");
     setImportInfo("Loaded sample deck. Running analysis...");
@@ -652,10 +687,8 @@ export default function Page() {
                   {previewRows.map((entry) => {
                     const cardKey = normalizeCardKey(entry.name);
                     const override = printingOverrides[cardKey];
-                    const options = printingOptionsByCard[cardKey] ?? [];
                     const loading = Boolean(printingLoadByCard[cardKey]);
                     const errorMessage = printingErrorByCard[cardKey] ?? "";
-                    const selectedPrintingId = override?.printingId ?? "";
                     const activeSetCode = override?.setCode ?? entry.setCode ?? null;
 
                     return (
@@ -676,29 +709,11 @@ export default function Page() {
                             <button
                               type="button"
                               className="btn-tertiary"
-                              onClick={() => void ensurePrintingsLoaded(entry.name)}
+                              onClick={() => openPrintingPicker(entry.name)}
                               disabled={loading}
                             >
-                              {loading ? "Loading..." : "Printings"}
+                              {loading ? "Loading..." : override ? "Edit Printing" : "Printings"}
                             </button>
-                            {(options.length > 0 || selectedPrintingId) ? (
-                              <select
-                                value={selectedPrintingId}
-                                onChange={(event) => onSelectPrinting(entry.name, event.target.value)}
-                                onFocus={() => {
-                                  if (!printingOptionsByCard[cardKey]) {
-                                    void ensurePrintingsLoaded(entry.name);
-                                  }
-                                }}
-                              >
-                                <option value="">Auto/default printing</option>
-                                {options.map((option) => (
-                                  <option key={option.id} value={option.id}>
-                                    {option.label}
-                                  </option>
-                                ))}
-                              </select>
-                            ) : null}
                           </span>
                         </div>
                         {override?.label ? (
@@ -864,6 +879,80 @@ export default function Page() {
           )}
         </div>
       </section>
+
+      {activePrintingPicker ? (
+        <div
+          className="printing-modal-backdrop"
+          role="dialog"
+          aria-modal="true"
+          aria-label={`Select printing for ${activePrintingCardName}`}
+          onClick={() => setActivePrintingPicker(null)}
+        >
+          <div className="printing-modal" onClick={(event) => event.stopPropagation()}>
+            <div className="printing-modal-head">
+              <h2>Select Printing</h2>
+              <button type="button" className="btn-tertiary" onClick={() => setActivePrintingPicker(null)}>
+                Close
+              </button>
+            </div>
+            <p>
+              <strong>{activePrintingCardName}</strong>
+            </p>
+            <p className="muted">
+              Selection updates preview art and set-aware pricing lookup for this card.
+            </p>
+
+            {activePrintingLoading ? <p className="muted">Loading printings...</p> : null}
+            {activePrintingError ? <p className="error">{activePrintingError}</p> : null}
+
+            {!activePrintingLoading && !activePrintingError ? (
+              activePrintingOptions.length > 0 ? (
+                <div className="row">
+                  <label htmlFor="printing-picker-select">Set / Printing</label>
+                  <select
+                    id="printing-picker-select"
+                    value={activePrintingOverride?.printingId ?? ""}
+                    onChange={(event) => {
+                      onSelectPrinting(activePrintingCardName, event.target.value);
+                      setActivePrintingPicker(null);
+                    }}
+                  >
+                    <option value="">Auto/default printing</option>
+                    {activePrintingOptions.map((option) => (
+                      <option key={option.id} value={option.id}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              ) : (
+                <p className="muted">No alternate printings found for this card.</p>
+              )
+            ) : null}
+
+            {activePrintingOverride?.label ? (
+              <p className="muted decklist-preview-printing-label">Current: {activePrintingOverride.label}</p>
+            ) : null}
+
+            <div className="printing-modal-actions">
+              <button
+                type="button"
+                className="btn-tertiary"
+                disabled={!activePrintingOverride}
+                onClick={() => {
+                  onSelectPrinting(activePrintingCardName, "");
+                  setActivePrintingPicker(null);
+                }}
+              >
+                Clear Selection
+              </button>
+              <button type="button" className="btn-secondary" onClick={() => setActivePrintingPicker(null)}>
+                Done
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </main>
   );
 }
