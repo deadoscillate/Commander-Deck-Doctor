@@ -97,6 +97,22 @@ Without those env vars, `/api/share-report` is disabled on Vercel by design.
 - Dependabot is configured for weekly npm and GitHub Actions updates.
 - Vercel project is connected to GitHub repository `deadoscillate/Commander-Deck-Doctor` for push-based deployments.
 - Post-deploy production smoke tests run in GitHub Actions after successful CI on `main` pushes.
+- `staging` branch has preview smoke checks before production promotion.
+
+## Branch and deployment flow (test first)
+
+- `staging` branch: test environment branch (Vercel Preview).
+- `main` branch: production branch (Vercel Production).
+- Default working flow:
+  1. Push changes to `staging` first.
+  1. Wait for CI + preview smoke checks to pass.
+  1. Verify behavior on the staging preview URL.
+  1. Promote to `main` only when explicitly approved.
+
+Optional repository variable:
+
+1. `STAGING_BASE_URL` to override preview smoke target URL.  
+   Default is `https://commander-deck-doctor-git-staging-deadoscillates-projects.vercel.app`.
 
 ## Observability and alerting (implemented)
 
