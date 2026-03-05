@@ -66,63 +66,78 @@ describe("POST /api/analyze", () => {
   });
 
   it("returns deck price totals from resolved card prices", async () => {
-    vi.doMock("@/lib/scryfall", () => ({
-      fetchDeckCards: vi.fn(async () => ({
-        knownCards: [
-          {
+    const fetchDeckCardsMock = vi.fn(async () => ({
+      knownCards: [
+        {
+          name: "Sol Ring",
+          qty: 2,
+          card: buildCard({
             name: "Sol Ring",
-            qty: 2,
-            card: buildCard({
-              name: "Sol Ring",
-              type_line: "Artifact",
-              cmc: 1,
-              mana_cost: "{1}",
-              oracle_text: "{T}: Add {C}{C}.",
-              prices: {
-                usd: "1.50",
-                usd_foil: "6.00",
-                usd_etched: null,
-                tix: "0.03"
-              }
-            })
-          },
-          {
+            set: "cmm",
+            type_line: "Artifact",
+            cmc: 1,
+            mana_cost: "{1}",
+            oracle_text: "{T}: Add {C}{C}.",
+            prices: {
+              usd: "1.50",
+              usd_foil: "6.00",
+              usd_etched: null,
+              tix: "0.03"
+            }
+          })
+        },
+        {
+          name: "Arcane Signet",
+          qty: 1,
+          card: buildCard({
             name: "Arcane Signet",
-            qty: 1,
-            card: buildCard({
-              name: "Arcane Signet",
-              type_line: "Artifact",
-              cmc: 2,
-              mana_cost: "{2}",
-              oracle_text: "{T}: Add one mana of any color in your commander's color identity.",
-              prices: {
-                usd: "0.75",
-                usd_foil: "1.20",
-                usd_etched: null,
-                tix: "0.02"
-              }
-            })
-          }
-        ],
-        unknownCards: []
-      })),
+            set: "clb",
+            type_line: "Artifact",
+            cmc: 2,
+            mana_cost: "{2}",
+            oracle_text: "{T}: Add one mana of any color in your commander's color identity.",
+            prices: {
+              usd: "0.75",
+              usd_foil: "1.20",
+              usd_etched: null,
+              tix: "0.02"
+            }
+          })
+        }
+      ],
+      unknownCards: []
+    }));
+
+    vi.doMock("@/lib/scryfall", () => ({
+      fetchDeckCards: fetchDeckCardsMock,
       getCardByName: vi.fn(async () => null)
     }));
 
     const { POST } = await import("@/app/api/analyze/route");
     const response = await POST(
       buildRequest({
-        decklist: "2 Sol Ring\n1 Arcane Signet"
+        decklist: "2 Sol Ring [CMM]\n1 Arcane Signet [MH3]",
+        deckPriceMode: "decklist-set"
       })
     );
     const body = (await response.json()) as {
+      input?: {
+        deckPriceMode?: string;
+      };
       deckPrice?: {
         totals?: { usd?: number | null; usdFoil?: number | null; tix?: number | null };
         pricedCardQty?: { usd?: number };
         totalKnownCardQty?: number;
+        pricingMode?: string;
+        setTaggedCardQty?: number;
+        setMatchedCardQty?: number;
       };
       roleBreakdown?: {
         ramp?: Array<{ name?: string; qty?: number }>;
+      };
+      tutorSummary?: {
+        trueTutors?: number;
+        tutorSignals?: number;
       };
       rulesEngine?: {
         status?: string;
@@ -131,13 +146,28 @@ describe("POST /api/analyze", () => {
     };
 
     expect(response.status).toBe(200);
+    expect(fetchDeckCardsMock).toHaveBeenCalledTimes(1);
+    expect(fetchDeckCardsMock).toHaveBeenCalledWith(
+      expect.arrayContaining([
+        expect.objectContaining({ name: "Sol Ring", qty: 2, setCode: "cmm" }),
+        expect.objectContaining({ name: "Arcane Signet", qty: 1, setCode: "mh3" })
+      ]),
+      8,
+      { deckPriceMode: "decklist-set" }
+    );
+    expect(body.input?.deckPriceMode).toBe("decklist-set");
     expect(body.deckPrice?.totals?.usd).toBe(3.75);
     expect(body.deckPrice?.totals?.usdFoil).toBe(13.2);
     expect(body.deckPrice?.totals?.tix).toBe(0.08);
     expect(body.deckPrice?.pricedCardQty?.usd).toBe(3);
     expect(body.deckPrice?.totalKnownCardQty).toBe(3);
+    expect(body.deckPrice?.pricingMode).toBe("decklist-set");
+    expect(body.deckPrice?.setTaggedCardQty).toBe(3);
+    expect(body.deckPrice?.setMatchedCardQty).toBe(2);
     expect(body.roleBreakdown?.ramp?.some((entry) => entry.name === "Sol Ring" && entry.qty === 2)).toBe(true);
     expect(body.roleBreakdown?.ramp?.some((entry) => entry.name === "Arcane Signet" && entry.qty === 1)).toBe(true);
+    expect(body.tutorSummary?.trueTutors).toBe(0);
+    expect(body.tutorSummary?.tutorSignals).toBe(0);
     expect(body.rulesEngine?.status).toBeDefined();
     expect(Array.isArray(body.rulesEngine?.rules)).toBe(true);
     expect(body.rulesEngine?.rules?.some((rule) => rule.id === "commander.deck-size-exactly-100")).toBe(true);
@@ -225,5 +255,62 @@ describe("POST /api/analyze", () => {
     expect(body.openingHandSimulation?.rampInOpeningPct).toBeLessThanOrEqual(100);
     expect(body.openingHandSimulation?.averageFirstSpellTurn).not.toBeNull();
     expect(body.openingHandSimulation?.estimatedCommanderCastTurn).not.toBeNull();
+  });
+
+  it("applies set overrides from UI printing selection before lookup", async () => {
+    const fetchDeckCardsMock = vi.fn(async () => ({
+      knownCards: [
+        {
+          name: "Sol Ring",
+          qty: 1,
+          card: buildCard({
+            name: "Sol Ring",
+            set: "cmm",
+            type_line: "Artifact",
+            cmc: 1,
+            mana_cost: "{1}",
+            prices: {
+              usd: "1.50",
+              usd_foil: null,
+              usd_etched: null,
+              tix: null
+            }
+          })
+        }
+      ],
+      unknownCards: []
+    }));
+
+    vi.doMock("@/lib/scryfall", () => ({
+      fetchDeckCards: fetchDeckCardsMock,
+      getCardByName: vi.fn(async () => null)
+    }));
+
+    const { POST } = await import("@/app/api/analyze/route");
+    const response = await POST(
+      buildRequest({
+        decklist: "1 Sol Ring",
+        deckPriceMode: "decklist-set",
+        setOverrides: {
+          "Sol Ring": {
+            setCode: "CMM",
+            printingId: "2f147b13-eda0-471e-b988-0ec8db13f5f8"
+          }
+        }
+      })
+    );
+
+    expect(response.status).toBe(200);
+    expect(fetchDeckCardsMock).toHaveBeenCalledWith(
+      expect.arrayContaining([
+        expect.objectContaining({
+          name: "Sol Ring",
+          setCode: "cmm",
+          printingId: "2f147b13-eda0-471e-b988-0ec8db13f5f8"
+        })
+      ]),
+      8,
+      { deckPriceMode: "decklist-set" }
+    );
   });
 });

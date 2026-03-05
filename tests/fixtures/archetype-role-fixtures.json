@@ -1,0 +1,200 @@
+[
+  {
+    "name": "spellslinger-control",
+    "cards": [
+      {
+        "name": "Arcane Signet",
+        "qty": 1,
+        "type_line": "Artifact",
+        "oracle_text": "{T}: Add one mana of any color in your commander's color identity."
+      },
+      {
+        "name": "Sol Ring",
+        "qty": 1,
+        "type_line": "Artifact",
+        "oracle_text": "{T}: Add {C}{C}."
+      },
+      {
+        "name": "Impulse Study",
+        "qty": 1,
+        "type_line": "Instant",
+        "oracle_text": "Draw two cards."
+      },
+      {
+        "name": "Counterflux Copy",
+        "qty": 1,
+        "type_line": "Instant",
+        "oracle_text": "Counter target spell."
+      },
+      {
+        "name": "Surgical Answer",
+        "qty": 1,
+        "type_line": "Instant",
+        "oracle_text": "Exile target creature."
+      },
+      {
+        "name": "Aether Reset",
+        "qty": 1,
+        "type_line": "Sorcery",
+        "oracle_text": "Return all creatures to their owner's hand."
+      },
+      {
+        "name": "Mystical Tutor",
+        "qty": 1,
+        "type_line": "Instant",
+        "oracle_text": "Search your library for an instant or sorcery card, reveal it, then shuffle and put that card on top."
+      },
+      {
+        "name": "Heroic Intervention",
+        "qty": 1,
+        "type_line": "Instant",
+        "oracle_text": "Permanents you control gain hexproof and indestructible until end of turn."
+      },
+      {
+        "name": "Comet Closer",
+        "qty": 1,
+        "type_line": "Sorcery",
+        "oracle_text": "Each opponent loses 10 life."
+      }
+    ],
+    "expected_roles": {
+      "ramp": 2,
+      "draw": 1,
+      "removal": 2,
+      "wipes": 1,
+      "tutors": 1,
+      "protection": 1,
+      "finishers": 1
+    },
+    "expected_tutor_summary": {
+      "trueTutors": 1,
+      "tutorSignals": 1
+    }
+  },
+  {
+    "name": "aristocrats-drain",
+    "cards": [
+      {
+        "name": "Treasure Feed",
+        "qty": 1,
+        "type_line": "Sorcery",
+        "oracle_text": "Create two Treasure tokens."
+      },
+      {
+        "name": "Village Rites",
+        "qty": 1,
+        "type_line": "Instant",
+        "oracle_text": "As an additional cost to cast this spell, sacrifice a creature. Draw two cards."
+      },
+      {
+        "name": "Diabolic Intent",
+        "qty": 1,
+        "type_line": "Sorcery",
+        "oracle_text": "As an additional cost to cast this spell, sacrifice a creature. Search your library for a card, put that card into your hand, then shuffle."
+      },
+      {
+        "name": "Plague Crafter",
+        "qty": 1,
+        "type_line": "Creature - Human Shaman",
+        "oracle_text": "When this creature enters the battlefield, each player sacrifices a creature."
+      },
+      {
+        "name": "Blood Artist Echo",
+        "qty": 1,
+        "type_line": "Creature - Vampire",
+        "oracle_text": "Whenever a creature dies, each opponent loses 1 life and you gain 1 life."
+      },
+      {
+        "name": "Toxic Deluge",
+        "qty": 1,
+        "type_line": "Sorcery",
+        "oracle_text": "All creatures get -X/-X until end of turn."
+      },
+      {
+        "name": "Malakir Rebirth",
+        "qty": 1,
+        "type_line": "Instant",
+        "oracle_text": "Until end of turn, target creature gains 'When this creature dies, return it to the battlefield tapped under its owner's control.'"
+      },
+      {
+        "name": "Gray Merchant Echo",
+        "qty": 1,
+        "type_line": "Creature - Zombie",
+        "oracle_text": "When this creature enters the battlefield, each opponent loses life equal to your devotion to black."
+      }
+    ],
+    "expected_roles": {
+      "ramp": 1,
+      "draw": 1,
+      "removal": 1,
+      "wipes": 1,
+      "tutors": 1,
+      "protection": 0,
+      "finishers": 1
+    },
+    "expected_tutor_summary": {
+      "trueTutors": 1,
+      "tutorSignals": 1
+    }
+  },
+  {
+    "name": "voltron-aggro",
+    "cards": [
+      {
+        "name": "Sol Ring",
+        "qty": 1,
+        "type_line": "Artifact",
+        "oracle_text": "{T}: Add {C}{C}."
+      },
+      {
+        "name": "Sword of Testing",
+        "qty": 1,
+        "type_line": "Artifact - Equipment",
+        "oracle_text": "Equipped creature gets +2/+2. Equip {2}."
+      },
+      {
+        "name": "Shielding Aura",
+        "qty": 1,
+        "type_line": "Enchantment - Aura",
+        "oracle_text": "Enchant creature. Enchanted creature has hexproof."
+      },
+      {
+        "name": "Protection Burst",
+        "qty": 1,
+        "type_line": "Instant",
+        "oracle_text": "Target creature phases out."
+      },
+      {
+        "name": "Swords to Plowshares",
+        "qty": 1,
+        "type_line": "Instant",
+        "oracle_text": "Exile target creature. Its controller gains life equal to its power."
+      },
+      {
+        "name": "Austere Command Copy",
+        "qty": 1,
+        "type_line": "Sorcery",
+        "oracle_text": "Choose two — Destroy all artifacts; destroy all enchantments; destroy all creatures with mana value 3 or less; and destroy all creatures with mana value 4 or greater."
+      },
+      {
+        "name": "Finale of Devastation",
+        "qty": 1,
+        "type_line": "Sorcery",
+        "oracle_text": "Search your library and/or graveyard for a creature card with mana value X or less and put it onto the battlefield. If X is 10 or more, creatures you control get +X/+X and gain haste until end of turn."
+      }
+    ],
+    "expected_roles": {
+      "ramp": 1,
+      "draw": 0,
+      "removal": 1,
+      "wipes": 1,
+      "tutors": 1,
+      "protection": 2,
+      "finishers": 1
+    },
+    "expected_tutor_summary": {
+      "trueTutors": 1,
+      "tutorSignals": 1
+    }
+  }
+]

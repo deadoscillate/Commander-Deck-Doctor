@@ -85,6 +85,28 @@ function parseInlineCommander(line: string): ParsedDeckEntry | null {
   return parseQuantityAndName(match[1].trim());
 }
 
+function extractSetCode(name: string): { cardName: string; setCode?: string } {
+  const match = name.match(/^(.*?)\s*\[([a-z0-9]{2,6})\]\s*$/i);
+  if (!match) {
+    return {
+      cardName: name
+    };
+  }
+
+  const cardName = match[1]?.trim() ?? "";
+  const setCode = match[2]?.trim().toLowerCase() ?? "";
+  if (!cardName || !setCode) {
+    return {
+      cardName: name
+    };
+  }
+
+  return {
+    cardName,
+    setCode
+  };
+}
+
 function parseQuantityAndName(line: string): ParsedDeckEntry | null {
   const cleaned = line.replace(/^[-*]\s*/, "").trim();
   if (!cleaned || isHeadingLine(cleaned)) {
@@ -95,24 +117,35 @@ function parseQuantityAndName(line: string): ParsedDeckEntry | null {
   const qtyMatch = cleaned.match(/^(\d+)\s*x?\s+(.+)$/i);
   if (qtyMatch) {
     const qty = Number(qtyMatch[1]);
-    const name = qtyMatch[2].trim();
+    const parsedName = extractSetCode(qtyMatch[2].trim());
+    const name = parsedName.cardName;
     if (!name || Number.isNaN(qty) || qty <= 0) {
       return null;
     }
 
-    return { name, qty };
+    return parsedName.setCode ? { name, qty, setCode: parsedName.setCode } : { name, qty };
   }
 
   // Supports compact prefixes like "1x Sol Ring".
   const compactQtyMatch = cleaned.match(/^(\d+)x\s*(.+)$/i);
   if (compactQtyMatch) {
     const qty = Number(compactQtyMatch[1]);
-    const name = compactQtyMatch[2].trim();
+    const parsedName = extractSetCode(compactQtyMatch[2].trim());
+    const name = parsedName.cardName;
     if (!name || Number.isNaN(qty) || qty <= 0) {
       return null;
     }
 
-    return { name, qty };
+    return parsedName.setCode ? { name, qty, setCode: parsedName.setCode } : { name, qty };
+  }
+
+  const parsedName = extractSetCode(cleaned);
+  if (parsedName.setCode) {
+    return {
+      name: parsedName.cardName,
+      qty: 1,
+      setCode: parsedName.setCode
+    };
   }
 
   return { name: cleaned, qty: 1 };
@@ -154,6 +187,11 @@ export function parseDecklistWithCommander(input: string): DecklistParseResult {
       const existing = merged.get(key);
       if (existing) {
         existing.qty += inlineCommander.qty;
+        if (existing.setCode && inlineCommander.setCode && existing.setCode !== inlineCommander.setCode) {
+          delete existing.setCode;
+        } else if (!existing.setCode && inlineCommander.setCode) {
+          existing.setCode = inlineCommander.setCode;
+        }
       } else {
         merged.set(key, inlineCommander);
       }
@@ -179,6 +217,11 @@ export function parseDecklistWithCommander(input: string): DecklistParseResult {
     const existing = merged.get(key);
     if (existing) {
       existing.qty += parsed.qty;
+      if (existing.setCode && parsed.setCode && existing.setCode !== parsed.setCode) {
+        delete existing.setCode;
+      } else if (!existing.setCode && parsed.setCode) {
+        existing.setCode = parsed.setCode;
+      }
       continue;
     }
 

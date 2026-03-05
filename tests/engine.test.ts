@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { createEngine } from "@/engine";
 import { createZoneChangeEvent } from "@/engine/core/Event";
 import { moveCardBetweenZones, updatePlayer } from "@/engine/core/GameState";
+import { flushTriggerQueueToStack } from "@/engine/core/TriggerSystem";
 import type { CreateGameInput, GameState, ManaPool, ZoneName } from "@/engine/core/types";
 
 function manaPool(values: Partial<ManaPool>): ManaPool {
@@ -173,6 +174,111 @@ describe("engine core loop + commander layer", () => {
 
     const alice = state.players.find((row) => row.id === "p1");
     expect(alice?.zones.hand.cardIds.length).toBe(6);
+  });
+
+  it("stacks triggers in APNAP order when multiple players control triggers", () => {
+    const engine = createEngine();
+    let state = engine.createGame({
+      format: "commander",
+      players: [
+        { id: "p1", name: "Alice" },
+        { id: "p2", name: "Bob" },
+        { id: "p3", name: "Cara" }
+      ],
+      decks: {
+        p1: buildDeck(engine, [
+          { name: "Captain Verity", qty: 1 },
+          { name: "Plains", qty: 7 }
+        ]),
+        p2: buildDeck(engine, [
+          { name: "Ravager of Embers", qty: 1 },
+          { name: "Mountain", qty: 7 }
+        ]),
+        p3: buildDeck(engine, [
+          { name: "Colossus Commander", qty: 1 },
+          { name: "Forest", qty: 7 }
+        ])
+      },
+      commanders: {
+        p1: ["Captain Verity"],
+        p2: ["Ravager of Embers"],
+        p3: ["Colossus Commander"]
+      },
+      seed: "apnap-order"
+    });
+
+    const p1Commander = findCardInZone(state, "p1", "command", "Captain Verity");
+    const p2Commander = findCardInZone(state, "p2", "command", "Ravager of Embers");
+    const p3Commander = findCardInZone(state, "p3", "command", "Colossus Commander");
+
+    state = {
+      ...state,
+      activePlayerIndex: 1,
+      stack: [],
+      triggerQueue: [
+        {
+          id: "t1",
+          sourceCardId: p1Commander,
+          controllerId: "p1",
+          triggerId: "example",
+          eventSnapshot: {
+            type: "CREATURE_ENTERS_BATTLEFIELD",
+            sourceCardId: null,
+            subjectCardId: null,
+            playerId: null,
+            amount: null,
+            details: {}
+          }
+        },
+        {
+          id: "t2",
+          sourceCardId: p2Commander,
+          controllerId: "p2",
+          triggerId: "example",
+          eventSnapshot: {
+            type: "CREATURE_ENTERS_BATTLEFIELD",
+            sourceCardId: null,
+            subjectCardId: null,
+            playerId: null,
+            amount: null,
+            details: {}
+          }
+        },
+        {
+          id: "t3",
+          sourceCardId: p3Commander,
+          controllerId: "p3",
+          triggerId: "example",
+          eventSnapshot: {
+            type: "CREATURE_ENTERS_BATTLEFIELD",
+            sourceCardId: null,
+            subjectCardId: null,
+            playerId: null,
+            amount: null,
+            details: {}
+          }
+        },
+        {
+          id: "t4",
+          sourceCardId: p2Commander,
+          controllerId: "p2",
+          triggerId: "example-second",
+          eventSnapshot: {
+            type: "CREATURE_ENTERS_BATTLEFIELD",
+            sourceCardId: null,
+            subjectCardId: null,
+            playerId: null,
+            amount: null,
+            details: {}
+          }
+        }
+      ]
+    };
+
+    const flushed = flushTriggerQueueToStack(state);
+    expect(flushed.stack.map((item) => item.id)).toEqual(["stack-t2", "stack-t4", "stack-t3", "stack-t1"]);
+    expect(flushed.stack.map((item) => item.controllerId)).toEqual(["p2", "p2", "p3", "p1"]);
+    expect(flushed.triggerQueue).toEqual([]);
   });
 
   it("applies replacement effect pipeline for dies -> exile", () => {

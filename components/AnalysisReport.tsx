@@ -8,7 +8,7 @@ import { ManaCost } from "@/components/ManaCost";
 import { RecommendedCounts } from "@/components/RecommendedCounts";
 import { SimulationsSection } from "@/components/report/SimulationsSection";
 import { RoleBars } from "@/components/RoleBars";
-import type { AnalyzeResponse, RoleBreakdown } from "@/lib/contracts";
+import type { AnalyzeResponse, RoleBreakdown, TutorSummary } from "@/lib/contracts";
 import { getStatusMeta } from "@/lib/ui/statusStyles";
 
 const CURVE_ORDER = ["0", "1", "2", "3", "4", "5", "6", "7+"];
@@ -152,6 +152,9 @@ function normalizeDeckPrice(result: AnalyzeResponse): {
     usdEtched: number;
     tix: number;
   };
+  pricingMode: "oracle-default" | "decklist-set";
+  setTaggedCardQty: number;
+  setMatchedCardQty: number;
   disclaimer: string;
 } | null {
   const rawDeckPrice = (result as { deckPrice?: unknown }).deckPrice;
@@ -199,6 +202,9 @@ function normalizeDeckPrice(result: AnalyzeResponse): {
       usdEtched: toRatio(coverageRecord.usdEtched),
       tix: toRatio(coverageRecord.tix)
     },
+    pricingMode: record.pricingMode === "decklist-set" ? "decklist-set" : "oracle-default",
+    setTaggedCardQty: Math.max(0, Math.floor(toFiniteNumber(record.setTaggedCardQty, 0))),
+    setMatchedCardQty: Math.max(0, Math.floor(toFiniteNumber(record.setMatchedCardQty, 0))),
     disclaimer:
       typeof record.disclaimer === "string" && record.disclaimer
         ? record.disclaimer
@@ -467,6 +473,44 @@ function normalizeRoleBreakdown(result: AnalyzeResponse): RoleBreakdown {
   return empty;
 }
 
+function normalizeTutorSummary(result: AnalyzeResponse): TutorSummary | null {
+  const rawTutorSummary = (result as { tutorSummary?: unknown }).tutorSummary;
+  if (!rawTutorSummary || typeof rawTutorSummary !== "object") {
+    return null;
+  }
+
+  const record = rawTutorSummary as Record<string, unknown>;
+  const trueTutorBreakdown = Array.isArray(record.trueTutorBreakdown)
+    ? record.trueTutorBreakdown
+        .filter((row): row is Record<string, unknown> => Boolean(row) && typeof row === "object")
+        .map((row) => ({
+          name: typeof row.name === "string" ? row.name.trim() : "",
+          qty: Math.max(0, Math.floor(toFiniteNumber(row.qty, 0)))
+        }))
+        .filter((row) => row.name.length > 0 && row.qty > 0)
+    : [];
+  const tutorSignalOnlyBreakdown = Array.isArray(record.tutorSignalOnlyBreakdown)
+    ? record.tutorSignalOnlyBreakdown
+        .filter((row): row is Record<string, unknown> => Boolean(row) && typeof row === "object")
+        .map((row) => ({
+          name: typeof row.name === "string" ? row.name.trim() : "",
+          qty: Math.max(0, Math.floor(toFiniteNumber(row.qty, 0)))
+        }))
+        .filter((row) => row.name.length > 0 && row.qty > 0)
+    : [];
+
+  return {
+    trueTutors: Math.max(0, Math.floor(toFiniteNumber(record.trueTutors, 0))),
+    tutorSignals: Math.max(0, Math.floor(toFiniteNumber(record.tutorSignals, 0))),
+    trueTutorBreakdown,
+    tutorSignalOnlyBreakdown,
+    disclaimer:
+      typeof record.disclaimer === "string" && record.disclaimer.trim()
+        ? record.disclaimer
+        : "True tutors require nonland card search; tutor signals include broader library selection effects."
+  };
+}
+
 type AnalysisReportProps = {
   result: AnalyzeResponse;
 };
@@ -490,6 +534,7 @@ export function AnalysisReport({ result }: AnalysisReportProps) {
   };
   const ruleZero = normalizeRuleZero(result);
   const roleBreakdown = normalizeRoleBreakdown(result);
+  const tutorSummary = normalizeTutorSummary(result);
   const commanderInfo = normalizeCommanderInfo(result);
   const deckPrice = normalizeDeckPrice(result);
   const openingHandSimulation = normalizeOpeningHandSimulation(result);
@@ -691,7 +736,11 @@ export function AnalysisReport({ result }: AnalysisReportProps) {
             Foil {formatUsd(deckPrice.totals.usdFoil)} | Etched {formatUsd(deckPrice.totals.usdEtched)} |
             MTGO {formatTix(deckPrice.totals.tix)} | USD coverage{" "}
             {Math.round(deckPrice.coverage.usd * 100)}% ({deckPrice.pricedCardQty.usd}/{deckPrice.totalKnownCardQty}
-            {" "}cards priced)
+            {" "}cards priced) | Mode{" "}
+            {deckPrice.pricingMode === "decklist-set" ? "Decklist [SET] tags" : "Oracle default"}
+            {deckPrice.pricingMode === "decklist-set"
+              ? ` | Set matches ${deckPrice.setMatchedCardQty}/${deckPrice.setTaggedCardQty} tagged cards`
+              : ""}
           </p>
         ) : null}
         {commanderInfo.name ? (
@@ -717,6 +766,34 @@ export function AnalysisReport({ result }: AnalysisReportProps) {
           Role tags use the shared rules engine classifier (behavior templates + structured oracle patterns).
         </p>
         <RoleBars roles={result.roles} roleBreakdown={roleBreakdown} />
+        {tutorSummary ? (
+          <div className="technical-group">
+            <h3>Tutor Classification</h3>
+            <p>
+              True tutors: <strong>{tutorSummary.trueTutors}</strong> | Tutor-signal cards:{" "}
+              <strong>{Math.max(0, tutorSummary.tutorSignals - tutorSummary.trueTutors)}</strong>
+            </p>
+            {tutorSummary.trueTutorBreakdown.length > 0 ? (
+              <p>
+                True tutor cards:{" "}
+                {tutorSummary.trueTutorBreakdown
+                  .slice(0, 16)
+                  .map((entry) => `${entry.name}${entry.qty > 1 ? ` x${entry.qty}` : ""}`)
+                  .join(", ")}
+              </p>
+            ) : null}
+            {tutorSummary.tutorSignalOnlyBreakdown.length > 0 ? (
+              <p className="muted">
+                Tutor-signal only (not counted as true tutors):{" "}
+                {tutorSummary.tutorSignalOnlyBreakdown
+                  .slice(0, 16)
+                  .map((entry) => `${entry.name}${entry.qty > 1 ? ` x${entry.qty}` : ""}`)
+                  .join(", ")}
+              </p>
+            ) : null}
+            <p className="muted">{tutorSummary.disclaimer}</p>
+          </div>
+        ) : null}
 
         <div className="technical-group">
           <h3>Mana Curve</h3>

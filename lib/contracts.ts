@@ -6,10 +6,16 @@ import type { ComboReport } from "./combos";
 
 // Optional UI selector values used for bracket-intent hints.
 export type ExpectedWinTurn = ">=10" | "8-9" | "6-7" | "<=5";
+export type DeckPriceMode = "oracle-default" | "decklist-set";
 
 // Request payload accepted by POST /api/analyze.
 export type AnalyzeRequest = {
   decklist?: string;
+  deckPriceMode?: DeckPriceMode | null;
+  setOverrides?: Record<
+    string,
+    string | { setCode?: string | null; printingId?: string | null } | null
+  > | null;
   targetBracket?: number | null;
   expectedWinTurn?: ExpectedWinTurn | null;
   commanderName?: string | null;
@@ -70,6 +76,9 @@ export type DeckPriceSummary = {
     usdEtched: number;
     tix: number;
   };
+  pricingMode: DeckPriceMode;
+  setTaggedCardQty: number;
+  setMatchedCardQty: number;
   disclaimer: string;
 };
 
@@ -167,6 +176,14 @@ export type ImprovementSuggestions = {
 
 export type RoleBreakdown = Record<keyof RoleCounts, NamedCount[]>;
 
+export type TutorSummary = {
+  trueTutors: number;
+  tutorSignals: number;
+  trueTutorBreakdown: NamedCount[];
+  tutorSignalOnlyBreakdown: NamedCount[];
+  disclaimer: string;
+};
+
 export type WinStyle = "COMBAT" | "COMBO" | "DRAIN" | "LOCK" | "COMMANDER_DAMAGE";
 export type SpeedBand = "SLOW" | "MID" | "FAST" | "VERY_FAST";
 export type ConsistencyBucket = "LOW" | "MED" | "HIGH";
@@ -258,6 +275,7 @@ export type BracketReport = {
 export type AnalyzeResponse = {
   schemaVersion: "1.0";
   input: {
+    deckPriceMode: DeckPriceMode;
     targetBracket: number | null;
     expectedWinTurn: ExpectedWinTurn | null;
     commanderName: string | null;
@@ -271,6 +289,7 @@ export type AnalyzeResponse = {
   metrics: DeckSummary;
   roles: RoleCounts;
   roleBreakdown?: RoleBreakdown;
+  tutorSummary?: TutorSummary;
   checks: DeckChecks;
   rulesEngine?: RulesEngineReport;
   deckHealth: DeckHealthReport;

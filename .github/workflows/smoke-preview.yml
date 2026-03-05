@@ -29,22 +29,36 @@ jobs:
           set -euo pipefail
           auth_args=()
           if [ -n "${VERCEL_AUTOMATION_BYPASS_SECRET:-}" ]; then
-            auth_args=(-H "x-vercel-protection-bypass: $VERCEL_AUTOMATION_BYPASS_SECRET")
+            auth_args+=(-H "x-vercel-protection-bypass: $VERCEL_AUTOMATION_BYPASS_SECRET")
+            auth_args+=(-H "x-vercel-set-bypass-cookie: true")
           fi
 
-          for attempt in {1..30}; do
-            status=$(curl -s -o /dev/null -w "%{http_code}" "${auth_args[@]}" "$BASE_URL/")
+          for attempt in {1..60}; do
+            status=$(curl -sS -L -o /dev/null -w "%{http_code}" "${auth_args[@]}" "$BASE_URL/")
             if [ "$status" = "200" ]; then
               echo "Preview deployment is reachable."
               exit 0
             fi
 
             if [ "$status" = "401" ] && [ -z "${VERCEL_AUTOMATION_BYPASS_SECRET:-}" ]; then
-              echo "Preview deployment is protected. Set GitHub secret VERCEL_AUTOMATION_BYPASS_SECRET."
+              echo "Preview deployment is protected."
+              echo "Set GitHub secret VERCEL_AUTOMATION_BYPASS_SECRET."
               exit 1
             fi
 
-            echo "Attempt $attempt: homepage status $status (retrying in 10s)"
+            if [ "$status" = "401" ] && [ -n "${VERCEL_AUTOMATION_BYPASS_SECRET:-}" ]; then
+              echo "Preview deployment still returns 401 with bypass secret."
+              echo "Check that VERCEL_AUTOMATION_BYPASS_SECRET matches your Vercel project bypass secret and STAGING_BASE_URL points to the staging preview deployment."
+              exit 1
+            fi
+
+            if [ "$status" = "404" ] && [ "$attempt" -gt 6 ]; then
+              echo "Preview URL returned 404 repeatedly."
+              echo "Verify repository variable STAGING_BASE_URL."
+              exit 1
+            fi
+
+            echo "Attempt $attempt/60: homepage status $status (retrying in 10s)"
             sleep 10
           done
           echo "Timed out waiting for preview deployment."
@@ -55,11 +69,12 @@ jobs:
           set -euo pipefail
           auth_args=()
           if [ -n "${VERCEL_AUTOMATION_BYPASS_SECRET:-}" ]; then
-            auth_args=(-H "x-vercel-protection-bypass: $VERCEL_AUTOMATION_BYPASS_SECRET")
+            auth_args+=(-H "x-vercel-protection-bypass: $VERCEL_AUTOMATION_BYPASS_SECRET")
+            auth_args+=(-H "x-vercel-set-bypass-cookie: true")
           fi
 
           headers="$(mktemp)"
-          curl -sS -D "$headers" -o /dev/null "${auth_args[@]}" "$BASE_URL/"
+          curl -sS -L -D "$headers" -o /dev/null "${auth_args[@]}" "$BASE_URL/"
           grep -iq "^x-frame-options: DENY" "$headers"
           grep -iq "^x-content-type-options: nosniff" "$headers"
           grep -iq "^referrer-policy: strict-origin-when-cross-origin" "$headers"
@@ -69,7 +84,8 @@ jobs:
           set -euo pipefail
           auth_args=()
           if [ -n "${VERCEL_AUTOMATION_BYPASS_SECRET:-}" ]; then
-            auth_args=(-H "x-vercel-protection-bypass: $VERCEL_AUTOMATION_BYPASS_SECRET")
+            auth_args+=(-H "x-vercel-protection-bypass: $VERCEL_AUTOMATION_BYPASS_SECRET")
+            auth_args+=(-H "x-vercel-set-bypass-cookie: true")
           fi
 
           body="$(mktemp)"
@@ -86,7 +102,8 @@ jobs:
           set -euo pipefail
           auth_args=()
           if [ -n "${VERCEL_AUTOMATION_BYPASS_SECRET:-}" ]; then
-            auth_args=(-H "x-vercel-protection-bypass: $VERCEL_AUTOMATION_BYPASS_SECRET")
+            auth_args+=(-H "x-vercel-protection-bypass: $VERCEL_AUTOMATION_BYPASS_SECRET")
+            auth_args+=(-H "x-vercel-set-bypass-cookie: true")
           fi
 
           body="$(mktemp)"
@@ -103,7 +120,8 @@ jobs:
           set -euo pipefail
           auth_args=()
           if [ -n "${VERCEL_AUTOMATION_BYPASS_SECRET:-}" ]; then
-            auth_args=(-H "x-vercel-protection-bypass: $VERCEL_AUTOMATION_BYPASS_SECRET")
+            auth_args+=(-H "x-vercel-protection-bypass: $VERCEL_AUTOMATION_BYPASS_SECRET")
+            auth_args+=(-H "x-vercel-set-bypass-cookie: true")
           fi
 
           body="$(mktemp)"

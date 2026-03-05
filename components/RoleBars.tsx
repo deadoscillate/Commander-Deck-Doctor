@@ -1,4 +1,5 @@
 import { CardNameHover } from "@/components/CardNameHover";
+import { ROLE_DEFINITIONS } from "@/engine/cards/roleDefinitions";
 import type { RoleBreakdown } from "@/lib/contracts";
 import { getStatusMeta } from "@/lib/ui/statusStyles";
 import type { RoleCounts } from "@/lib/types";
@@ -20,59 +21,59 @@ type RoleConfig = {
 const ROLE_CONFIG: RoleConfig[] = [
   {
     key: "ramp",
-    label: "Ramp",
+    label: ROLE_DEFINITIONS.ramp.label,
     min: 8,
     max: 12,
     cap: 16,
-    definition: "Nonland acceleration: mana rocks, dorks, treasures, rituals, and extra-land effects."
+    definition: ROLE_DEFINITIONS.ramp.description
   },
   {
     key: "draw",
-    label: "Card Draw",
+    label: ROLE_DEFINITIONS.draw.label,
     min: 8,
     max: 12,
     cap: 16,
-    definition: "Cards that generate card advantage or repeated draw."
+    definition: ROLE_DEFINITIONS.draw.description
   },
   {
     key: "removal",
-    label: "Removal",
+    label: ROLE_DEFINITIONS.removal.label,
     min: 6,
     max: 10,
     cap: 16,
-    definition: "Targeted interaction: destroy/exile/bounce/counter/fight style answers."
+    definition: ROLE_DEFINITIONS.removal.description
   },
   {
     key: "wipes",
-    label: "Board Wipes",
+    label: ROLE_DEFINITIONS.wipes.label,
     min: 2,
     max: 4,
     cap: 8,
-    definition: "Mass interaction affecting all or each major permanent groups."
+    definition: ROLE_DEFINITIONS.wipes.description
   },
   {
     key: "tutors",
-    label: "Tutors",
+    label: ROLE_DEFINITIONS.tutors.label,
     min: 2,
     max: 6,
     cap: 12,
-    definition: "True tutors only: library search for nonland cards."
+    definition: ROLE_DEFINITIONS.tutors.description
   },
   {
     key: "protection",
-    label: "Protection",
+    label: ROLE_DEFINITIONS.protection.label,
     min: 3,
     max: 7,
     cap: 12,
-    definition: "Cards that shield your board/plan (hexproof, indestructible, phasing, protection, anti-counter)."
+    definition: ROLE_DEFINITIONS.protection.description
   },
   {
     key: "finishers",
-    label: "Finishers",
+    label: ROLE_DEFINITIONS.finishers.label,
     min: 2,
     max: 6,
     cap: 12,
-    definition: "Cards that reliably close games (win effects, lethal drains, decisive overrun lines)."
+    definition: ROLE_DEFINITIONS.finishers.description
   }
 ];
 

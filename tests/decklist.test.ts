@@ -50,5 +50,29 @@ Commander
       ])
     );
   });
+
+  it("parses optional set tags and keeps normalized lowercase set codes", () => {
+    const entries = parseDecklist(`
+1 Sol Ring [CMM]
+1 Rhystic Study [JMP]
+    `);
+
+    expect(entries).toEqual(
+      expect.arrayContaining([
+        { name: "Sol Ring", qty: 1, setCode: "cmm" },
+        { name: "Rhystic Study", qty: 1, setCode: "jmp" }
+      ])
+    );
+  });
+
+  it("drops ambiguous set tags when duplicate names use conflicting sets", () => {
+    const entries = parseDecklist(`
+1 Sol Ring [CMM]
+1 Sol Ring [2X2]
+    `);
+
+    expect(entries).toEqual(expect.arrayContaining([{ name: "Sol Ring", qty: 2 }]));
+    expect(entries.find((entry) => entry.name === "Sol Ring")?.setCode).toBeUndefined();
+  });
 });
 
