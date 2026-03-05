@@ -485,15 +485,16 @@ export default function Page() {
   function onSelectPrinting(cardName: string, printingId: string) {
     const cardKey = normalizeCardKey(cardName);
     if (!printingId) {
-      setPrintingOverrides((previous) => {
-        if (!previous[cardKey]) {
-          return previous;
-        }
+      if (!printingOverrides[cardKey]) {
+        return;
+      }
 
-        const next = { ...previous };
-        delete next[cardKey];
-        return next;
-      });
+      const nextOverrides = { ...printingOverrides };
+      delete nextOverrides[cardKey];
+      setPrintingOverrides(nextOverrides);
+      if (result && !loading) {
+        void runAnalysis({ printingOverrides: nextOverrides });
+      }
       return;
     }
 
@@ -503,20 +504,28 @@ export default function Page() {
       return;
     }
 
-    setPrintingOverrides((previous) => ({
-      ...previous,
+    const nextOverrides = {
+      ...printingOverrides,
       [cardKey]: {
         setCode: selected.setCode,
         printingId: selected.id,
         label: selected.label
       }
-    }));
+    };
+    setPrintingOverrides(nextOverrides);
     if (deckPriceMode !== "decklist-set") {
       setDeckPriceMode("decklist-set");
     }
+    if (result && !loading) {
+      void runAnalysis({ printingOverrides: nextOverrides, deckPriceMode: "decklist-set" });
+    }
   }
 
-  async function runAnalysis(overrides?: { commanderName?: string | null }) {
+  async function runAnalysis(overrides?: {
+    commanderName?: string | null;
+    deckPriceMode?: DeckPriceMode;
+    printingOverrides?: Record<string, DeckPrintingOverride>;
+  }) {
     setLoading(true);
     setError("");
 
@@ -525,14 +534,16 @@ export default function Page() {
         typeof overrides?.commanderName === "string"
           ? overrides.commanderName
           : commanderName || null;
-      const setOverrides = toSetOverrides(printingOverrides);
+      const pricingModeForRequest = overrides?.deckPriceMode ?? deckPriceMode;
+      const printingOverridesForRequest = overrides?.printingOverrides ?? printingOverrides;
+      const setOverrides = toSetOverrides(printingOverridesForRequest);
 
       const response = await fetch("/api/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           decklist,
-          deckPriceMode,
+          deckPriceMode: pricingModeForRequest,
           setOverrides,
           targetBracket: targetBracket ? Number(targetBracket) : null,
           expectedWinTurn: expectedWinTurn || null,

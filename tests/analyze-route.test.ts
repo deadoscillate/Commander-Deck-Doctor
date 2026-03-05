@@ -51,7 +51,9 @@ describe("POST /api/analyze", () => {
       fetchDeckCards: vi.fn(async () => {
         throw new Error("synthetic failure");
       }),
-      getCardByName: vi.fn(async () => null)
+      getCardById: vi.fn(async () => null),
+      getCardByName: vi.fn(async () => null),
+      getCardByNameWithSet: vi.fn(async () => null)
     }));
 
     const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
@@ -110,7 +112,9 @@ describe("POST /api/analyze", () => {
 
     vi.doMock("@/lib/scryfall", () => ({
       fetchDeckCards: fetchDeckCardsMock,
-      getCardByName: vi.fn(async () => null)
+      getCardById: vi.fn(async () => null),
+      getCardByName: vi.fn(async () => null),
+      getCardByNameWithSet: vi.fn(async () => null)
     }));
 
     const { POST } = await import("@/app/api/analyze/route");
@@ -214,6 +218,7 @@ describe("POST /api/analyze", () => {
         ],
         unknownCards: []
       })),
+      getCardById: vi.fn(async () => null),
       getCardByName: vi.fn(async () =>
         buildCard({
           name: "Aesi, Tyrant of Gyre Strait",
@@ -223,7 +228,8 @@ describe("POST /api/analyze", () => {
           colors: ["G", "U"],
           color_identity: ["G", "U"]
         })
-      )
+      ),
+      getCardByNameWithSet: vi.fn(async () => null)
     }));
 
     const { POST } = await import("@/app/api/analyze/route");
@@ -283,7 +289,9 @@ describe("POST /api/analyze", () => {
 
     vi.doMock("@/lib/scryfall", () => ({
       fetchDeckCards: fetchDeckCardsMock,
-      getCardByName: vi.fn(async () => null)
+      getCardById: vi.fn(async () => null),
+      getCardByName: vi.fn(async () => null),
+      getCardByNameWithSet: vi.fn(async () => null)
     }));
 
     const { POST } = await import("@/app/api/analyze/route");
@@ -312,5 +320,55 @@ describe("POST /api/analyze", () => {
       8,
       { deckPriceMode: "decklist-set" }
     );
+  });
+
+  it("uses commander printing override for commander header art", async () => {
+    const getCardByIdMock = vi.fn(async () =>
+      buildCard({
+        name: "Atraxa, Praetors' Voice",
+        type_line: "Legendary Creature - Angel Horror",
+        cmc: 4,
+        mana_cost: "{G}{W}{U}{B}",
+        colors: ["G", "W", "U", "B"],
+        color_identity: ["G", "W", "U", "B"],
+        image_uris: {
+          art_crop: "https://img.test/atraxa-secret-lair-art.jpg"
+        }
+      })
+    );
+
+    vi.doMock("@/lib/scryfall", () => ({
+      fetchDeckCards: vi.fn(async () => ({
+        knownCards: [],
+        unknownCards: []
+      })),
+      getCardById: getCardByIdMock,
+      getCardByName: vi.fn(async () => null),
+      getCardByNameWithSet: vi.fn(async () => null)
+    }));
+
+    const { POST } = await import("@/app/api/analyze/route");
+    const response = await POST(
+      buildRequest({
+        decklist: "1 Sol Ring",
+        deckPriceMode: "decklist-set",
+        commanderName: "Atraxa, Praetors' Voice",
+        setOverrides: {
+          "Atraxa, Praetors' Voice": {
+            setCode: "SLD",
+            printingId: "test-printing-id-atraxa"
+          }
+        }
+      })
+    );
+    const body = (await response.json()) as {
+      commander?: {
+        selectedArtUrl?: string | null;
+      };
+    };
+
+    expect(response.status).toBe(200);
+    expect(getCardByIdMock).toHaveBeenCalledWith("test-printing-id-atraxa");
+    expect(body.commander?.selectedArtUrl).toBe("https://img.test/atraxa-secret-lair-art.jpg");
   });
 });
