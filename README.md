@@ -114,6 +114,10 @@ Optional repository variable:
 1. `STAGING_BASE_URL` to override preview smoke target URL.  
    Default is `https://commander-deck-doctor-git-staging-deadoscillates-projects.vercel.app`.
 
+Required GitHub secret when preview protection is enabled:
+
+1. `VERCEL_AUTOMATION_BYPASS_SECRET` so `Smoke Preview` can access protected Vercel preview deployments.
+
 ## Observability and alerting (implemented)
 
 - Sentry SDK is wired for Next.js server, edge, and client runtimes.

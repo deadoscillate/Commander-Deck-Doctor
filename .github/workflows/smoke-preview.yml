@@ -15,6 +15,7 @@ jobs:
     timeout-minutes: 10
     env:
       STAGING_BASE_URL: ${{ vars.STAGING_BASE_URL }}
+      VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
     steps:
       - name: Select preview URL
         run: |
@@ -26,12 +27,23 @@ jobs:
       - name: Wait for preview deployment readiness
         run: |
           set -euo pipefail
+          auth_args=()
+          if [ -n "${VERCEL_AUTOMATION_BYPASS_SECRET:-}" ]; then
+            auth_args=(-H "x-vercel-protection-bypass: $VERCEL_AUTOMATION_BYPASS_SECRET")
+          fi
+
           for attempt in {1..30}; do
-            status=$(curl -s -o /dev/null -w "%{http_code}" "$BASE_URL/")
+            status=$(curl -s -o /dev/null -w "%{http_code}" "${auth_args[@]}" "$BASE_URL/")
             if [ "$status" = "200" ]; then
               echo "Preview deployment is reachable."
               exit 0
             fi
+
+            if [ "$status" = "401" ] && [ -z "${VERCEL_AUTOMATION_BYPASS_SECRET:-}" ]; then
+              echo "Preview deployment is protected. Set GitHub secret VERCEL_AUTOMATION_BYPASS_SECRET."
+              exit 1
+            fi
+
             echo "Attempt $attempt: homepage status $status (retrying in 10s)"
             sleep 10
           done
@@ -41,8 +53,13 @@ jobs:
       - name: Verify homepage security headers
         run: |
           set -euo pipefail
+          auth_args=()
+          if [ -n "${VERCEL_AUTOMATION_BYPASS_SECRET:-}" ]; then
+            auth_args=(-H "x-vercel-protection-bypass: $VERCEL_AUTOMATION_BYPASS_SECRET")
+          fi
+
           headers="$(mktemp)"
-          curl -sS -D "$headers" -o /dev/null "$BASE_URL/"
+          curl -sS -D "$headers" -o /dev/null "${auth_args[@]}" "$BASE_URL/"
           grep -iq "^x-frame-options: DENY" "$headers"
           grep -iq "^x-content-type-options: nosniff" "$headers"
           grep -iq "^referrer-policy: strict-origin-when-cross-origin" "$headers"
@@ -50,8 +67,14 @@ jobs:
       - name: Smoke test analyze API
         run: |
           set -euo pipefail
+          auth_args=()
+          if [ -n "${VERCEL_AUTOMATION_BYPASS_SECRET:-}" ]; then
+            auth_args=(-H "x-vercel-protection-bypass: $VERCEL_AUTOMATION_BYPASS_SECRET")
+          fi
+
           body="$(mktemp)"
           status=$(curl -sS -o "$body" -w "%{http_code}" \
+            "${auth_args[@]}" \
             -H "content-type: application/json" \
             -d '{}' \
             "$BASE_URL/api/analyze")
@@ -61,8 +84,14 @@ jobs:
       - name: Smoke test import URL API
         run: |
           set -euo pipefail
+          auth_args=()
+          if [ -n "${VERCEL_AUTOMATION_BYPASS_SECRET:-}" ]; then
+            auth_args=(-H "x-vercel-protection-bypass: $VERCEL_AUTOMATION_BYPASS_SECRET")
+          fi
+
           body="$(mktemp)"
           status=$(curl -sS -o "$body" -w "%{http_code}" \
+            "${auth_args[@]}" \
             -H "content-type: application/json" \
             -d '{}' \
             "$BASE_URL/api/import-url")
@@ -72,8 +101,14 @@ jobs:
       - name: Smoke test share report API
         run: |
           set -euo pipefail
+          auth_args=()
+          if [ -n "${VERCEL_AUTOMATION_BYPASS_SECRET:-}" ]; then
+            auth_args=(-H "x-vercel-protection-bypass: $VERCEL_AUTOMATION_BYPASS_SECRET")
+          fi
+
           body="$(mktemp)"
           status=$(curl -sS -o "$body" -w "%{http_code}" \
+            "${auth_args[@]}" \
             -H "content-type: application/json" \
             -d '{"decklist":""}' \
             "$BASE_URL/api/share-report")
