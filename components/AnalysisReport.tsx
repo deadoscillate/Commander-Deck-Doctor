@@ -7,7 +7,7 @@ import { ImprovementSuggestions } from "@/components/ImprovementSuggestions";
 import { ManaCost } from "@/components/ManaCost";
 import { RecommendedCounts } from "@/components/RecommendedCounts";
 import { RoleBars } from "@/components/RoleBars";
-import type { AnalyzeResponse } from "@/lib/contracts";
+import type { AnalyzeResponse, RoleBreakdown } from "@/lib/contracts";
 import { getStatusMeta } from "@/lib/ui/statusStyles";
 
 const CURVE_ORDER = ["0", "1", "2", "3", "4", "5", "6", "7+"];
@@ -429,6 +429,43 @@ function normalizeRuleZero(result: AnalyzeResponse): {
   };
 }
 
+function normalizeRoleBreakdown(result: AnalyzeResponse): RoleBreakdown {
+  const empty: RoleBreakdown = {
+    ramp: [],
+    draw: [],
+    removal: [],
+    wipes: [],
+    tutors: [],
+    protection: [],
+    finishers: []
+  };
+
+  const rawRoleBreakdown = (result as { roleBreakdown?: unknown }).roleBreakdown;
+  if (!rawRoleBreakdown || typeof rawRoleBreakdown !== "object") {
+    return empty;
+  }
+
+  const roleBreakdownRecord = rawRoleBreakdown as Record<string, unknown>;
+  const roleKeys = Object.keys(empty) as Array<keyof RoleBreakdown>;
+
+  for (const roleKey of roleKeys) {
+    const rows = roleBreakdownRecord[roleKey];
+    if (!Array.isArray(rows)) {
+      continue;
+    }
+
+    empty[roleKey] = rows
+      .filter((row): row is Record<string, unknown> => Boolean(row) && typeof row === "object")
+      .map((row) => ({
+        name: typeof row.name === "string" ? row.name.trim() : "",
+        qty: Math.max(0, Math.floor(toFiniteNumber(row.qty, 0)))
+      }))
+      .filter((row) => row.name.length > 0 && row.qty > 0);
+  }
+
+  return empty;
+}
+
 type AnalysisReportProps = {
   result: AnalyzeResponse;
 };
@@ -451,6 +488,7 @@ export function AnalysisReport({ result }: AnalysisReportProps) {
     disclaimer: "Combo detection uses a curated static combo database."
   };
   const ruleZero = normalizeRuleZero(result);
+  const roleBreakdown = normalizeRoleBreakdown(result);
   const commanderInfo = normalizeCommanderInfo(result);
   const deckPrice = normalizeDeckPrice(result);
   const openingHandSimulation = normalizeOpeningHandSimulation(result);
@@ -669,7 +707,7 @@ export function AnalysisReport({ result }: AnalysisReportProps) {
 
       <section>
         <h2>Core Composition</h2>
-        <RoleBars roles={result.roles} />
+        <RoleBars roles={result.roles} roleBreakdown={roleBreakdown} />
 
         <div className="technical-group">
           <h3>Mana Curve</h3>

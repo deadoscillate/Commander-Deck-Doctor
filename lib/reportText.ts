@@ -198,11 +198,33 @@ export function buildPlaintextReport(result: AnalyzeResponse): string {
       : [])
   ];
 
+  const roleBreakdownRecord =
+    (result as { roleBreakdown?: unknown }).roleBreakdown &&
+    typeof (result as { roleBreakdown?: unknown }).roleBreakdown === "object"
+      ? ((result as { roleBreakdown?: unknown }).roleBreakdown as Record<string, unknown>)
+      : {};
+
   const roleLines = [
     "Recommended Counts",
-    ...result.deckHealth.rows.map(
-      (row) => `- ${row.label}: ${row.value} (${row.status}) | Recommended ${row.recommendedText}`
-    )
+    ...result.deckHealth.rows.flatMap((row) => {
+      const roleCards = Array.isArray(roleBreakdownRecord[row.key])
+        ? (roleBreakdownRecord[row.key] as Array<Record<string, unknown>>)
+            .map((entry) => ({
+              name: typeof entry.name === "string" ? entry.name.trim() : "",
+              qty: Math.max(0, Math.floor(toFiniteNumber(entry.qty, 0)))
+            }))
+            .filter((entry) => entry.name.length > 0 && entry.qty > 0)
+        : [];
+
+      if (roleCards.length === 0) {
+        return [`- ${row.label}: ${row.value} (${row.status}) | Recommended ${row.recommendedText}`];
+      }
+
+      return [
+        `- ${row.label}: ${row.value} (${row.status}) | Recommended ${row.recommendedText}`,
+        `  - Tagged cards: ${roleCards.map((entry) => `${entry.name}${entry.qty > 1 ? ` x${entry.qty}` : ""}`).join(", ")}`
+      ];
+    })
   ];
 
   const comboLines = [

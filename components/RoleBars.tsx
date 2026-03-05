@@ -1,8 +1,11 @@
+import { CardNameHover } from "@/components/CardNameHover";
+import type { RoleBreakdown } from "@/lib/contracts";
 import { getStatusMeta } from "@/lib/ui/statusStyles";
 import type { RoleCounts } from "@/lib/types";
 
 type RoleBarsProps = {
   roles: RoleCounts;
+  roleBreakdown?: RoleBreakdown;
 };
 
 type RoleConfig = {
@@ -37,11 +40,12 @@ function statusFor(value: number, min: number, max: number): "LOW" | "OK" | "HIG
   return "OK";
 }
 
-export function RoleBars({ roles }: RoleBarsProps) {
+export function RoleBars({ roles, roleBreakdown }: RoleBarsProps) {
   return (
     <div className="role-bars">
       {ROLE_CONFIG.map((config) => {
         const value = roles[config.key] ?? 0;
+        const taggedCards = roleBreakdown?.[config.key] ?? [];
         const status = statusFor(value, config.min, config.max);
         const statusMeta = getStatusMeta(status);
         const fillPct = toPercent(value, config.cap);
@@ -68,6 +72,20 @@ export function RoleBars({ roles }: RoleBarsProps) {
               />
             </div>
             <p className="role-bar-copy">Recommended {config.min}-{config.max}</p>
+            {taggedCards.length > 0 ? (
+              <details className="role-tagged-cards">
+                <summary>Tagged cards ({taggedCards.length})</summary>
+                <ul>
+                  {taggedCards.map((card) => (
+                    <li key={`${config.key}-${card.name}`}>
+                      {card.qty} <CardNameHover name={card.name} />
+                    </li>
+                  ))}
+                </ul>
+              </details>
+            ) : (
+              <p className="role-tagged-empty muted">No cards tagged in this category.</p>
+            )}
           </div>
         );
       })}

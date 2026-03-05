@@ -881,6 +881,31 @@ button:disabled {
   font-size: 0.82rem;
 }
 
+.role-tagged-cards {
+  margin-top: 0.3rem;
+}
+
+.role-tagged-cards summary {
+  cursor: pointer;
+  color: var(--ink);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.role-tagged-cards ul {
+  margin: 0.35rem 0 0;
+  padding-left: 1rem;
+}
+
+.role-tagged-cards li {
+  margin-bottom: 0.12rem;
+}
+
+.role-tagged-empty {
+  margin: 0.28rem 0 0;
+  font-size: 0.8rem;
+}
+
 .checks-list {
   margin: 0.2rem 0 0;
   padding-left: 0;

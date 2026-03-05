@@ -1,4 +1,4 @@
-import { computeDeckSummary, computeRoleCounts } from "@/lib/analysis";
+import { computeDeckSummary, computeRoleBreakdown, computeRoleCounts } from "@/lib/analysis";
 import { computeDeckArchetypes } from "@/lib/archetypes";
 import {
   buildBracketExplanation,
@@ -240,6 +240,7 @@ export async function POST(request: Request) {
     const { knownCards, unknownCards } = await fetchDeckCards(parsedDeck, 8);
     const summary = computeDeckSummary(knownCards);
     const roles = computeRoleCounts(knownCards);
+    const roleBreakdown = computeRoleBreakdown(knownCards);
 
     const knownByInputName = new Map(
       knownCards.map((entry) => [entry.name.toLowerCase(), entry.card.name])
@@ -453,6 +454,7 @@ export async function POST(request: Request) {
         summary: roundedSummary,
         metrics: roundedSummary,
         roles,
+        roleBreakdown,
         checks,
         deckHealth,
         deckPrice,

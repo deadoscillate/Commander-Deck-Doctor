@@ -1,4 +1,5 @@
 import { DeckCard, DeckSummary, RoleCounts, TypeCounts } from "./types";
+import type { RoleBreakdown } from "./contracts";
 
 /**
  * Lightweight statistical/heuristic deck analysis.
@@ -33,6 +34,18 @@ function emptyRoleCounts(): RoleCounts {
     tutors: 0,
     protection: 0,
     finishers: 0
+  };
+}
+
+function emptyRoleBreakdown(): RoleBreakdown {
+  return {
+    ramp: [],
+    draw: [],
+    removal: [],
+    wipes: [],
+    tutors: [],
+    protection: [],
+    finishers: []
   };
 }
 
@@ -188,4 +201,37 @@ export function computeRoleCounts(cards: DeckCard[]): RoleCounts {
   }
 
   return roles;
+}
+
+/**
+ * Returns the specific cards tagged for each heuristic role bucket.
+ */
+export function computeRoleBreakdown(cards: DeckCard[]): RoleBreakdown {
+  const breakdown = emptyRoleBreakdown();
+
+  for (const entry of cards) {
+    const flags = roleFlags(entry);
+    for (const [role, active] of Object.entries(flags) as [keyof RoleCounts, boolean][]) {
+      if (!active) {
+        continue;
+      }
+
+      breakdown[role].push({
+        name: entry.card.name,
+        qty: entry.qty
+      });
+    }
+  }
+
+  for (const role of Object.keys(breakdown) as Array<keyof RoleBreakdown>) {
+    breakdown[role].sort((a, b) => {
+      if (b.qty !== a.qty) {
+        return b.qty - a.qty;
+      }
+
+      return a.name.localeCompare(b.name);
+    });
+  }
+
+  return breakdown;
 }

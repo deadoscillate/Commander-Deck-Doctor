@@ -138,6 +138,8 @@ export type ImprovementSuggestions = {
   disclaimer: string;
 };
 
+export type RoleBreakdown = Record<keyof RoleCounts, NamedCount[]>;
+
 export type WinStyle = "COMBAT" | "COMBO" | "DRAIN" | "LOCK" | "COMMANDER_DAMAGE";
 export type SpeedBand = "SLOW" | "MID" | "FAST" | "VERY_FAST";
 export type ConsistencyBucket = "LOW" | "MED" | "HIGH";
@@ -241,6 +243,7 @@ export type AnalyzeResponse = {
   summary: DeckSummary;
   metrics: DeckSummary;
   roles: RoleCounts;
+  roleBreakdown?: RoleBreakdown;
   checks: DeckChecks;
   deckHealth: DeckHealthReport;
   deckPrice?: DeckPriceSummary;
