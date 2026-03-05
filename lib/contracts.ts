@@ -1,0 +1,152 @@
+import type { DeckSummary, RoleCounts } from "./types";
+import type { CountStatus } from "./status";
+import type { CountKey } from "./thresholds";
+
+// Optional UI selector values used for bracket-intent hints.
+export type ExpectedWinTurn = ">=10" | "8-9" | "6-7" | "<=5";
+
+// Request payload accepted by POST /api/analyze.
+export type AnalyzeRequest = {
+  decklist?: string;
+  targetBracket?: number | null;
+  expectedWinTurn?: ExpectedWinTurn | null;
+  commanderName?: string | null;
+  userCedhFlag?: boolean;
+  userHighPowerNoGCFlag?: boolean;
+};
+
+// Shared "name + quantity" structure for card lists in reports.
+export type NamedCount = {
+  name: string;
+  qty: number;
+};
+
+export type ParsedDeckCard = {
+  name: string;
+  qty: number;
+  resolvedName: string | null;
+  known: boolean;
+  isGameChanger: boolean;
+  gameChangerName: string | null;
+};
+
+export type RecommendedCountRow = {
+  key: CountKey;
+  label: string;
+  value: number;
+  status: CountStatus;
+  recommendedMin: number;
+  recommendedMax: number;
+  recommendedText: string;
+  diagnostic: string;
+};
+
+export type DeckHealthReport = {
+  rows: RecommendedCountRow[];
+  warnings: string[];
+  okays: string[];
+  disclaimer: string;
+};
+
+export type DeckChecks = {
+  deckSize: {
+    ok: boolean;
+    expected: number;
+    actual: number;
+    message: string;
+  };
+  unknownCards: {
+    ok: boolean;
+    count: number;
+    cards: string[];
+    message: string;
+  };
+  singleton: {
+    ok: boolean;
+    duplicateCount: number;
+    duplicates: NamedCount[];
+    message: string;
+  };
+  colorIdentity: {
+    ok: boolean;
+    enabled: boolean;
+    commanderName: string | null;
+    commanderColorIdentity: string[];
+    offColorCount: number;
+    offColorCards: Array<{
+      name: string;
+      qty: number;
+      disallowedColors: string[];
+    }>;
+    message: string;
+  };
+};
+
+export type CommanderChoice = {
+  name: string;
+  colorIdentity: string[];
+};
+
+export type CommanderInfo = {
+  detectedFromSection: string | null;
+  selectedName: string | null;
+  selectedColorIdentity: string[];
+  source: "section" | "manual" | "none";
+  options: CommanderChoice[];
+  needsManualSelection: boolean;
+};
+
+export type RoleSuggestion = {
+  key: Exclude<CountKey, "lands">;
+  label: string;
+  currentCount: number;
+  recommendedRange: string;
+  suggestions: string[];
+};
+
+export type ImprovementSuggestions = {
+  colorIdentity: string[];
+  items: RoleSuggestion[];
+  disclaimer: string;
+};
+
+// Commander brackets report returned by the API.
+export type BracketReport = {
+  estimatedBracket: number;
+  estimatedLabel: string;
+  gameChangersVersion: string;
+  gameChangersCount: number;
+  bracket3AllowanceText: string | null;
+  gameChangersFound: NamedCount[];
+  extraTurnsCount: number;
+  extraTurnCards: NamedCount[];
+  massLandDenialCount: number;
+  massLandDenialCards: NamedCount[];
+  notes: string[];
+  warnings: string[];
+  explanation: string;
+  disclaimer: string;
+};
+
+// End-to-end API response contract consumed by the UI.
+export type AnalyzeResponse = {
+  schemaVersion: "1.0";
+  input: {
+    targetBracket: number | null;
+    expectedWinTurn: ExpectedWinTurn | null;
+    commanderName: string | null;
+    userCedhFlag: boolean;
+    userHighPowerNoGCFlag: boolean;
+  };
+  commander: CommanderInfo;
+  parsedDeck: ParsedDeckCard[];
+  unknownCards: string[];
+  summary: DeckSummary;
+  metrics: DeckSummary;
+  roles: RoleCounts;
+  checks: DeckChecks;
+  deckHealth: DeckHealthReport;
+  improvementSuggestions: ImprovementSuggestions;
+  warnings: string[];
+  bracketReport: BracketReport;
+};
