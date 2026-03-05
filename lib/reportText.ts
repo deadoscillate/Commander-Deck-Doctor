@@ -4,6 +4,14 @@ function lineBreakJoin(lines: string[]): string {
   return lines.filter(Boolean).join("\n");
 }
 
+function toFiniteNumber(value: unknown, fallback: number): number {
+  return typeof value === "number" && Number.isFinite(value) ? value : fallback;
+}
+
+function toStringArray(value: unknown): string[] {
+  return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
+}
+
 /**
  * Generates share-friendly plaintext for clipboard export.
  */
@@ -14,6 +22,125 @@ export function buildPlaintextReport(result: AnalyzeResponse): string {
     confidence: 0,
     counts: [],
     disclaimer: "Archetype detection is keyword-based and heuristic."
+  };
+  const comboReport = result.comboReport ?? {
+    detected: [],
+    databaseSize: 0,
+    disclaimer: "Combo detection uses a curated static combo database."
+  };
+  const fallbackRuleZero = {
+    winStyle: {
+      primary: "COMBAT",
+      secondary: null,
+      evidence: []
+    },
+    speedBand: {
+      value: "MID",
+      turnBand: "7-9",
+      explanation: "No speed heuristics available."
+    },
+    consistency: {
+      score: 0,
+      bucket: "LOW",
+      commanderEngine: false,
+      explanation: "No consistency heuristics available."
+    },
+    tableImpact: {
+      flags: [],
+      extraTurnsCount: 0,
+      massLandDenialCount: 0,
+      staxPiecesCount: 0,
+      freeInteractionCount: 0,
+      fastManaCount: 0
+    },
+    disclaimer: "Rule 0 Snapshot is a heuristic conversation layer."
+  };
+  const rawRuleZero = (result as { ruleZero?: unknown }).ruleZero;
+  const ruleZeroRecord =
+    rawRuleZero && typeof rawRuleZero === "object" ? (rawRuleZero as Record<string, unknown>) : {};
+  const rawWinStyle =
+    ruleZeroRecord.winStyle && typeof ruleZeroRecord.winStyle === "object"
+      ? (ruleZeroRecord.winStyle as Record<string, unknown>)
+      : {};
+  const rawSpeedBand =
+    ruleZeroRecord.speedBand && typeof ruleZeroRecord.speedBand === "object"
+      ? (ruleZeroRecord.speedBand as Record<string, unknown>)
+      : {};
+  const rawConsistency =
+    ruleZeroRecord.consistency && typeof ruleZeroRecord.consistency === "object"
+      ? (ruleZeroRecord.consistency as Record<string, unknown>)
+      : {};
+  const rawTableImpact =
+    ruleZeroRecord.tableImpact && typeof ruleZeroRecord.tableImpact === "object"
+      ? (ruleZeroRecord.tableImpact as Record<string, unknown>)
+      : {};
+  const tableImpactFlags = Array.isArray(rawTableImpact.flags)
+    ? rawTableImpact.flags
+        .filter((flag): flag is Record<string, unknown> => Boolean(flag) && typeof flag === "object")
+        .map((flag, index) => ({
+          kind: typeof flag.kind === "string" && flag.kind ? flag.kind : `impact-${index}`,
+          severity: flag.severity === "WARN" ? "WARN" : "INFO",
+          message:
+            typeof flag.message === "string" && flag.message.trim()
+              ? flag.message
+              : "Potential table-impact signal detected.",
+          cards: toStringArray(flag.cards)
+        }))
+    : [];
+
+  const ruleZero = {
+    winStyle: {
+      primary:
+        typeof rawWinStyle.primary === "string" && rawWinStyle.primary
+          ? rawWinStyle.primary
+          : fallbackRuleZero.winStyle.primary,
+      secondary:
+        typeof rawWinStyle.secondary === "string" && rawWinStyle.secondary ? rawWinStyle.secondary : null,
+      evidence: toStringArray(rawWinStyle.evidence).slice(0, 8)
+    },
+    speedBand: {
+      value:
+        typeof rawSpeedBand.value === "string" && rawSpeedBand.value
+          ? rawSpeedBand.value
+          : fallbackRuleZero.speedBand.value,
+      turnBand:
+        typeof rawSpeedBand.turnBand === "string" && rawSpeedBand.turnBand
+          ? rawSpeedBand.turnBand
+          : fallbackRuleZero.speedBand.turnBand,
+      explanation:
+        typeof rawSpeedBand.explanation === "string" && rawSpeedBand.explanation
+          ? rawSpeedBand.explanation
+          : fallbackRuleZero.speedBand.explanation
+    },
+    consistency: {
+      score: toFiniteNumber(rawConsistency.score, fallbackRuleZero.consistency.score),
+      bucket:
+        typeof rawConsistency.bucket === "string" && rawConsistency.bucket
+          ? rawConsistency.bucket
+          : fallbackRuleZero.consistency.bucket,
+      explanation:
+        typeof rawConsistency.explanation === "string" && rawConsistency.explanation
+          ? rawConsistency.explanation
+          : fallbackRuleZero.consistency.explanation
+    },
+    tableImpact: {
+      flags: tableImpactFlags,
+      extraTurnsCount: toFiniteNumber(rawTableImpact.extraTurnsCount, fallbackRuleZero.tableImpact.extraTurnsCount),
+      massLandDenialCount: toFiniteNumber(
+        rawTableImpact.massLandDenialCount,
+        fallbackRuleZero.tableImpact.massLandDenialCount
+      ),
+      staxPiecesCount: toFiniteNumber(rawTableImpact.staxPiecesCount, fallbackRuleZero.tableImpact.staxPiecesCount),
+      freeInteractionCount: toFiniteNumber(
+        rawTableImpact.freeInteractionCount,
+        fallbackRuleZero.tableImpact.freeInteractionCount
+      ),
+      fastManaCount: toFiniteNumber(rawTableImpact.fastManaCount, fallbackRuleZero.tableImpact.fastManaCount)
+    },
+    disclaimer:
+      typeof ruleZeroRecord.disclaimer === "string" && ruleZeroRecord.disclaimer
+        ? ruleZeroRecord.disclaimer
+        : fallbackRuleZero.disclaimer
   };
 
   const summaryLines = [
@@ -40,6 +167,38 @@ export function buildPlaintextReport(result: AnalyzeResponse): string {
     ...result.deckHealth.rows.map(
       (row) => `- ${row.label}: ${row.value} (${row.status}) | Recommended ${row.recommendedText}`
     )
+  ];
+
+  const comboLines = [
+    "Combo Detection",
+    ...(comboReport.detected.length > 0
+      ? comboReport.detected.map((combo) => `- ${combo.comboName}: ${combo.cards.join(" + ")}`)
+      : ["- No known combos detected."]),
+    `- Combos detected: ${comboReport.detected.length} / ${comboReport.databaseSize} tracked`
+  ];
+
+  const ruleZeroLines = [
+    "Rule 0 Snapshot",
+    `- Estimated speed: ${ruleZero.speedBand.value} (${ruleZero.speedBand.turnBand})`,
+    `- Primary win: ${ruleZero.winStyle.primary}`,
+    ...(ruleZero.winStyle.secondary ? [`- Secondary win: ${ruleZero.winStyle.secondary}`] : []),
+    `- Consistency: ${ruleZero.consistency.bucket} (${ruleZero.consistency.score})`,
+    `- Speed reasoning: ${ruleZero.speedBand.explanation}`,
+    `- Consistency reasoning: ${ruleZero.consistency.explanation}`,
+    ...(ruleZero.winStyle.evidence.length > 0
+      ? [`- Evidence cards: ${ruleZero.winStyle.evidence.slice(0, 8).join(", ")}`]
+      : [])
+  ];
+
+  const tableImpactLines = [
+    "Table Impact",
+    ...(ruleZero.tableImpact.flags.length > 0
+      ? ruleZero.tableImpact.flags.map((flag) => {
+          const cards = flag.cards.length > 0 ? ` [${flag.cards.slice(0, 6).join(", ")}]` : "";
+          return `- ${flag.severity}: ${flag.message}${cards}`;
+        })
+      : ["- No major table-impact flags detected."]),
+    `- Counts: extraTurns=${ruleZero.tableImpact.extraTurnsCount}, massLandDenial=${ruleZero.tableImpact.massLandDenialCount}, stax=${ruleZero.tableImpact.staxPiecesCount}, freeInteraction=${ruleZero.tableImpact.freeInteractionCount}, fastMana=${ruleZero.tableImpact.fastManaCount}`
   ];
 
   const gameChangerLines =
@@ -97,6 +256,12 @@ export function buildPlaintextReport(result: AnalyzeResponse): string {
     "",
     ...archetypeLines,
     "",
+    ...comboLines,
+    "",
+    ...ruleZeroLines,
+    "",
+    ...tableImpactLines,
+    "",
     ...roleLines,
     "",
     ...bracketLines,
@@ -108,6 +273,7 @@ export function buildPlaintextReport(result: AnalyzeResponse): string {
     ...warningLines,
     "",
     `Game Changers version: ${result.bracketReport.gameChangersVersion}`,
-    result.bracketReport.disclaimer
+    result.bracketReport.disclaimer,
+    ruleZero.disclaimer
   ]);
 }

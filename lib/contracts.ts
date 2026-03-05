@@ -2,6 +2,7 @@ import type { DeckSummary, RoleCounts } from "./types";
 import type { CountStatus } from "./status";
 import type { CountKey } from "./thresholds";
 import type { DeckArchetypeReport } from "./archetypes";
+import type { ComboReport } from "./combos";
 
 // Optional UI selector values used for bracket-intent hints.
 export type ExpectedWinTurn = ">=10" | "8-9" | "6-7" | "<=5";
@@ -92,6 +93,9 @@ export type CommanderInfo = {
   detectedFromSection: string | null;
   selectedName: string | null;
   selectedColorIdentity: string[];
+  selectedManaCost: string | null;
+  selectedCmc: number | null;
+  selectedArtUrl: string | null;
   source: "section" | "manual" | "none";
   options: CommanderChoice[];
   needsManualSelection: boolean;
@@ -108,6 +112,55 @@ export type RoleSuggestion = {
 export type ImprovementSuggestions = {
   colorIdentity: string[];
   items: RoleSuggestion[];
+  disclaimer: string;
+};
+
+export type WinStyle = "COMBAT" | "COMBO" | "DRAIN" | "LOCK" | "COMMANDER_DAMAGE";
+export type SpeedBand = "SLOW" | "MID" | "FAST" | "VERY_FAST";
+export type ConsistencyBucket = "LOW" | "MED" | "HIGH";
+export type ImpactSeverity = "INFO" | "WARN";
+
+export type RuleZeroWinStyle = {
+  primary: WinStyle;
+  secondary: WinStyle | null;
+  evidence: string[];
+};
+
+export type RuleZeroSpeed = {
+  value: SpeedBand;
+  turnBand: "10+" | "7-9" | "5-6" | "<=4";
+  explanation: string;
+};
+
+export type RuleZeroConsistency = {
+  score: number;
+  bucket: ConsistencyBucket;
+  commanderEngine: boolean;
+  explanation: string;
+};
+
+export type RuleZeroTableImpactFlag = {
+  kind: "extraTurns" | "massLandDenial" | "staxPieces" | "freeInteraction" | "fastMana";
+  severity: ImpactSeverity;
+  count: number;
+  message: string;
+  cards: string[];
+};
+
+export type RuleZeroTableImpact = {
+  flags: RuleZeroTableImpactFlag[];
+  extraTurnsCount: number;
+  massLandDenialCount: number;
+  staxPiecesCount: number;
+  freeInteractionCount: number;
+  fastManaCount: number;
+};
+
+export type RuleZeroReport = {
+  winStyle: RuleZeroWinStyle;
+  speedBand: RuleZeroSpeed;
+  consistency: RuleZeroConsistency;
+  tableImpact: RuleZeroTableImpact;
   disclaimer: string;
 };
 
@@ -148,6 +201,8 @@ export type AnalyzeResponse = {
   checks: DeckChecks;
   deckHealth: DeckHealthReport;
   archetypeReport: DeckArchetypeReport;
+  comboReport: ComboReport;
+  ruleZero: RuleZeroReport;
   improvementSuggestions: ImprovementSuggestions;
   warnings: string[];
   bracketReport: BracketReport;

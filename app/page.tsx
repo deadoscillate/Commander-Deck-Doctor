@@ -255,12 +255,16 @@ export default function Page() {
     }
   }, [result]);
 
-  async function onSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  async function runAnalysis(overrides?: { commanderName?: string | null }) {
     setLoading(true);
     setError("");
 
     try {
+      const commanderForRequest =
+        typeof overrides?.commanderName === "string"
+          ? overrides.commanderName
+          : commanderName || null;
+
       const response = await fetch("/api/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -268,7 +272,7 @@ export default function Page() {
           decklist,
           targetBracket: targetBracket ? Number(targetBracket) : null,
           expectedWinTurn: expectedWinTurn || null,
-          commanderName: commanderName || null,
+          commanderName: commanderForRequest,
           userCedhFlag,
           userHighPowerNoGCFlag
         })
@@ -288,6 +292,12 @@ export default function Page() {
     } finally {
       setLoading(false);
     }
+  }
+
+  async function onSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    event.stopPropagation();
+    await runAnalysis();
   }
 
   return (
@@ -404,25 +414,6 @@ export default function Page() {
             </select>
           </div>
 
-          {result && !result.commander.detectedFromSection && result.commander.options.length > 0 ? (
-            <div className="row">
-              <label htmlFor="commander-name">Commander (manual selection)</label>
-              <select
-                id="commander-name"
-                value={commanderName}
-                onChange={(event) => setCommanderName(event.target.value)}
-              >
-                <option value="">Select a commander</option>
-                {result.commander.options.map((option) => (
-                  <option key={option.name} value={option.name}>
-                    {option.name} ({option.colorIdentity.length > 0 ? option.colorIdentity.join("/") : "Colorless"})
-                  </option>
-                ))}
-              </select>
-              <p className="muted">Select commander and click Analyze Deck to run color identity validation.</p>
-            </div>
-          ) : null}
-
           <label className="checkbox">
             <input
               type="checkbox"
@@ -449,6 +440,30 @@ export default function Page() {
         </form>
 
         <div className="panel results-panel">
+          {result && !result.commander.detectedFromSection && result.commander.options.length > 0 ? (
+            <section className="results-commander-picker">
+              <label htmlFor="commander-name-right">Commander (manual selection)</label>
+              <select
+                id="commander-name-right"
+                value={commanderName}
+                disabled={loading}
+                onChange={(event) => {
+                  const nextCommander = event.target.value;
+                  setCommanderName(nextCommander);
+                  void runAnalysis({ commanderName: nextCommander || null });
+                }}
+              >
+                <option value="">Select a commander</option>
+                {result.commander.options.map((option) => (
+                  <option key={option.name} value={option.name}>
+                    {option.name} ({option.colorIdentity.length > 0 ? option.colorIdentity.join("/") : "Colorless"})
+                  </option>
+                ))}
+              </select>
+              <p className="muted">Selecting a commander updates the report automatically.</p>
+            </section>
+          ) : null}
+
           <ExportButtons result={result} decklist={decklist} />
 
           {!result ? (

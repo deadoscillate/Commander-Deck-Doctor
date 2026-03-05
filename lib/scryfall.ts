@@ -1,4 +1,4 @@
-import { DeckCard, ParsedDeckEntry, ScryfallCard } from "./types";
+import { DeckCard, ParsedDeckEntry, ScryfallCard, ScryfallCardFace, ScryfallImageUris } from "./types";
 
 /**
  * Scryfall integration for named-card lookups.
@@ -9,18 +9,16 @@ const DEFAULT_CONCURRENCY = 8;
 // Promise cache deduplicates repeated lookups for identical names.
 const cardCache = new Map<string, Promise<ScryfallCard | null>>();
 
-type ScryfallCardFace = {
-  oracle_text?: string;
-};
-
 type ScryfallApiCard = {
   object: string;
   name: string;
   type_line?: string;
   cmc?: number;
+  mana_cost?: string;
   colors?: string[] | null;
   color_identity?: string[] | null;
   oracle_text?: string;
+  image_uris?: ScryfallImageUris | null;
   card_faces?: ScryfallCardFace[];
 };
 
@@ -57,9 +55,12 @@ async function fetchNamedCard(
       name: data.name,
       type_line: data.type_line ?? "",
       cmc: typeof data.cmc === "number" ? data.cmc : 0,
+      mana_cost: data.mana_cost ?? "",
       colors: Array.isArray(data.colors) ? data.colors : [],
       color_identity: Array.isArray(data.color_identity) ? data.color_identity : [],
-      oracle_text: oracleText
+      oracle_text: oracleText,
+      image_uris: data.image_uris ?? null,
+      card_faces: Array.isArray(data.card_faces) ? data.card_faces : []
     };
   } catch {
     return null;

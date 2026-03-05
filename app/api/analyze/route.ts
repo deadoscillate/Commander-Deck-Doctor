@@ -13,8 +13,11 @@ import { buildDeckHealthReport } from "@/lib/deckHealth";
 import { parseDecklistWithCommander } from "@/lib/decklist";
 import { GAME_CHANGERS_VERSION, findGameChangerName } from "@/lib/gameChangers";
 import { buildColorIdentityCheck, buildDeckChecks } from "@/lib/checks";
+import { detectCombosInDeck } from "@/lib/combos";
+import { computePlayerHeuristics } from "@/lib/playerHeuristics";
 import { buildRoleSuggestions } from "@/lib/suggestions";
 import { fetchDeckCards, getCardByName } from "@/lib/scryfall";
+import type { ScryfallCard } from "@/lib/types";
 
 /**
  * POST /api/analyze
@@ -60,6 +63,38 @@ function normalizeLookupName(name: string): string {
 function isLegendaryCreature(typeLine: string): boolean {
   const lower = typeLine.toLowerCase();
   return lower.includes("legendary") && lower.includes("creature");
+}
+
+function getPreferredArtUrl(card: ScryfallCard | null): string | null {
+  if (!card) {
+    return null;
+  }
+
+  if (card.image_uris?.art_crop) return card.image_uris.art_crop;
+  if (card.image_uris?.normal) return card.image_uris.normal;
+
+  const firstFace = card.card_faces[0];
+  if (firstFace?.image_uris?.art_crop) return firstFace.image_uris.art_crop;
+  if (firstFace?.image_uris?.normal) return firstFace.image_uris.normal;
+
+  return null;
+}
+
+function getPreferredManaCost(card: ScryfallCard | null): string | null {
+  if (!card) {
+    return null;
+  }
+
+  if (card.mana_cost) {
+    return card.mana_cost;
+  }
+
+  const firstFace = card.card_faces[0];
+  if (firstFace?.mana_cost) {
+    return firstFace.mana_cost;
+  }
+
+  return null;
 }
 
 export async function POST(request: Request) {
@@ -197,6 +232,19 @@ export async function POST(request: Request) {
     unknownCardsCount: unknownCards.length
   });
   const archetypeReport = computeDeckArchetypes(knownCards, inputDeckSize);
+  const comboReport = detectCombosInDeck(
+    parsedDeckView.flatMap((entry) =>
+      entry.resolvedName ? [entry.name, entry.resolvedName] : [entry.name]
+    )
+  );
+  const ruleZero = computePlayerHeuristics({
+    deckCards: knownCards,
+    averageManaValue: roundedSummary.averageManaValue,
+    drawCount: roles.draw,
+    tutorCount: roles.tutors,
+    comboDetectedCount: comboReport.detected.length,
+    commanderCard: selectedCommanderCard
+  });
 
   const suggestionColorIdentity =
     selectedCommanderCard?.color_identity && selectedCommanderCard.color_identity.length > 0
@@ -268,6 +316,12 @@ export async function POST(request: Request) {
       detectedFromSection: commanderFromSection,
       selectedName: selectedCommanderCard?.name ?? selectedCommanderName,
       selectedColorIdentity: selectedCommanderCard?.color_identity ?? [],
+      selectedManaCost: getPreferredManaCost(selectedCommanderCard),
+      selectedCmc:
+        typeof selectedCommanderCard?.cmc === "number" && Number.isFinite(selectedCommanderCard.cmc)
+          ? selectedCommanderCard.cmc
+          : null,
+      selectedArtUrl: getPreferredArtUrl(selectedCommanderCard),
       source: commanderSource,
       options: commanderOptions,
       needsManualSelection: !commanderFromSection && !selectedCommanderName && commanderOptions.length > 0
@@ -280,6 +334,8 @@ export async function POST(request: Request) {
     checks,
     deckHealth,
     archetypeReport,
+    comboReport,
+    ruleZero,
     improvementSuggestions,
     warnings: [...new Set([...deckHealth.warnings, ...explanation.warnings])],
     bracketReport

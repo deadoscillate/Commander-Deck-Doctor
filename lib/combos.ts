@@ -1,0 +1,114 @@
+import rawComboDb from "./combos.json";
+
+export type ComboDefinition = {
+  comboName: string;
+  cards: string[];
+};
+
+export type DetectedCombo = ComboDefinition & {
+  matchedCards: string[];
+};
+
+export type ComboReport = {
+  detected: DetectedCombo[];
+  databaseSize: number;
+  disclaimer: string;
+};
+
+type RawComboDefinition = {
+  combo_name?: unknown;
+  cards?: unknown;
+};
+
+function normalizeLookupName(name: string): string {
+  return name
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "");
+}
+
+function normalizeComboDb(raw: unknown): ComboDefinition[] {
+  if (!Array.isArray(raw)) {
+    return [];
+  }
+
+  const combos: ComboDefinition[] = [];
+
+  for (const item of raw) {
+    if (!item || typeof item !== "object") {
+      continue;
+    }
+
+    const candidate = item as RawComboDefinition;
+    const comboName = typeof candidate.combo_name === "string" ? candidate.combo_name.trim() : "";
+    const cards = Array.isArray(candidate.cards)
+      ? candidate.cards.filter((card): card is string => typeof card === "string").map((card) => card.trim())
+      : [];
+
+    if (!comboName || cards.length < 2 || cards.some((card) => !card)) {
+      continue;
+    }
+
+    combos.push({
+      comboName,
+      cards
+    });
+  }
+
+  return combos;
+}
+
+const COMBO_DATABASE = normalizeComboDb(rawComboDb);
+
+/**
+ * Detects combos where every combo card exists in the provided deck card names.
+ */
+export function detectCombosInDeck(deckCardNames: string[]): ComboReport {
+  const availableByNormalizedName = new Map<string, string>();
+
+  for (const rawName of deckCardNames) {
+    const trimmed = rawName.trim();
+    if (!trimmed) {
+      continue;
+    }
+
+    const normalized = normalizeLookupName(trimmed);
+    if (!availableByNormalizedName.has(normalized)) {
+      availableByNormalizedName.set(normalized, trimmed);
+    }
+  }
+
+  const detected: DetectedCombo[] = [];
+
+  for (const combo of COMBO_DATABASE) {
+    const matchedCards: string[] = [];
+    let isComplete = true;
+
+    for (const comboCard of combo.cards) {
+      const normalizedComboCard = normalizeLookupName(comboCard);
+      const matchedDeckCard = availableByNormalizedName.get(normalizedComboCard);
+      if (!matchedDeckCard) {
+        isComplete = false;
+        break;
+      }
+
+      matchedCards.push(matchedDeckCard);
+    }
+
+    if (isComplete) {
+      detected.push({
+        comboName: combo.comboName,
+        cards: combo.cards,
+        matchedCards
+      });
+    }
+  }
+
+  return {
+    detected,
+    databaseSize: COMBO_DATABASE.length,
+    disclaimer: "Combo detection uses a curated static combo database."
+  };
+}
+

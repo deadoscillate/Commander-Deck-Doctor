@@ -15,6 +15,46 @@ type ShareResponse = {
   url: string;
 };
 
+async function copyToClipboard(text: string): Promise<boolean> {
+  if (!text) {
+    return false;
+  }
+
+  if (
+    typeof navigator !== "undefined" &&
+    navigator.clipboard &&
+    typeof navigator.clipboard.writeText === "function"
+  ) {
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch {
+      // Fallback to execCommand path below.
+    }
+  }
+
+  if (typeof document === "undefined") {
+    return false;
+  }
+
+  try {
+    const textarea = document.createElement("textarea");
+    textarea.value = text;
+    textarea.setAttribute("readonly", "true");
+    textarea.style.position = "fixed";
+    textarea.style.top = "-9999px";
+    textarea.style.opacity = "0";
+    document.body.appendChild(textarea);
+    textarea.focus();
+    textarea.select();
+    const copied = document.execCommand("copy");
+    textarea.remove();
+    return copied;
+  } catch {
+    return false;
+  }
+}
+
 export function ExportButtons({ result, decklist }: ExportButtonsProps) {
   const [copyStatus, setCopyStatus] = useState<"idle" | "ok" | "error">("idle");
   const [shareStatus, setShareStatus] = useState<"idle" | "loading" | "ready" | "copied" | "error">("idle");
@@ -27,7 +67,10 @@ export function ExportButtons({ result, decklist }: ExportButtonsProps) {
     }
 
     try {
-      await navigator.clipboard.writeText(buildPlaintextReport(result));
+      const copied = await copyToClipboard(buildPlaintextReport(result));
+      if (!copied) {
+        throw new Error("Copy unavailable.");
+      }
       setCopyStatus("ok");
       setTimeout(() => setCopyStatus("idle"), 1600);
     } catch {
@@ -100,8 +143,12 @@ export function ExportButtons({ result, decklist }: ExportButtonsProps) {
       setShareUrl(resolvedUrl);
 
       try {
-        await navigator.clipboard.writeText(resolvedUrl);
-        setShareStatus("copied");
+        const copied = await copyToClipboard(resolvedUrl);
+        if (copied) {
+          setShareStatus("copied");
+        } else {
+          setShareStatus("ready");
+        }
       } catch {
         setShareStatus("ready");
       }

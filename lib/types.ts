@@ -9,13 +9,27 @@ export type ParsedDeckEntry = {
 /**
  * Minimal Scryfall fields needed by this MVP analyzer.
  */
+export type ScryfallImageUris = {
+  normal?: string;
+  art_crop?: string;
+};
+
+export type ScryfallCardFace = {
+  oracle_text?: string;
+  mana_cost?: string;
+  image_uris?: ScryfallImageUris;
+};
+
 export type ScryfallCard = {
   name: string;
   type_line: string;
   cmc: number;
+  mana_cost: string;
   colors: string[];
   color_identity: string[];
   oracle_text: string;
+  image_uris: ScryfallImageUris | null;
+  card_faces: ScryfallCardFace[];
 };
 
 /**

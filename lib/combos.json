@@ -1,0 +1,34 @@
+[
+  {
+    "combo_name": "Oracle Consultation",
+    "cards": ["Thassa's Oracle", "Demonic Consultation"]
+  },
+  {
+    "combo_name": "Oracle Pact",
+    "cards": ["Thassa's Oracle", "Tainted Pact"]
+  },
+  {
+    "combo_name": "Heliod Ballista",
+    "cards": ["Heliod, Sun-Crowned", "Walking Ballista"]
+  },
+  {
+    "combo_name": "Exquisite Bond",
+    "cards": ["Exquisite Blood", "Sanguine Bond"]
+  },
+  {
+    "combo_name": "Twinflame Breach",
+    "cards": ["Underworld Breach", "Lion's Eye Diamond", "Brain Freeze"]
+  },
+  {
+    "combo_name": "Kiki Conscripts",
+    "cards": ["Kiki-Jiki, Mirror Breaker", "Zealous Conscripts"]
+  },
+  {
+    "combo_name": "Dramatic Scepter",
+    "cards": ["Isochron Scepter", "Dramatic Reversal"]
+  },
+  {
+    "combo_name": "Basalt Rings",
+    "cards": ["Basalt Monolith", "Rings of Brighthearth"]
+  }
+]

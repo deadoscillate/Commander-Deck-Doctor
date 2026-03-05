@@ -1,3 +1,4 @@
+import { CardNameHover } from "@/components/CardNameHover";
 import type { ImprovementSuggestions as ImprovementSuggestionsType } from "@/lib/contracts";
 
 type ImprovementSuggestionsProps = {
@@ -27,7 +28,9 @@ export function ImprovementSuggestions({ suggestions }: ImprovementSuggestionsPr
               {item.suggestions.length > 0 ? (
                 <ul>
                   {item.suggestions.map((name) => (
-                    <li key={`${item.key}-${name}`}>{name}</li>
+                    <li key={`${item.key}-${name}`}>
+                      <CardNameHover name={name} />
+                    </li>
                   ))}
                 </ul>
               ) : (
