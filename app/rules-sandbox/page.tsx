@@ -7,6 +7,7 @@ import { BattlefieldPanel } from "@/components/sandbox/BattlefieldPanel";
 import { ChoiceModal } from "@/components/sandbox/ChoiceModal";
 import { CommanderZonePanel } from "@/components/sandbox/CommanderZonePanel";
 import { GameLogPanel } from "@/components/sandbox/GameLogPanel";
+import { PlayAreaPanel } from "@/components/sandbox/PlayAreaPanel";
 import { PlayersPanel } from "@/components/sandbox/PlayersPanel";
 import { StackPanel } from "@/components/sandbox/StackPanel";
 import { TimelineControls } from "@/components/sandbox/TimelineControls";
@@ -486,6 +487,7 @@ export default function RulesSandboxPage() {
       <section className="sandbox-grid">
         <div className="sandbox-state-column">
           <TurnPhasePanel state={state} />
+          <PlayAreaPanel state={state} selectedCardId={selectedCardId} onSelectCard={setSelectedCardId} />
           <PlayersPanel state={state} />
           <CommanderZonePanel state={state} />
           <BattlefieldPanel

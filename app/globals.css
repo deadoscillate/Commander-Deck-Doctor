@@ -1416,6 +1416,151 @@ ul {
   padding-top: 0.55rem;
 }
 
+.sandbox-playarea-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.sandbox-playarea-head h2 {
+  margin-bottom: 0.2rem;
+}
+
+.sandbox-playarea-head p {
+  margin: 0;
+}
+
+.sandbox-playarea-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(260px, 1fr));
+  gap: 0.7rem;
+}
+
+.sandbox-seat-card {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fff;
+  padding: 0.62rem 0.68rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.48rem;
+}
+
+.sandbox-seat-card-empty {
+  justify-content: center;
+  align-items: flex-start;
+  min-height: 180px;
+}
+
+.sandbox-seat-card h3 {
+  margin: 0;
+}
+
+.sandbox-seat-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.sandbox-seat-tags {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.34rem;
+  flex-wrap: wrap;
+}
+
+.sandbox-seat-zones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.32rem;
+}
+
+.sandbox-zone-chip {
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: #f4f6f8;
+  color: var(--ink);
+  padding: 0.22rem 0.52rem;
+  font-size: 0.76rem;
+  font-weight: 700;
+  box-shadow: none;
+}
+
+.sandbox-zone-chip-selected {
+  border-color: #a56d2e;
+  background: #fff0df;
+}
+
+.sandbox-seat-zone-view {
+  border-top: 1px solid var(--line);
+  padding-top: 0.45rem;
+}
+
+.sandbox-seat-zone-view > p {
+  margin: 0 0 0.35rem;
+}
+
+.sandbox-card-image-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 0.44rem;
+}
+
+.sandbox-card-image-tile {
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: #fff;
+  color: var(--ink);
+  padding: 0.34rem;
+  text-align: left;
+  box-shadow: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.28rem;
+}
+
+.sandbox-card-image-tile img {
+  width: 100%;
+  height: auto;
+  border-radius: 8px;
+  display: block;
+}
+
+.sandbox-card-image-tile-selected {
+  border-color: #b4702f;
+  background: #ffefdd;
+}
+
+.sandbox-card-image-fallback {
+  border: 1px dashed var(--line);
+  border-radius: 8px;
+  min-height: 150px;
+  padding: 0.35rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  font-size: 0.8rem;
+}
+
+.sandbox-card-image-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.sandbox-card-image-meta strong {
+  font-size: 0.76rem;
+  line-height: 1.2;
+}
+
+.sandbox-card-image-meta em {
+  font-size: 0.72rem;
+  color: var(--ink-muted);
+  font-style: normal;
+}
+
 .sandbox-inline-actions {
   display: flex;
   flex-wrap: wrap;
@@ -1740,6 +1885,10 @@ ul {
   }
 
   .sandbox-setup-seed-row {
+    grid-template-columns: 1fr;
+  }
+
+  .sandbox-playarea-grid {
     grid-template-columns: 1fr;
   }
 }
