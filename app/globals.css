@@ -119,6 +119,69 @@ input[type="url"] {
   white-space: nowrap;
 }
 
+.save-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.5rem;
+}
+
+.save-row button {
+  white-space: nowrap;
+}
+
+.saved-decks-panel {
+  border-top: 1px solid var(--line);
+  margin-top: 0.2rem;
+  padding-top: 0.7rem;
+}
+
+.saved-decks-panel h3 {
+  margin: 0 0 0.35rem;
+}
+
+.saved-decks-list {
+  margin: 0.15rem 0 0.25rem;
+  padding-left: 1rem;
+}
+
+.saved-decks-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.2rem;
+}
+
+.saved-deck-load,
+.saved-deck-remove {
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  background: transparent;
+  font: inherit;
+  box-shadow: none;
+}
+
+.saved-deck-load {
+  color: var(--ink);
+  font-weight: 600;
+  text-align: left;
+}
+
+.saved-deck-load:hover {
+  text-decoration: underline;
+}
+
+.saved-deck-remove {
+  color: var(--ink-muted);
+  font-size: 0.82rem;
+}
+
+.saved-deck-remove:hover {
+  color: var(--warning);
+  text-decoration: underline;
+}
+
 .checkbox {
   display: flex;
   align-items: flex-start;

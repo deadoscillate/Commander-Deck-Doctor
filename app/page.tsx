@@ -15,6 +15,8 @@ const SAMPLE_DECKLIST = `1 Sol Ring
 1 Wrath of God
 1 Cultivate
 1 Kodama's Reach`;
+const SAVED_DECKS_STORAGE_KEY = "commanderDeckDoctor.savedDecks.v1";
+const MAX_SAVED_DECKS = 30;
 
 type ImportUrlResponse = {
   provider: "moxfield" | "archidekt";
@@ -25,20 +27,181 @@ type ImportUrlResponse = {
   commanderCount: number;
 };
 
+type SavedDeck = {
+  id: string;
+  name: string;
+  decklist: string;
+  targetBracket: string;
+  expectedWinTurn: string;
+  commanderName: string;
+  userCedhFlag: boolean;
+  userHighPowerNoGCFlag: boolean;
+  updatedAt: string;
+};
+
+function parseSavedDecks(raw: string | null): SavedDeck[] {
+  if (!raw) {
+    return [];
+  }
+
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+
+    return parsed
+      .map((item, index) => {
+        if (!item || typeof item !== "object") {
+          return null;
+        }
+
+        const candidate = item as Partial<SavedDeck>;
+        const name = typeof candidate.name === "string" ? candidate.name.trim() : "";
+        const decklist = typeof candidate.decklist === "string" ? candidate.decklist : "";
+        if (!name || !decklist.trim()) {
+          return null;
+        }
+
+        const fallbackId = `saved-${index}-${name.toLowerCase().replace(/\s+/g, "-")}`;
+        return {
+          id: typeof candidate.id === "string" && candidate.id ? candidate.id : fallbackId,
+          name,
+          decklist,
+          targetBracket: typeof candidate.targetBracket === "string" ? candidate.targetBracket : "",
+          expectedWinTurn: typeof candidate.expectedWinTurn === "string" ? candidate.expectedWinTurn : "",
+          commanderName: typeof candidate.commanderName === "string" ? candidate.commanderName : "",
+          userCedhFlag: Boolean(candidate.userCedhFlag),
+          userHighPowerNoGCFlag: Boolean(candidate.userHighPowerNoGCFlag),
+          updatedAt: typeof candidate.updatedAt === "string" ? candidate.updatedAt : new Date(0).toISOString()
+        } satisfies SavedDeck;
+      })
+      .filter((item): item is SavedDeck => Boolean(item))
+      .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+      .slice(0, MAX_SAVED_DECKS);
+  } catch {
+    return [];
+  }
+}
+
+function createSavedDeckId(): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+
+  return `saved-${Date.now()}-${Math.floor(Math.random() * 1_000_000)}`;
+}
+
 export default function Page() {
   const [deckUrl, setDeckUrl] = useState("");
+  const [deckName, setDeckName] = useState("");
   const [decklist, setDecklist] = useState(SAMPLE_DECKLIST);
   const [targetBracket, setTargetBracket] = useState("");
   const [expectedWinTurn, setExpectedWinTurn] = useState("");
   const [commanderName, setCommanderName] = useState("");
   const [userCedhFlag, setUserCedhFlag] = useState(false);
   const [userHighPowerNoGCFlag, setUserHighPowerNoGCFlag] = useState(false);
+  const [savedDecks, setSavedDecks] = useState<SavedDeck[]>([]);
+  const [saveError, setSaveError] = useState("");
+  const [saveInfo, setSaveInfo] = useState("");
   const [result, setResult] = useState<AnalyzeResponse | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [importing, setImporting] = useState(false);
   const [importError, setImportError] = useState("");
   const [importInfo, setImportInfo] = useState("");
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    setSavedDecks(parseSavedDecks(window.localStorage.getItem(SAVED_DECKS_STORAGE_KEY)));
+  }, []);
+
+  function persistSavedDecks(next: SavedDeck[]) {
+    setSavedDecks(next);
+
+    try {
+      window.localStorage.setItem(SAVED_DECKS_STORAGE_KEY, JSON.stringify(next));
+    } catch {
+      setSaveError("Could not persist saved decks in this browser.");
+    }
+  }
+
+  function onSaveDeck() {
+    const trimmedName = deckName.trim();
+    if (!trimmedName) {
+      setSaveInfo("");
+      setSaveError("Enter a deck name before saving.");
+      return;
+    }
+
+    const trimmedDecklist = decklist.trim();
+    if (!trimmedDecklist) {
+      setSaveInfo("");
+      setSaveError("Decklist is required before saving.");
+      return;
+    }
+
+    const existing = savedDecks.find(
+      (saved) => saved.name.toLowerCase() === trimmedName.toLowerCase()
+    );
+    const now = new Date().toISOString();
+
+    const nextEntry: SavedDeck = {
+      id: existing?.id ?? createSavedDeckId(),
+      name: trimmedName,
+      decklist: trimmedDecklist,
+      targetBracket,
+      expectedWinTurn,
+      commanderName,
+      userCedhFlag,
+      userHighPowerNoGCFlag,
+      updatedAt: now
+    };
+
+    const next = [nextEntry, ...savedDecks.filter((saved) => saved.id !== nextEntry.id)].slice(
+      0,
+      MAX_SAVED_DECKS
+    );
+
+    persistSavedDecks(next);
+    setSaveError("");
+    setSaveInfo(
+      existing ? `Updated "${trimmedName}" in Saved Decks.` : `Saved "${trimmedName}" locally.`
+    );
+  }
+
+  function onLoadSavedDeck(saved: SavedDeck) {
+    setDeckName(saved.name);
+    setDecklist(saved.decklist);
+    setTargetBracket(saved.targetBracket);
+    setExpectedWinTurn(saved.expectedWinTurn);
+    setCommanderName(saved.commanderName);
+    setUserCedhFlag(saved.userCedhFlag);
+    setUserHighPowerNoGCFlag(saved.userHighPowerNoGCFlag);
+    setResult(null);
+    setError("");
+    setImportError("");
+    setImportInfo("");
+    setSaveError("");
+    setSaveInfo(`Loaded "${saved.name}".`);
+
+    const next = [
+      { ...saved, updatedAt: new Date().toISOString() },
+      ...savedDecks.filter((item) => item.id !== saved.id)
+    ].slice(0, MAX_SAVED_DECKS);
+
+    persistSavedDecks(next);
+  }
+
+  function onRemoveSavedDeck(id: string) {
+    const next = savedDecks.filter((saved) => saved.id !== id);
+    persistSavedDecks(next);
+    setSaveError("");
+    setSaveInfo("Removed saved deck.");
+  }
 
   async function onImportUrl() {
     const trimmed = deckUrl.trim();
@@ -66,6 +229,9 @@ export default function Page() {
 
       const imported = data as ImportUrlResponse;
       setDecklist(imported.decklist);
+      if (imported.deckName) {
+        setDeckName(imported.deckName);
+      }
       setCommanderName("");
       setResult(null);
       const label = imported.provider === "moxfield" ? "Moxfield" : "Archidekt";
@@ -151,6 +317,51 @@ export default function Page() {
           </div>
           {importError ? <p className="error">{importError}</p> : null}
           {importInfo ? <p className="muted">{importInfo}</p> : null}
+
+          <label htmlFor="deck-name">Deck Name</label>
+          <div className="save-row">
+            <input
+              id="deck-name"
+              type="text"
+              value={deckName}
+              onChange={(event) => setDeckName(event.target.value)}
+              placeholder="Atraxa Infect"
+            />
+            <button type="button" onClick={onSaveDeck}>
+              Save Deck Locally
+            </button>
+          </div>
+          {saveError ? <p className="error">{saveError}</p> : null}
+          {saveInfo ? <p className="muted">{saveInfo}</p> : null}
+
+          <section className="saved-decks-panel">
+            <h3>Saved Decks</h3>
+            {savedDecks.length === 0 ? (
+              <p className="muted">No saved decks yet.</p>
+            ) : (
+              <ul className="saved-decks-list">
+                {savedDecks.map((saved) => (
+                  <li key={saved.id} className="saved-decks-item">
+                    <button
+                      type="button"
+                      className="saved-deck-load"
+                      onClick={() => onLoadSavedDeck(saved)}
+                    >
+                      {saved.name}
+                    </button>
+                    <button
+                      type="button"
+                      className="saved-deck-remove"
+                      onClick={() => onRemoveSavedDeck(saved.id)}
+                      aria-label={`Remove saved deck ${saved.name}`}
+                    >
+                      Remove
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
 
           <label htmlFor="decklist">Decklist</label>
           <textarea

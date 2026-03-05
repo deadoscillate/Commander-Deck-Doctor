@@ -19,6 +19,7 @@ export function ExportButtons({ result, decklist }: ExportButtonsProps) {
   const [copyStatus, setCopyStatus] = useState<"idle" | "ok" | "error">("idle");
   const [shareStatus, setShareStatus] = useState<"idle" | "loading" | "ready" | "copied" | "error">("idle");
   const [shareUrl, setShareUrl] = useState("");
+  const [shareError, setShareError] = useState("");
 
   async function onCopy() {
     if (!result) {
@@ -60,12 +61,14 @@ export function ExportButtons({ result, decklist }: ExportButtonsProps) {
 
     const normalizedDecklist = decklist.trim();
     if (!normalizedDecklist) {
+      setShareError("Decklist is required for sharing.");
       setShareStatus("error");
       return;
     }
 
     setShareStatus("loading");
     setShareUrl("");
+    setShareError("");
 
     try {
       const response = await fetch("/api/share-report", {
@@ -79,16 +82,21 @@ export function ExportButtons({ result, decklist }: ExportButtonsProps) {
 
       const payload = (await response.json()) as ShareResponse | { error: string };
       if (!response.ok) {
+        setShareError("error" in payload ? payload.error : "Share failed.");
         setShareStatus("error");
         return;
       }
 
       const sharePayload = payload as ShareResponse;
-      const resolvedUrl =
-        sharePayload.url ||
-        (typeof window !== "undefined"
+      const resolvedUrl = sharePayload.url ||
+        (sharePayload.path && typeof window !== "undefined"
           ? `${window.location.origin}${sharePayload.path}`
-          : sharePayload.path);
+          : "");
+      if (!resolvedUrl) {
+        setShareError("Share response did not include a valid URL.");
+        setShareStatus("error");
+        return;
+      }
       setShareUrl(resolvedUrl);
 
       try {
@@ -98,6 +106,7 @@ export function ExportButtons({ result, decklist }: ExportButtonsProps) {
         setShareStatus("ready");
       }
     } catch {
+      setShareError("Share request failed.");
       setShareStatus("error");
     }
   }
@@ -116,12 +125,13 @@ export function ExportButtons({ result, decklist }: ExportButtonsProps) {
       {copyStatus === "ok" ? <span className="muted">Copied.</span> : null}
       {copyStatus === "error" ? <span className="error-inline">Copy failed.</span> : null}
       {shareStatus === "copied" ? <span className="muted">Share link copied.</span> : null}
-      {shareStatus === "ready" && shareUrl ? (
+      {shareStatus === "ready" ? <span className="muted">Share link created.</span> : null}
+      {shareUrl ? (
         <a className="share-link" href={shareUrl} target="_blank" rel="noreferrer">
           Open shared report
         </a>
       ) : null}
-      {shareStatus === "error" ? <span className="error-inline">Share failed.</span> : null}
+      {shareStatus === "error" ? <span className="error-inline">{shareError || "Share failed."}</span> : null}
     </div>
   );
 }
