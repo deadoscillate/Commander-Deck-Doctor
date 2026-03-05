@@ -41,6 +41,16 @@ type CardPrintingOption = {
 const PRINTINGS_ENDPOINT = "https://api.scryfall.com/cards/search";
 const MAX_NAME_LENGTH = 120;
 const MAX_PRINTINGS = 60;
+const PRINTINGS_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
+const MAX_CACHE_ENTRIES = 500;
+const PRINTINGS_CACHE_CONTROL = "public, max-age=0, s-maxage=21600, stale-while-revalidate=86400";
+
+type CachedPrintings = {
+  expiresAt: number;
+  printings: CardPrintingOption[];
+};
+
+const printingsCache = new Map<string, CachedPrintings>();
 
 function normalizeCardName(value: string | null): string {
   if (!value) {
@@ -48,6 +58,47 @@ function normalizeCardName(value: string | null): string {
   }
 
   return value.trim();
+}
+
+function buildCacheKey(name: string): string {
+  return name.toLowerCase();
+}
+
+function getCachedPrintings(name: string): CardPrintingOption[] | null {
+  const now = Date.now();
+  const key = buildCacheKey(name);
+  const cached = printingsCache.get(key);
+  if (!cached) {
+    return null;
+  }
+
+  if (cached.expiresAt <= now) {
+    printingsCache.delete(key);
+    return null;
+  }
+
+  return cached.printings;
+}
+
+function setCachedPrintings(name: string, printings: CardPrintingOption[]): void {
+  const now = Date.now();
+  for (const [key, entry] of printingsCache.entries()) {
+    if (entry.expiresAt <= now) {
+      printingsCache.delete(key);
+    }
+  }
+
+  if (printingsCache.size >= MAX_CACHE_ENTRIES) {
+    const oldestKey = printingsCache.keys().next().value;
+    if (typeof oldestKey === "string") {
+      printingsCache.delete(oldestKey);
+    }
+  }
+
+  printingsCache.set(buildCacheKey(name), {
+    expiresAt: now + PRINTINGS_CACHE_TTL_MS,
+    printings
+  });
 }
 
 function sortPrintings(a: CardPrintingOption, b: CardPrintingOption): number {
@@ -85,6 +136,22 @@ export async function GET(request: Request) {
 
   if (name.length > MAX_NAME_LENGTH) {
     return apiJson({ error: "Card name is too long." }, { status: 413, requestId });
+  }
+
+  const cached = getCachedPrintings(name);
+  if (cached) {
+    return apiJson(
+      {
+        name,
+        count: cached.length,
+        printings: cached
+      },
+      {
+        status: 200,
+        requestId,
+        headers: { "cache-control": PRINTINGS_CACHE_CONTROL }
+      }
+    );
   }
 
   try {
@@ -146,13 +213,19 @@ export async function GET(request: Request) {
       .sort(sortPrintings)
       .slice(0, MAX_PRINTINGS);
 
+    setCachedPrintings(name, printings);
+
     return apiJson(
       {
         name,
         count: printings.length,
         printings
       },
-      { status: 200, requestId }
+      {
+        status: 200,
+        requestId,
+        headers: { "cache-control": PRINTINGS_CACHE_CONTROL }
+      }
     );
   } catch (error) {
     reportApiError(error, {
