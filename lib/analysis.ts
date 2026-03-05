@@ -84,6 +84,127 @@ function matchesAny(text: string, patterns: RegExp[]): boolean {
   return patterns.some((pattern) => pattern.test(text));
 }
 
+function isBoardWipeByText(text: string): boolean {
+  return matchesAny(text, [
+    /\bdestroy\s+(?:all|each)\s+[^.]{0,80}\b(?:creatures?|artifacts?|enchantments?|planeswalkers?|nonland permanents?|permanents?)\b/,
+    /\bexile\s+(?:all|each)\s+[^.]{0,80}\b(?:creatures?|artifacts?|enchantments?|planeswalkers?|nonland permanents?|permanents?|graveyards?)\b/,
+    /\breturn\s+(?:all|each)\s+[^.]{0,80}\b(?:creatures?|artifacts?|enchantments?|planeswalkers?|nonland permanents?|permanents?)\b[^.]{0,80}\bto\s+(?:its|their)\s+owner'?s\s+hand\b/,
+    /\b(?:all|each)\s+creatures?\s+get\s+-\d+\/-\d+/,
+    /\bdeals?\s+(?:x|\d+)\s+damage\s+to\s+each\s+creature\b/,
+    /\beach\s+player\s+sacrifices\s+(?:all\s+)?(?:creatures?|artifacts?|enchantments?|planeswalkers?)\b/
+  ]);
+}
+
+function searchClauses(text: string): string[] {
+  const clauses: string[] = [];
+  const pattern = /search your library for ([^.]+)/g;
+  for (const match of text.matchAll(pattern)) {
+    const clause = match[1]?.trim();
+    if (clause) {
+      clauses.push(clause);
+    }
+  }
+
+  return clauses;
+}
+
+function isLandOnlySearchClause(clause: string): boolean {
+  if (/\bnonland\b/.test(clause)) {
+    return false;
+  }
+
+  return matchesAny(clause, [
+    /\bbasic land\b/,
+    /\bland cards?\b/,
+    /\b(?:plains|island|swamp|mountain|forest|wastes) cards?\b/
+  ]);
+}
+
+function isTutorByText(text: string): boolean {
+  const clauses = searchClauses(text);
+  if (clauses.length === 0) {
+    return false;
+  }
+
+  return clauses.some((clause) => {
+    if (/\b(any|a)\s+card\b/.test(clause)) {
+      return true;
+    }
+
+    if (isLandOnlySearchClause(clause)) {
+      return false;
+    }
+
+    return /\b(?:artifact|battle|creature|enchantment|instant|planeswalker|sorcery|nonland)\s+card\b/.test(clause);
+  });
+}
+
+function isRampByText(typeLine: string, text: string): boolean {
+  const manaRockLike = !typeLine.includes("land") && typeLine.includes("artifact") && /\badd\b/.test(text);
+  if (manaRockLike) {
+    return true;
+  }
+
+  return matchesAny(text, [
+    /search your library for (?:up to )?\d*\s*(?:basic )?land/,
+    /search your library for [^.]{0,80}\b(?:plains|island|swamp|mountain|forest|wastes)\b/,
+    /put (?:that|those|a|an) [^\.]*land[^\.]* onto the battlefield/,
+    /\{t\}:\s*add\s+\{[wubrgc]/,
+    /\badd\b[\s\S]{0,50}\bmana\b/,
+    /\bcreate\b[\s\S]{0,30}\btreasure\b/,
+    /for each land you control, add/
+  ]);
+}
+
+function isDrawByText(text: string): boolean {
+  return matchesAny(text, [
+    /\bdraw\b[\s\S]{0,20}\bcard/,
+    /whenever you draw/,
+    /\bconnive\b/,
+    /\bsurveil\b/,
+    /\binvestigate\b/
+  ]);
+}
+
+function isRemovalByText(text: string): boolean {
+  return matchesAny(text, [
+    /\bdestroy target\b/,
+    /\bexile target\b/,
+    /\bcounter target\b/,
+    /\btarget .* gets -\d+\/-\d+/,
+    /\bdeals? (?:x|\d+) damage to target\b/,
+    /\breturn target .* to .* hand\b/,
+    /\btarget player sacrifices\b[\s\S]{0,30}\bcreature\b/,
+    /\bfight target\b/
+  ]);
+}
+
+function isProtectionByText(text: string): boolean {
+  return matchesAny(text, [
+    /\bindestructible\b/,
+    /\bhexproof\b/,
+    /\bward\b/,
+    /\bphases? out\b/,
+    /\bprotection from\b/,
+    /\bcannot be countered\b/,
+    /\bcan't be countered\b/,
+    /\bprevent all\b[\s\S]{0,20}\bdamage\b/,
+    /\bcounter target spell that targets\b/
+  ]);
+}
+
+function isFinisherByText(text: string): boolean {
+  return matchesAny(text, [
+    /\byou win the game\b/,
+    /\beach opponent loses (?:x|[2-9]|\d{2,}) life\b/,
+    /\beach opponent loses life equal to\b/,
+    /\bdouble damage\b/,
+    /\bextra combat phase\b/,
+    /\bcreatures you control gain trample and get \+[x\d]+\/\+[x\d]+\b/,
+    /\bcreatures you control get \+[x\d]+\/\+[x\d]+ and gain trample\b/
+  ]);
+}
+
 function roleFlags(
   card: DeckCard,
   options?: RoleComputationOptions
@@ -93,65 +214,18 @@ function roleFlags(
   const behaviorId = options?.behaviorIdByCardName?.(card.card.name) ?? null;
   const behaviorHints = behaviorId ? ROLE_HINTS_BY_BEHAVIOR_ID[behaviorId] ?? [] : [];
 
-  const rampByText = matchesAny(text, [
-    /search your library for (a |an )?(basic )?land/,
-    /\{t\}:\s*add\s+\{[wubrgc]/,
-    /\badd\b[\s\S]{0,50}\bmana\b/,
-    /for each land you control, add/
-  ]);
+  const rampByText = isRampByText(typeLine, text);
+  const drawByText = isDrawByText(text);
+  const removalByText = isRemovalByText(text);
 
-  const drawByText = matchesAny(text, [
-    /\bdraw\b[\s\S]{0,20}\bcard/,
-    /whenever you draw/,
-    /\bconnive\b/,
-    /\bsurveil\b/
-  ]);
+  const wipesByText = isBoardWipeByText(text);
 
-  const removalByText = matchesAny(text, [
-    /\bdestroy target\b/,
-    /\bexile target\b/,
-    /\bcounter target\b/,
-    /\btarget .* gets -\d/,
-    /\bdeals \d+ damage to target\b/,
-    /\breturn target .* to .* hand\b/
-  ]);
-
-  const wipesByText = matchesAny(text, [
-    /\bdestroy all\b/,
-    /\bexile all\b/,
-    /\beach creature\b/,
-    /\beach opponent sacrifices\b[\s\S]{0,30}\bcreature\b/,
-    /\ball creatures get -\d/
-  ]);
-
-  const tutorsByText = matchesAny(text, [
-    /\bsearch your library for a card\b/,
-    /\bsearch your library for (an?|any) [^\.]* card\b/
-  ]);
-
-  const protectionByText = matchesAny(text, [
-    /\bindestructible\b/,
-    /\bhexproof\b/,
-    /\bphases? out\b/,
-    /\bprotection from\b/,
-    /\bcannot be countered\b/,
-    /\bprevent all\b[\s\S]{0,20}\bdamage\b/
-  ]);
-
-  const finishersByText = matchesAny(text, [
-    /\byou win the game\b/,
-    /\beach opponent loses\b/,
-    /\bdouble .* power\b/,
-    /\bextra combat phase\b/,
-    /\binfect\b/,
-    /\btrample\b[\s\S]{0,20}\bdouble strike\b/
-  ]);
-
-  // Catch simple mana-rock style cards that do not explicitly say "mana" nearby.
-  const manaRockLike = !typeLine.includes("land") && typeLine.includes("artifact") && /\badd\b/.test(text);
+  const tutorsByText = isTutorByText(text);
+  const protectionByText = isProtectionByText(text);
+  const finishersByText = isFinisherByText(text);
 
   return {
-    ramp: behaviorHints.includes("ramp") || rampByText || manaRockLike,
+    ramp: behaviorHints.includes("ramp") || rampByText,
     draw: behaviorHints.includes("draw") || drawByText,
     removal: behaviorHints.includes("removal") || removalByText,
     wipes: behaviorHints.includes("wipes") || wipesByText,
