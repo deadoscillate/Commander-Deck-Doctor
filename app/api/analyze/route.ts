@@ -1,4 +1,5 @@
 import { computeDeckSummary, computeRoleBreakdown, computeRoleCounts } from "@/lib/analysis";
+import { CardDatabase, createEngine } from "@/engine";
 import { computeDeckArchetypes } from "@/lib/archetypes";
 import {
   buildBracketExplanation,
@@ -30,6 +31,24 @@ const ANALYZE_RATE_LIMIT = {
   limit: 45,
   windowSeconds: 60
 };
+
+let analyzerEngine: ReturnType<typeof createEngine> | null = null;
+
+function getAnalyzerEngine() {
+  if (analyzerEngine) {
+    return analyzerEngine;
+  }
+
+  try {
+    analyzerEngine = createEngine();
+    return analyzerEngine;
+  } catch {
+    analyzerEngine = createEngine({
+      cardDatabase: CardDatabase.createWithEngineSet()
+    });
+    return analyzerEngine;
+  }
+}
 
 /**
  * POST /api/analyze
@@ -240,8 +259,11 @@ export async function POST(request: Request) {
     // Fetch only the cards we can resolve; unknown names are reported separately.
     const { knownCards, unknownCards } = await fetchDeckCards(parsedDeck, 8);
     const summary = computeDeckSummary(knownCards);
-    const roles = computeRoleCounts(knownCards);
-    const roleBreakdown = computeRoleBreakdown(knownCards);
+    const analyzer = getAnalyzerEngine();
+    const behaviorIdByCardName = (cardName: string) =>
+      analyzer.cardDatabase.getCardByName(cardName)?.behaviorId ?? null;
+    const roles = computeRoleCounts(knownCards, { behaviorIdByCardName });
+    const roleBreakdown = computeRoleBreakdown(knownCards, { behaviorIdByCardName });
 
     const knownByInputName = new Map(
       knownCards.map((entry) => [entry.name.toLowerCase(), entry.card.name])

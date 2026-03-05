@@ -49,6 +49,29 @@ function emptyRoleBreakdown(): RoleBreakdown {
   };
 }
 
+type RoleComputationOptions = {
+  behaviorIdByCardName?: (cardName: string) => string | null;
+};
+
+const ROLE_HINTS_BY_BEHAVIOR_ID: Record<string, Array<keyof RoleCounts>> = {
+  TAP_ADD_W: ["ramp"],
+  TAP_ADD_U: ["ramp"],
+  TAP_ADD_B: ["ramp"],
+  TAP_ADD_R: ["ramp"],
+  TAP_ADD_G: ["ramp"],
+  TAP_ADD_C2: ["ramp"],
+  TAP_ADD_ANY: ["ramp"],
+  ETB_DRAW_1: ["draw"],
+  DRAW_1: ["draw"],
+  DRAW_2: ["draw"],
+  DAMAGE_2: ["removal"],
+  DAMAGE_3: ["removal"],
+  DAMAGE_5: ["removal"],
+  DESTROY_TARGET_CREATURE: ["removal"],
+  SORCERY_DESTROY_TARGET_CREATURE: ["removal"],
+  COUNTER_TARGET_SPELL: ["removal"]
+};
+
 function toCurveBucket(cmc: number): string {
   if (cmc >= 7) {
     return "7+";
@@ -61,24 +84,30 @@ function matchesAny(text: string, patterns: RegExp[]): boolean {
   return patterns.some((pattern) => pattern.test(text));
 }
 
-function roleFlags(card: DeckCard): Record<keyof RoleCounts, boolean> {
+function roleFlags(
+  card: DeckCard,
+  options?: RoleComputationOptions
+): Record<keyof RoleCounts, boolean> {
   const typeLine = card.card.type_line.toLowerCase();
   const text = card.card.oracle_text.toLowerCase();
+  const behaviorId = options?.behaviorIdByCardName?.(card.card.name) ?? null;
+  const behaviorHints = behaviorId ? ROLE_HINTS_BY_BEHAVIOR_ID[behaviorId] ?? [] : [];
 
-  const ramp = matchesAny(text, [
+  const rampByText = matchesAny(text, [
     /search your library for (a |an )?(basic )?land/,
+    /\{t\}:\s*add\s+\{[wubrgc]/,
     /\badd\b[\s\S]{0,50}\bmana\b/,
     /for each land you control, add/
   ]);
 
-  const draw = matchesAny(text, [
+  const drawByText = matchesAny(text, [
     /\bdraw\b[\s\S]{0,20}\bcard/,
     /whenever you draw/,
     /\bconnive\b/,
     /\bsurveil\b/
   ]);
 
-  const removal = matchesAny(text, [
+  const removalByText = matchesAny(text, [
     /\bdestroy target\b/,
     /\bexile target\b/,
     /\bcounter target\b/,
@@ -87,7 +116,7 @@ function roleFlags(card: DeckCard): Record<keyof RoleCounts, boolean> {
     /\breturn target .* to .* hand\b/
   ]);
 
-  const wipes = matchesAny(text, [
+  const wipesByText = matchesAny(text, [
     /\bdestroy all\b/,
     /\bexile all\b/,
     /\beach creature\b/,
@@ -95,12 +124,12 @@ function roleFlags(card: DeckCard): Record<keyof RoleCounts, boolean> {
     /\ball creatures get -\d/
   ]);
 
-  const tutors = matchesAny(text, [
+  const tutorsByText = matchesAny(text, [
     /\bsearch your library for a card\b/,
     /\bsearch your library for (an?|any) [^\.]* card\b/
   ]);
 
-  const protection = matchesAny(text, [
+  const protectionByText = matchesAny(text, [
     /\bindestructible\b/,
     /\bhexproof\b/,
     /\bphases? out\b/,
@@ -109,7 +138,7 @@ function roleFlags(card: DeckCard): Record<keyof RoleCounts, boolean> {
     /\bprevent all\b[\s\S]{0,20}\bdamage\b/
   ]);
 
-  const finishers = matchesAny(text, [
+  const finishersByText = matchesAny(text, [
     /\byou win the game\b/,
     /\beach opponent loses\b/,
     /\bdouble .* power\b/,
@@ -122,13 +151,13 @@ function roleFlags(card: DeckCard): Record<keyof RoleCounts, boolean> {
   const manaRockLike = !typeLine.includes("land") && typeLine.includes("artifact") && /\badd\b/.test(text);
 
   return {
-    ramp: ramp || manaRockLike,
-    draw,
-    removal,
-    wipes,
-    tutors,
-    protection,
-    finishers
+    ramp: behaviorHints.includes("ramp") || rampByText || manaRockLike,
+    draw: behaviorHints.includes("draw") || drawByText,
+    removal: behaviorHints.includes("removal") || removalByText,
+    wipes: behaviorHints.includes("wipes") || wipesByText,
+    tutors: behaviorHints.includes("tutors") || tutorsByText,
+    protection: behaviorHints.includes("protection") || protectionByText,
+    finishers: behaviorHints.includes("finishers") || finishersByText
   };
 }
 
@@ -188,11 +217,11 @@ export function computeDeckSummary(cards: DeckCard[]): DeckSummary {
 /**
  * Computes role counts by applying lightweight oracle-text heuristics.
  */
-export function computeRoleCounts(cards: DeckCard[]): RoleCounts {
+export function computeRoleCounts(cards: DeckCard[], options?: RoleComputationOptions): RoleCounts {
   const roles = emptyRoleCounts();
 
   for (const entry of cards) {
-    const flags = roleFlags(entry);
+    const flags = roleFlags(entry, options);
     for (const [role, active] of Object.entries(flags) as [keyof RoleCounts, boolean][]) {
       if (active) {
         roles[role] += entry.qty;
@@ -206,11 +235,11 @@ export function computeRoleCounts(cards: DeckCard[]): RoleCounts {
 /**
  * Returns the specific cards tagged for each heuristic role bucket.
  */
-export function computeRoleBreakdown(cards: DeckCard[]): RoleBreakdown {
+export function computeRoleBreakdown(cards: DeckCard[], options?: RoleComputationOptions): RoleBreakdown {
   const breakdown = emptyRoleBreakdown();
 
   for (const entry of cards) {
-    const flags = roleFlags(entry);
+    const flags = roleFlags(entry, options);
     for (const [role, active] of Object.entries(flags) as [keyof RoleCounts, boolean][]) {
       if (!active) {
         continue;
