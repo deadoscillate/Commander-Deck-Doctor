@@ -59,6 +59,31 @@ npm run build
 npm run start
 ```
 
+## Scryfall Oracle Data Pipeline (Offline-First)
+
+Initial setup (required before engine tests/build that use the rules engine DB):
+
+```bash
+npm run scryfall:update
+```
+
+This runs:
+
+- `npm run scryfall:download` to fetch the latest `oracle_cards` bulk file metadata + raw dataset.
+- `npm run scryfall:compile` to generate `data/scryfall/oracle-cards.compiled.json` (engine-friendly subset).
+
+Update data later with the same command:
+
+```bash
+npm run scryfall:update
+```
+
+Notes:
+
+- `data/scryfall/` is ignored by git.
+- Engine/tests load card metadata from the local compiled file and do not call Scryfall at runtime.
+- If the compiled file is missing, run `npm run scryfall:update`.
+
 ## Testing
 
 ```bash

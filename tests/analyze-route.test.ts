@@ -124,6 +124,10 @@ describe("POST /api/analyze", () => {
       roleBreakdown?: {
         ramp?: Array<{ name?: string; qty?: number }>;
       };
+      rulesEngine?: {
+        status?: string;
+        rules?: Array<{ id?: string; outcome?: string }>;
+      };
     };
 
     expect(response.status).toBe(200);
@@ -134,6 +138,9 @@ describe("POST /api/analyze", () => {
     expect(body.deckPrice?.totalKnownCardQty).toBe(3);
     expect(body.roleBreakdown?.ramp?.some((entry) => entry.name === "Sol Ring" && entry.qty === 2)).toBe(true);
     expect(body.roleBreakdown?.ramp?.some((entry) => entry.name === "Arcane Signet" && entry.qty === 1)).toBe(true);
+    expect(body.rulesEngine?.status).toBeDefined();
+    expect(Array.isArray(body.rulesEngine?.rules)).toBe(true);
+    expect(body.rulesEngine?.rules?.some((rule) => rule.id === "commander.deck-size-exactly-100")).toBe(true);
   });
 
   it("returns opening hand simulation metrics", async () => {

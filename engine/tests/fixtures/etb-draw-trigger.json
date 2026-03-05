@@ -1,0 +1,42 @@
+{
+  "name": "etb-draw-trigger",
+  "seed": "golden-etb-draw",
+  "players": [
+    { "id": "p1", "name": "Alice" },
+    { "id": "p2", "name": "Bob" }
+  ],
+  "decks": {
+    "p1": [
+      { "name": "Captain Verity", "qty": 1 },
+      { "name": "Elvish Visionary", "qty": 1 },
+      { "name": "Forest", "qty": 7 }
+    ],
+    "p2": [
+      { "name": "Ravager of Embers", "qty": 1 },
+      { "name": "Mountain", "qty": 7 }
+    ]
+  },
+  "commanders": {
+    "p1": ["Captain Verity"],
+    "p2": ["Ravager of Embers"]
+  },
+  "actions": [
+    { "type": "PLAY_LAND", "playerId": "p1", "cardName": "Forest" },
+    {
+      "type": "ACTIVATE_ABILITY",
+      "playerId": "p1",
+      "sourceName": "Forest",
+      "abilityId": "tap_for_mana"
+    },
+    {
+      "type": "CAST_SPELL",
+      "playerId": "p1",
+      "cardName": "Elvish Visionary",
+      "sourceZone": "hand"
+    },
+    { "type": "PASS_PRIORITY", "playerId": "p1" },
+    { "type": "PASS_PRIORITY", "playerId": "p2" },
+    { "type": "PASS_PRIORITY", "playerId": "p1" },
+    { "type": "PASS_PRIORITY", "playerId": "p2" }
+  ]
+}

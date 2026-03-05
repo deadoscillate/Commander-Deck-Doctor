@@ -1,8 +1,9 @@
 import { CardNameHover } from "@/components/CardNameHover";
-import type { DeckChecks } from "@/lib/contracts";
+import type { DeckChecks, RulesEngineReport } from "@/lib/contracts";
 
 type ChecksProps = {
   checks: DeckChecks;
+  rulesEngine?: RulesEngineReport;
 };
 
 type CheckTone = "ok" | "warn" | "pending";
@@ -19,7 +20,7 @@ function toneIcon(tone: CheckTone): string {
   return "\u23F3";
 }
 
-export function Checks({ checks }: ChecksProps) {
+export function Checks({ checks, rulesEngine }: ChecksProps) {
   const deckSizeTone: CheckTone = checks.deckSize.ok ? "ok" : "warn";
   const unknownTone: CheckTone = checks.unknownCards.ok ? "ok" : "warn";
   const singletonTone: CheckTone = checks.singleton.ok ? "ok" : "warn";
@@ -28,6 +29,13 @@ export function Checks({ checks }: ChecksProps) {
       ? "ok"
       : "warn"
     : "pending";
+  const rulesEngineTone: CheckTone | null = rulesEngine
+    ? rulesEngine.status === "PASS"
+      ? "ok"
+      : "warn"
+    : null;
+  const failingRules =
+    rulesEngine?.rules.filter((rule) => rule.outcome === "FAIL").sort((a, b) => a.name.localeCompare(b.name)) ?? [];
 
   return (
     <section>
@@ -101,6 +109,32 @@ export function Checks({ checks }: ChecksProps) {
             </ul>
           ) : null}
         </li>
+        {rulesEngine && rulesEngineTone ? (
+          <li className={`check-item check-${rulesEngineTone}`}>
+            <div className="check-item-head">
+              <strong>
+                {toneIcon(rulesEngineTone)} Rules Engine
+              </strong>
+              <span className="check-pill">{toneLabel(rulesEngineTone)}</span>
+            </div>
+            <p>
+              {rulesEngine.passedRules} pass, {rulesEngine.failedRules} fail, {rulesEngine.skippedRules} skip
+              {" "}({rulesEngine.format}, {rulesEngine.engineVersion}).
+            </p>
+            {failingRules.length > 0 ? (
+              <details className="checks-details">
+                <summary>Show failing rules</summary>
+                <ul>
+                  {failingRules.map((rule) => (
+                    <li key={rule.id}>
+                      <strong>{rule.name}</strong>: {rule.message}
+                    </li>
+                  ))}
+                </ul>
+              </details>
+            ) : null}
+          </li>
+        ) : null}
       </ul>
     </section>
   );

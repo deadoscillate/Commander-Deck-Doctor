@@ -107,6 +107,33 @@ export type DeckChecks = {
   };
 };
 
+export type RulesEngineDomain = "DECK_CONSTRUCTION" | "CARD_VALIDATION" | "COMMANDER_RULES";
+export type RulesEngineSeverity = "ERROR" | "WARN" | "INFO";
+export type RulesEngineOutcome = "PASS" | "FAIL" | "SKIP";
+
+export type RulesEngineRuleResult = {
+  id: string;
+  name: string;
+  description: string;
+  domain: RulesEngineDomain;
+  severity: RulesEngineSeverity;
+  outcome: RulesEngineOutcome;
+  message: string;
+  findings: NamedCount[];
+};
+
+export type RulesEngineReport = {
+  format: "commander";
+  engineVersion: string;
+  status: "PASS" | "FAIL";
+  passedRules: number;
+  failedRules: number;
+  skippedRules: number;
+  rules: RulesEngineRuleResult[];
+  warnings: string[];
+  disclaimer: string;
+};
+
 export type CommanderChoice = {
   name: string;
   colorIdentity: string[];
@@ -245,6 +272,7 @@ export type AnalyzeResponse = {
   roles: RoleCounts;
   roleBreakdown?: RoleBreakdown;
   checks: DeckChecks;
+  rulesEngine?: RulesEngineReport;
   deckHealth: DeckHealthReport;
   deckPrice?: DeckPriceSummary;
   openingHandSimulation?: OpeningHandSimulationReport;

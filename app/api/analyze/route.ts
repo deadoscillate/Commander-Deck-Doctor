@@ -16,6 +16,7 @@ import { detectCombosInDeck } from "@/lib/combos";
 import { simulateOpeningHands } from "@/lib/openingHandSimulation";
 import { computePlayerHeuristics } from "@/lib/playerHeuristics";
 import { buildRoleSuggestions } from "@/lib/suggestions";
+import { evaluateCommanderRules } from "@/lib/rulesEngine";
 import { fetchDeckCards, getCardByName } from "@/lib/scryfall";
 import type { ScryfallCard } from "@/lib/types";
 import { apiJson, getRequestId, parseJsonBody } from "@/lib/api/http";
@@ -328,6 +329,16 @@ export async function POST(request: Request) {
       ...checksBase,
       colorIdentity: colorIdentityCheck
     };
+    const rulesEngine = evaluateCommanderRules({
+      parsedDeck,
+      knownCards,
+      unknownCards,
+      commander: {
+        name: selectedCommanderCard?.name ?? selectedCommanderName,
+        colorIdentity: selectedCommanderCard?.color_identity ?? [],
+        resolved: Boolean(selectedCommanderCard)
+      }
+    });
     const roundedSummary = {
       ...summary,
       deckSize: inputDeckSize,
@@ -456,6 +467,7 @@ export async function POST(request: Request) {
         roles,
         roleBreakdown,
         checks,
+        rulesEngine,
         deckHealth,
         deckPrice,
         openingHandSimulation,

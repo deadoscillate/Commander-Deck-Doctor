@@ -1,0 +1,462 @@
+[
+  {
+    "seq": 1,
+    "turn": 1,
+    "step": "MAIN1",
+    "type": "ZONE_CHANGE",
+    "payload": {
+      "cardId": "card-1",
+      "cardName": "Captain Verity",
+      "from": "library",
+      "to": "command",
+      "reason": "UNKNOWN"
+    }
+  },
+  {
+    "seq": 2,
+    "turn": 1,
+    "step": "MAIN1",
+    "type": "ZONE_CHANGE",
+    "payload": {
+      "cardId": "card-10",
+      "cardName": "Ravager of Embers",
+      "from": "library",
+      "to": "command",
+      "reason": "UNKNOWN"
+    }
+  },
+  {
+    "seq": 3,
+    "turn": 1,
+    "step": "MAIN1",
+    "type": "ZONE_CHANGE",
+    "payload": {
+      "cardId": "card-9",
+      "cardName": "Forest",
+      "from": "library",
+      "to": "hand",
+      "reason": "DRAW"
+    }
+  },
+  {
+    "seq": 4,
+    "turn": 1,
+    "step": "MAIN1",
+    "type": "DRAW_CARD",
+    "payload": {
+      "playerId": "p1",
+      "cardId": "card-9",
+      "cardName": "Forest"
+    }
+  },
+  {
+    "seq": 5,
+    "turn": 1,
+    "step": "MAIN1",
+    "type": "ZONE_CHANGE",
+    "payload": {
+      "cardId": "card-4",
+      "cardName": "Forest",
+      "from": "library",
+      "to": "hand",
+      "reason": "DRAW"
+    }
+  },
+  {
+    "seq": 6,
+    "turn": 1,
+    "step": "MAIN1",
+    "type": "DRAW_CARD",
+    "payload": {
+      "playerId": "p1",
+      "cardId": "card-4",
+      "cardName": "Forest"
+    }
+  },
+  {
+    "seq": 7,
+    "turn": 1,
+    "step": "MAIN1",
+    "type": "ZONE_CHANGE",
+    "payload": {
+      "cardId": "card-7",
+      "cardName": "Forest",
+      "from": "library",
+      "to": "hand",
+      "reason": "DRAW"
+    }
+  },
+  {
+    "seq": 8,
+    "turn": 1,
+    "step": "MAIN1",
+    "type": "DRAW_CARD",
+    "payload": {
+      "playerId": "p1",
+      "cardId": "card-7",
+      "cardName": "Forest"
+    }
+  },
+  {
+    "seq": 9,
+    "turn": 1,
+    "step": "MAIN1",
+    "type": "ZONE_CHANGE",
+    "payload": {
+      "cardId": "card-8",
+      "cardName": "Forest",
+      "from": "library",
+      "to": "hand",
+      "reason": "DRAW"
+    }
+  },
+  {
+    "seq": 10,
+    "turn": 1,
+    "step": "MAIN1",
+    "type": "DRAW_CARD",
+    "payload": {
+      "playerId": "p1",
+      "cardId": "card-8",
+      "cardName": "Forest"
+    }
+  },
+  {
+    "seq": 11,
+    "turn": 1,
+    "step": "MAIN1",
+    "type": "ZONE_CHANGE",
+    "payload": {
+      "cardId": "card-3",
+      "cardName": "Forest",
+      "from": "library",
+      "to": "hand",
+      "reason": "DRAW"
+    }
+  },
+  {
+    "seq": 12,
+    "turn": 1,
+    "step": "MAIN1",
+    "type": "DRAW_CARD",
+    "payload": {
+      "playerId": "p1",
+      "cardId": "card-3",
+      "cardName": "Forest"
+    }
+  },
+  {
+    "seq": 13,
+    "turn": 1,
+    "step": "MAIN1",
+    "type": "ZONE_CHANGE",
+    "payload": {
+      "cardId": "card-6",
+      "cardName": "Forest",
+      "from": "library",
+      "to": "hand",
+      "reason": "DRAW"
+    }
+  },
+  {
+    "seq": 14,
+    "turn": 1,
+    "step": "MAIN1",
+    "type": "DRAW_CARD",
+    "payload": {
+      "playerId": "p1",
+      "cardId": "card-6",
+      "cardName": "Forest"
+    }
+  },
+  {
+    "seq": 15,
+    "turn": 1,
+    "step": "MAIN1",
+    "type": "ZONE_CHANGE",
+    "payload": {
+      "cardId": "card-2",
+      "cardName": "Elvish Visionary",
+      "from": "library",
+      "to": "hand",
+      "reason": "DRAW"
+    }
+  },
+  {
+    "seq": 16,
+    "turn": 1,
+    "step": "MAIN1",
+    "type": "DRAW_CARD",
+    "payload": {
+      "playerId": "p1",
+      "cardId": "card-2",
+      "cardName": "Elvish Visionary"
+    }
+  },
+  {
+    "seq": 17,
+    "turn": 1,
+    "step": "MAIN1",
+    "type": "ZONE_CHANGE",
+    "payload": {
+      "cardId": "card-11",
+      "cardName": "Mountain",
+      "from": "library",
+      "to": "hand",
+      "reason": "DRAW"
+    }
+  },
+  {
+    "seq": 18,
+    "turn": 1,
+    "step": "MAIN1",
+    "type": "DRAW_CARD",
+    "payload": {
+      "playerId": "p2",
+      "cardId": "card-11",
+      "cardName": "Mountain"
+    }
+  },
+  {
+    "seq": 19,
+    "turn": 1,
+    "step": "MAIN1",
+    "type": "ZONE_CHANGE",
+    "payload": {
+      "cardId": "card-13",
+      "cardName": "Mountain",
+      "from": "library",
+      "to": "hand",
+      "reason": "DRAW"
+    }
+  },
+  {
+    "seq": 20,
+    "turn": 1,
+    "step": "MAIN1",
+    "type": "DRAW_CARD",
+    "payload": {
+      "playerId": "p2",
+      "cardId": "card-13",
+      "cardName": "Mountain"
+    }
+  },
+  {
+    "seq": 21,
+    "turn": 1,
+    "step": "MAIN1",
+    "type": "ZONE_CHANGE",
+    "payload": {
+      "cardId": "card-15",
+      "cardName": "Mountain",
+      "from": "library",
+      "to": "hand",
+      "reason": "DRAW"
+    }
+  },
+  {
+    "seq": 22,
+    "turn": 1,
+    "step": "MAIN1",
+    "type": "DRAW_CARD",
+    "payload": {
+      "playerId": "p2",
+      "cardId": "card-15",
+      "cardName": "Mountain"
+    }
+  },
+  {
+    "seq": 23,
+    "turn": 1,
+    "step": "MAIN1",
+    "type": "ZONE_CHANGE",
+    "payload": {
+      "cardId": "card-16",
+      "cardName": "Mountain",
+      "from": "library",
+      "to": "hand",
+      "reason": "DRAW"
+    }
+  },
+  {
+    "seq": 24,
+    "turn": 1,
+    "step": "MAIN1",
+    "type": "DRAW_CARD",
+    "payload": {
+      "playerId": "p2",
+      "cardId": "card-16",
+      "cardName": "Mountain"
+    }
+  },
+  {
+    "seq": 25,
+    "turn": 1,
+    "step": "MAIN1",
+    "type": "ZONE_CHANGE",
+    "payload": {
+      "cardId": "card-14",
+      "cardName": "Mountain",
+      "from": "library",
+      "to": "hand",
+      "reason": "DRAW"
+    }
+  },
+  {
+    "seq": 26,
+    "turn": 1,
+    "step": "MAIN1",
+    "type": "DRAW_CARD",
+    "payload": {
+      "playerId": "p2",
+      "cardId": "card-14",
+      "cardName": "Mountain"
+    }
+  },
+  {
+    "seq": 27,
+    "turn": 1,
+    "step": "MAIN1",
+    "type": "ZONE_CHANGE",
+    "payload": {
+      "cardId": "card-17",
+      "cardName": "Mountain",
+      "from": "library",
+      "to": "hand",
+      "reason": "DRAW"
+    }
+  },
+  {
+    "seq": 28,
+    "turn": 1,
+    "step": "MAIN1",
+    "type": "DRAW_CARD",
+    "payload": {
+      "playerId": "p2",
+      "cardId": "card-17",
+      "cardName": "Mountain"
+    }
+  },
+  {
+    "seq": 29,
+    "turn": 1,
+    "step": "MAIN1",
+    "type": "ZONE_CHANGE",
+    "payload": {
+      "cardId": "card-12",
+      "cardName": "Mountain",
+      "from": "library",
+      "to": "hand",
+      "reason": "DRAW"
+    }
+  },
+  {
+    "seq": 30,
+    "turn": 1,
+    "step": "MAIN1",
+    "type": "DRAW_CARD",
+    "payload": {
+      "playerId": "p2",
+      "cardId": "card-12",
+      "cardName": "Mountain"
+    }
+  },
+  {
+    "seq": 31,
+    "turn": 1,
+    "step": "MAIN1",
+    "type": "GAME_START",
+    "payload": {
+      "format": "commander",
+      "players": [
+        {
+          "id": "p1",
+          "name": "Alice"
+        },
+        {
+          "id": "p2",
+          "name": "Bob"
+        }
+      ],
+      "seed": "golden-etb-draw"
+    }
+  },
+  {
+    "seq": 32,
+    "turn": 1,
+    "step": "MAIN1",
+    "type": "ZONE_CHANGE",
+    "payload": {
+      "cardId": "card-9",
+      "cardName": "Forest",
+      "from": "hand",
+      "to": "battlefield",
+      "reason": "PLAY_LAND"
+    }
+  },
+  {
+    "seq": 33,
+    "turn": 1,
+    "step": "MAIN1",
+    "type": "PLAY_LAND",
+    "payload": {
+      "playerId": "p1",
+      "cardId": "card-9",
+      "cardName": "Forest"
+    }
+  },
+  {
+    "seq": 34,
+    "turn": 1,
+    "step": "MAIN1",
+    "type": "PASS_PRIORITY",
+    "payload": {
+      "playerId": "p1",
+      "allPassed": false,
+      "passedPlayers": [
+        "p1"
+      ]
+    }
+  },
+  {
+    "seq": 35,
+    "turn": 1,
+    "step": "MAIN1",
+    "type": "PASS_PRIORITY",
+    "payload": {
+      "playerId": "p2",
+      "allPassed": true,
+      "passedPlayers": [
+        "p1",
+        "p2"
+      ]
+    }
+  },
+  {
+    "seq": 36,
+    "turn": 1,
+    "step": "COMBAT_BEGIN",
+    "type": "PASS_PRIORITY",
+    "payload": {
+      "playerId": "p1",
+      "allPassed": false,
+      "passedPlayers": [
+        "p1"
+      ]
+    }
+  },
+  {
+    "seq": 37,
+    "turn": 1,
+    "step": "COMBAT_BEGIN",
+    "type": "PASS_PRIORITY",
+    "payload": {
+      "playerId": "p2",
+      "allPassed": true,
+      "passedPlayers": [
+        "p1",
+        "p2"
+      ]
+    }
+  }
+]

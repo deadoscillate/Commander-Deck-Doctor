@@ -1,22 +1,13 @@
 "use client";
 
+import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
 import { AnalysisReport } from "@/components/AnalysisReport";
 import { CardLink } from "@/components/CardLink";
 import { ExportButtons } from "@/components/ExportButtons";
 import type { AnalyzeResponse } from "@/lib/contracts";
-import { parseDecklist } from "@/lib/decklist";
-
-const SAMPLE_DECKLIST = `1 Sol Ring
-1 Arcane Signet
-1 Command Tower
-1 Rhystic Study
-1 Smothering Tithe
-1 Cyclonic Rift
-1 Swords to Plowshares
-1 Wrath of God
-1 Cultivate
-1 Kodama's Reach`;
+import { parseDecklist, parseDecklistWithCommander } from "@/lib/decklist";
+import { SAMPLE_DECKLIST, SAMPLE_DECK_NAME } from "@/lib/sampleDeck";
 const SAVED_DECKS_STORAGE_KEY = "commanderDeckDoctor.savedDecks.v1";
 const MAX_SAVED_DECKS = 30;
 
@@ -94,10 +85,41 @@ function createSavedDeckId(): string {
   return `saved-${Date.now()}-${Math.floor(Math.random() * 1_000_000)}`;
 }
 
+function importProviderForUrl(value: string): "moxfield" | "archidekt" | null {
+  try {
+    const url = new URL(value);
+    const host = url.hostname.toLowerCase();
+    if (host === "moxfield.com" || host === "www.moxfield.com") {
+      return "moxfield";
+    }
+
+    if (host === "archidekt.com" || host === "www.archidekt.com") {
+      return "archidekt";
+    }
+
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+function normalizeImportError(message: string): string {
+  const lower = message.toLowerCase();
+  if (lower.includes("unsupported")) {
+    return "Unsupported URL. Use a Moxfield or Archidekt deck link.";
+  }
+
+  if (lower.includes("deck not found") || lower.includes("public") || lower.includes("provider")) {
+    return "Could not import deck. Check the link is public and try again.";
+  }
+
+  return "Could not import deck. Check the link is public and try again.";
+}
+
 export default function Page() {
   const [deckUrl, setDeckUrl] = useState("");
   const [deckName, setDeckName] = useState("");
-  const [decklist, setDecklist] = useState(SAMPLE_DECKLIST);
+  const [decklist, setDecklist] = useState("");
   const [targetBracket, setTargetBracket] = useState("");
   const [expectedWinTurn, setExpectedWinTurn] = useState("");
   const [commanderName, setCommanderName] = useState("");
@@ -213,6 +235,12 @@ export default function Page() {
       return;
     }
 
+    if (!importProviderForUrl(trimmed)) {
+      setImportError("Unsupported URL. Use a Moxfield or Archidekt deck link.");
+      setImportInfo("");
+      return;
+    }
+
     setImporting(true);
     setImportError("");
     setImportInfo("");
@@ -226,7 +254,7 @@ export default function Page() {
 
       const data = (await response.json()) as ImportUrlResponse | { error: string };
       if (!response.ok) {
-        setImportError("error" in data ? data.error : "Import failed.");
+        setImportError(normalizeImportError("error" in data ? data.error : "Import failed."));
         return;
       }
 
@@ -238,11 +266,12 @@ export default function Page() {
       setCommanderName("");
       setResult(null);
       const label = imported.provider === "moxfield" ? "Moxfield" : "Archidekt";
+      const commander = parseDecklistWithCommander(imported.decklist).commanderFromSection;
       setImportInfo(
-        `Imported from ${label}${imported.deckName ? `: ${imported.deckName}` : ""} (${imported.cardCount} cards).`
+        `Imported: ${imported.deckName ?? `${label} deck`} ${commander ? `(Commander: ${commander})` : ""}`.trim()
       );
     } catch {
-      setImportError("URL import request failed.");
+      setImportError("Could not import deck. Check the link is public and try again.");
     } finally {
       setImporting(false);
     }
@@ -259,6 +288,9 @@ export default function Page() {
   }, [result]);
 
   const previewRows = previewMode ? parseDecklist(decklist) : [];
+  const tuningSummary = targetBracket && expectedWinTurn
+    ? `Target: Bracket ${targetBracket} • Win/Lock: ${expectedWinTurn}`
+    : null;
 
   async function runAnalysis(overrides?: { commanderName?: string | null }) {
     setLoading(true);
@@ -305,6 +337,15 @@ export default function Page() {
     await runAnalysis();
   }
 
+  async function onTrySampleDeck() {
+    setDeckName(SAMPLE_DECK_NAME);
+    setDecklist(SAMPLE_DECKLIST);
+    setCommanderName("");
+    setImportError("");
+    setImportInfo("Loaded sample deck. Running analysis...");
+    await runAnalysis({ commanderName: null });
+  }
+
   return (
     <main className="page">
       <div className="hero">
@@ -313,25 +354,37 @@ export default function Page() {
           Paste a decklist and get summary stats, role coverage, commander validation checks, deck health, and
           Commander Bracket heuristics.
         </p>
+        <div className="hero-actions">
+          <button type="button" className="btn-secondary" onClick={() => void onTrySampleDeck()}>
+            Try a sample deck
+          </button>
+          <Link href="/rules-sandbox" className="inline-link">
+            Open Rules Sandbox
+          </Link>
+        </div>
+        <p>
+          Supports Moxfield and Archidekt imports, or paste your decklist directly below.
+        </p>
       </div>
 
       <section className="panel-grid">
         <form className="panel form-panel" onSubmit={onSubmit}>
           <label htmlFor="deck-url">Deck URL (Moxfield or Archidekt)</label>
+          <p className="muted field-help">Supports Moxfield and Archidekt deck links.</p>
           <div className="url-import-row">
             <input
               id="deck-url"
               type="url"
               value={deckUrl}
               onChange={(event) => setDeckUrl(event.target.value)}
-              placeholder="https://www.moxfield.com/decks/..."
+              placeholder="https://www.moxfield.com/decks/... or https://archidekt.com/decks/..."
             />
-            <button type="button" onClick={onImportUrl} disabled={importing}>
+            <button type="button" className="btn-secondary" onClick={onImportUrl} disabled={importing}>
               {importing ? "Importing..." : "Import URL"}
             </button>
           </div>
           {importError ? <p className="error">{importError}</p> : null}
-          {importInfo ? <p className="muted">{importInfo}</p> : null}
+          {importInfo ? <p className="import-toast">{importInfo}</p> : null}
 
           <label htmlFor="deck-name">Deck Name</label>
           <div className="save-row">
@@ -342,7 +395,7 @@ export default function Page() {
               onChange={(event) => setDeckName(event.target.value)}
               placeholder="Atraxa Infect"
             />
-            <button type="button" onClick={onSaveDeck}>
+            <button type="button" className="btn-tertiary" onClick={onSaveDeck}>
               Save Deck Locally
             </button>
           </div>
@@ -352,7 +405,12 @@ export default function Page() {
           <section className="saved-decks-panel">
             <h3>Saved Decks</h3>
             {savedDecks.length === 0 ? (
-              <p className="muted">No saved decks yet.</p>
+              <p className="muted">
+                No saved decks yet. Analyze a deck, then click &quot;Save Deck Locally&quot;.{" "}
+                <button type="button" className="inline-action" onClick={() => void onTrySampleDeck()}>
+                  Try sample deck
+                </button>
+              </p>
             ) : (
               <ul className="saved-decks-list">
                 {savedDecks.map((saved) => (
@@ -378,8 +436,9 @@ export default function Page() {
             )}
           </section>
 
-          <label htmlFor="decklist">Decklist</label>
-          <label className="checkbox decklist-preview-toggle">
+          <label htmlFor="decklist">Decklist (paste here)</label>
+          <p className="muted field-help">One card per line; quantities allowed.</p>
+          <label className="checkbox decklist-preview-toggle decklist-preview-header">
             <input
               type="checkbox"
               checked={previewMode}
@@ -409,13 +468,25 @@ export default function Page() {
               id="decklist"
               value={decklist}
               onChange={(event) => setDecklist(event.target.value)}
-              placeholder="1 Sol Ring"
+              placeholder={`Example: 1 Sol Ring\nOne card per line; quantities allowed.`}
               rows={16}
               required
             />
           ) : (
             <p className="muted">Preview mode is on. Disable it to edit the raw decklist text.</p>
           )}
+
+          <section className="tuning-controls">
+            <div className="tuning-header">
+              <strong>Tuning Targets (affects recommendations, not legality)</strong>
+              <span
+                className="info-pill"
+                title="Bracket and expected turn tune recommendation heuristics. They do not enforce deck legality."
+              >
+                ⓘ
+              </span>
+            </div>
+            {tuningSummary ? <p className="tuning-summary">{tuningSummary}</p> : null}
 
           <div className="row">
             <label htmlFor="target-bracket">I&apos;m aiming for bracket</label>
@@ -448,25 +519,29 @@ export default function Page() {
             </select>
           </div>
 
-          <label className="checkbox">
+          <label
+            className="checkbox"
+            title="Use when your list is highly optimized despite low Game Changer count."
+          >
             <input
               type="checkbox"
               checked={userHighPowerNoGCFlag}
               onChange={(event) => setUserHighPowerNoGCFlag(event.target.checked)}
             />
-            This deck is highly optimized even without Game Changers.
+            Optimized without many Game Changers
           </label>
 
-          <label className="checkbox">
+          <label className="checkbox" title="Use when this deck is tuned for cEDH pods / tournament pace.">
             <input
               type="checkbox"
               checked={userCedhFlag}
               onChange={(event) => setUserCedhFlag(event.target.checked)}
             />
-            This deck is built for cEDH pods / tournament meta.
+            cEDH pod / tournament intent
           </label>
+          </section>
 
-          <button type="submit" disabled={loading}>
+          <button type="submit" className="btn-primary" disabled={loading}>
             {loading ? "Analyzing..." : "Analyze Deck"}
           </button>
 
@@ -501,7 +576,9 @@ export default function Page() {
           <ExportButtons result={result} decklist={decklist} />
 
           {!result ? (
-            <p className="muted">Run analysis to see summary, checks, deck health, and bracket report.</p>
+            <p className="muted results-empty-hint">
+              Run analysis to see summary, checks, deck health, and bracket report.
+            </p>
           ) : (
             <AnalysisReport result={result} />
           )}

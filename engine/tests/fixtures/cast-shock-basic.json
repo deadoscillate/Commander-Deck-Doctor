@@ -1,0 +1,41 @@
+{
+  "name": "cast-shock-basic",
+  "seed": "golden-cast-shock",
+  "players": [
+    { "id": "p1", "name": "Alice" },
+    { "id": "p2", "name": "Bob" }
+  ],
+  "decks": {
+    "p1": [
+      { "name": "Captain Verity", "qty": 1 },
+      { "name": "Shock", "qty": 1 },
+      { "name": "Mountain", "qty": 6 }
+    ],
+    "p2": [
+      { "name": "Ravager of Embers", "qty": 1 },
+      { "name": "Forest", "qty": 7 }
+    ]
+  },
+  "commanders": {
+    "p1": ["Captain Verity"],
+    "p2": ["Ravager of Embers"]
+  },
+  "actions": [
+    { "type": "PLAY_LAND", "playerId": "p1", "cardName": "Mountain" },
+    {
+      "type": "ACTIVATE_ABILITY",
+      "playerId": "p1",
+      "sourceName": "Mountain",
+      "abilityId": "tap_for_mana"
+    },
+    {
+      "type": "CAST_SPELL",
+      "playerId": "p1",
+      "cardName": "Shock",
+      "sourceZone": "hand",
+      "targetPlayerId": "p2"
+    },
+    { "type": "PASS_PRIORITY", "playerId": "p1" },
+    { "type": "PASS_PRIORITY", "playerId": "p2" }
+  ]
+}

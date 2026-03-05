@@ -318,6 +318,34 @@ export function buildPlaintextReport(result: AnalyzeResponse): string {
     } - ${result.checks.colorIdentity.message}`
   ];
 
+  const rulesEngineRecord =
+    result.rulesEngine && typeof result.rulesEngine === "object"
+      ? (result.rulesEngine as Record<string, unknown>)
+      : null;
+  const failedRuleLines =
+    rulesEngineRecord && Array.isArray(rulesEngineRecord.rules)
+      ? rulesEngineRecord.rules
+          .filter((rule): rule is Record<string, unknown> => Boolean(rule) && typeof rule === "object")
+          .filter((rule) => rule.outcome === "FAIL")
+          .map((rule) => {
+            const name = typeof rule.name === "string" && rule.name ? rule.name : "Unnamed Rule";
+            const message = typeof rule.message === "string" && rule.message ? rule.message : "Rule failed.";
+            return `  - ${name}: ${message}`;
+          })
+      : [];
+  const rulesEngineLines = rulesEngineRecord
+    ? [
+        "Rules Engine",
+        `- Status: ${rulesEngineRecord.status === "FAIL" ? "FAIL" : "PASS"}`,
+        `- Pass: ${toFiniteNumber(rulesEngineRecord.passedRules, 0)} | Fail: ${toFiniteNumber(
+          rulesEngineRecord.failedRules,
+          0
+        )} | Skip: ${toFiniteNumber(rulesEngineRecord.skippedRules, 0)}`,
+        `- Version: ${typeof rulesEngineRecord.engineVersion === "string" ? rulesEngineRecord.engineVersion : "unknown"}`,
+        ...(failedRuleLines.length > 0 ? ["- Failing Rules:", ...failedRuleLines] : [])
+      ]
+    : [];
+
   const warningLines = [
     "Warnings",
     ...new Set([...result.deckHealth.warnings, ...result.bracketReport.warnings])
@@ -344,6 +372,8 @@ export function buildPlaintextReport(result: AnalyzeResponse): string {
     "",
     ...checkLines,
     "",
+    ...rulesEngineLines,
+    ...(rulesEngineLines.length > 0 ? [""] : []),
     ...suggestionLines,
     "",
     ...warningLines,

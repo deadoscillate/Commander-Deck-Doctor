@@ -83,6 +83,9 @@ export async function POST(request: Request) {
   } catch (error) {
     const message = error instanceof Error ? error.message : "Deck import failed.";
     const status = classifyImportErrorStatus(message);
+    const normalizedClientMessage = message.includes("Unsupported")
+      ? "Unsupported URL. Use a Moxfield or Archidekt deck link."
+      : message;
     reportApiError(error, {
       requestId,
       route: "/api/import-url",
@@ -99,6 +102,6 @@ export async function POST(request: Request) {
       );
     }
 
-    return apiJson({ error: message }, { status, requestId, headers: rateLimitHeaders });
+    return apiJson({ error: normalizedClientMessage }, { status, requestId, headers: rateLimitHeaders });
   }
 }

@@ -10,3 +10,4 @@ backups/
 *.tsbuildinfo
 
 .vercel
+data/scryfall/

@@ -6,6 +6,7 @@ import { DeckHealth } from "@/components/DeckHealth";
 import { ImprovementSuggestions } from "@/components/ImprovementSuggestions";
 import { ManaCost } from "@/components/ManaCost";
 import { RecommendedCounts } from "@/components/RecommendedCounts";
+import { SimulationsSection } from "@/components/report/SimulationsSection";
 import { RoleBars } from "@/components/RoleBars";
 import type { AnalyzeResponse, RoleBreakdown } from "@/lib/contracts";
 import { getStatusMeta } from "@/lib/ui/statusStyles";
@@ -492,6 +493,11 @@ export function AnalysisReport({ result }: AnalysisReportProps) {
   const commanderInfo = normalizeCommanderInfo(result);
   const deckPrice = normalizeDeckPrice(result);
   const openingHandSimulation = normalizeOpeningHandSimulation(result);
+  const simulationDeck = result.parsedDeck.map((entry) => ({
+    name: entry.name,
+    qty: entry.qty,
+    resolvedName: entry.resolvedName
+  }));
 
   const archetypeLabel =
     archetypeReport.primary?.archetype && archetypeReport.secondary?.archetype
@@ -740,7 +746,7 @@ export function AnalysisReport({ result }: AnalysisReportProps) {
         </div>
       </section>
 
-      <Checks checks={result.checks} />
+      <Checks checks={result.checks} rulesEngine={result.rulesEngine} />
       <RecommendedCounts rows={result.deckHealth.rows} />
       <DeckHealth report={result.deckHealth} />
       {openingHandSimulation ? (
@@ -777,6 +783,7 @@ export function AnalysisReport({ result }: AnalysisReportProps) {
           <p className="muted">{openingHandSimulation.disclaimer}</p>
         </section>
       ) : null}
+      <SimulationsSection deck={simulationDeck} commanderName={commanderInfo.name} />
       <ImprovementSuggestions suggestions={result.improvementSuggestions} />
 
       <section>

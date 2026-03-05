@@ -9,6 +9,9 @@
     "lint": "next lint",
     "test": "vitest run",
     "test:watch": "vitest",
+    "scryfall:download": "node scripts/scryfall-download-oracle.mjs",
+    "scryfall:compile": "node scripts/scryfall-compile-oracle.mjs",
+    "scryfall:update": "npm run scryfall:download && npm run scryfall:compile",
     "backup:reports": "node scripts/export-shared-reports.mjs",
     "restore:reports": "node scripts/import-shared-reports.mjs"
   },

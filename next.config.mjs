@@ -3,6 +3,9 @@ import { withSentryConfig } from "@sentry/nextjs";
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  typescript: {
+    tsconfigPath: "./tsconfig.build.json"
+  },
   async headers() {
     return [
       {
