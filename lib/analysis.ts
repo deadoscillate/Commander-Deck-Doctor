@@ -1,4 +1,9 @@
-import { classifyCardRoles, classifyTypeBuckets, type RoleClassifierCardInput } from "@/engine/cards/roleClassifier";
+import {
+  classifyCardRoles,
+  classifyTutorSignals,
+  classifyTypeBuckets,
+  type RoleClassifierCardInput
+} from "@/engine/cards/roleClassifier";
 import type { CardDefinition as EngineCardDefinition } from "@/engine/core/types";
 import { DeckCard, DeckSummary, RoleCounts, TypeCounts } from "./types";
 import type { RoleBreakdown } from "./contracts";
@@ -48,6 +53,14 @@ type RoleComputationOptions = {
   behaviorIdByCardName?: (cardName: string) => string | null;
 };
 
+export type TutorSummary = {
+  trueTutors: number;
+  tutorSignals: number;
+  trueTutorBreakdown: Array<{ name: string; qty: number }>;
+  tutorSignalOnlyBreakdown: Array<{ name: string; qty: number }>;
+  disclaimer: string;
+};
+
 function toCurveBucket(cmc: number): string {
   if (cmc >= 7) {
     return "7+";
@@ -75,7 +88,9 @@ function toRoleClassifierInput(
       typeLine: engineCard.typeLine,
       oracleText: engineCard.oracleText,
       keywords: engineCard.keywords,
-      behaviorId: engineCard.behaviorId ?? null
+      behaviorId: engineCard.behaviorId ?? null,
+      oracleId: engineCard.oracleId,
+      cardName: engineCard.name
     };
   }
 
@@ -83,7 +98,9 @@ function toRoleClassifierInput(
     typeLine: card.card.type_line,
     oracleText: card.card.oracle_text,
     keywords: scryfallKeywords(card.card),
-    behaviorId: options?.behaviorIdByCardName?.(card.card.name) ?? null
+    behaviorId: options?.behaviorIdByCardName?.(card.card.name) ?? null,
+    oracleId: card.card.oracle_id ?? null,
+    cardName: card.card.name
   };
 }
 
@@ -196,4 +213,58 @@ export function computeRoleBreakdown(cards: DeckCard[], options?: RoleComputatio
   }
 
   return breakdown;
+}
+
+function sortNamedCounts(rows: Array<{ name: string; qty: number }>): Array<{ name: string; qty: number }> {
+  return [...rows].sort((a, b) => {
+    if (b.qty !== a.qty) {
+      return b.qty - a.qty;
+    }
+
+    return a.name.localeCompare(b.name);
+  });
+}
+
+export function computeTutorSummary(cards: DeckCard[], options?: RoleComputationOptions): TutorSummary {
+  let trueTutors = 0;
+  let tutorSignals = 0;
+  const trueTutorBreakdown: Array<{ name: string; qty: number }> = [];
+  const tutorSignalOnlyBreakdown: Array<{ name: string; qty: number }> = [];
+
+  for (const entry of cards) {
+    const classifierInput = toRoleClassifierInput(entry, options);
+    const tutorSignalsForCard = classifyTutorSignals(classifierInput);
+    const roleFlagsForCard = classifyCardRoles(classifierInput);
+    const isTrueTutor = roleFlagsForCard.tutors;
+    const isTutorSignal = tutorSignalsForCard.tutorSignal || isTrueTutor;
+
+    if (isTutorSignal) {
+      tutorSignals += entry.qty;
+    }
+
+    if (isTrueTutor) {
+      trueTutors += entry.qty;
+      trueTutorBreakdown.push({
+        name: entry.card.name,
+        qty: entry.qty
+      });
+      continue;
+    }
+
+    if (isTutorSignal) {
+      tutorSignalOnlyBreakdown.push({
+        name: entry.card.name,
+        qty: entry.qty
+      });
+    }
+  }
+
+  return {
+    trueTutors,
+    tutorSignals,
+    trueTutorBreakdown: sortNamedCounts(trueTutorBreakdown),
+    tutorSignalOnlyBreakdown: sortNamedCounts(tutorSignalOnlyBreakdown),
+    disclaimer:
+      "True tutors require explicit library search for nonland cards. Tutor signals include broad library/top-deck selection effects."
+  };
 }

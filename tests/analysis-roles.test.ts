@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { computeDeckSummary, computeRoleBreakdown, computeRoleCounts } from "@/lib/analysis";
+import { computeDeckSummary, computeRoleBreakdown, computeRoleCounts, computeTutorSummary } from "@/lib/analysis";
 import type { DeckCard, ScryfallCard } from "@/lib/types";
 
 function buildCard(overrides: Partial<ScryfallCard> = {}): ScryfallCard {
@@ -113,6 +113,21 @@ describe("analysis role tagging - all core roles", () => {
     expect(roles.finishers).toBe(1);
   });
 
+  it("does not double-count mass wipes as targeted removal", () => {
+    const cards: DeckCard[] = [
+      buildDeckCard("Damnation", 1, "Destroy all creatures. They can't be regenerated."),
+      buildDeckCard("Swords to Plowshares", 1, "Exile target creature. Its controller gains life equal to its power.")
+    ];
+
+    const roles = computeRoleCounts(cards);
+    const breakdown = computeRoleBreakdown(cards);
+
+    expect(roles.wipes).toBe(1);
+    expect(roles.removal).toBe(1);
+    expect(breakdown.wipes.map((row) => row.name)).toEqual(["Damnation"]);
+    expect(breakdown.removal.map((row) => row.name)).toEqual(["Swords to Plowshares"]);
+  });
+
   it("does not count basic lands as ramp sources", () => {
     const cards: DeckCard[] = [
       {
@@ -135,6 +150,34 @@ describe("analysis role tagging - all core roles", () => {
 
     expect(roles.ramp).toBe(2);
     expect(breakdown.ramp.map((row) => row.name)).toEqual(["Arcane Signet", "Cultivate"]);
+  });
+});
+
+describe("analysis tutor classification", () => {
+  it("separates true tutors from broader tutor signals", () => {
+    const cards: DeckCard[] = [
+      buildDeckCard("Demonic Tutor", 1, "Search your library for a card, put that card into your hand, then shuffle."),
+      buildDeckCard(
+        "Cultivate",
+        1,
+        "Search your library for up to two basic land cards, reveal those cards, put one onto the battlefield tapped and the other into your hand, then shuffle."
+      ),
+      buildDeckCard(
+        "Ancient Stirrings",
+        1,
+        "Look at the top five cards of your library. You may reveal a colorless card from among them and put it into your hand. Put the rest on the bottom of your library in any order."
+      )
+    ];
+
+    const summary = computeTutorSummary(cards);
+
+    expect(summary.trueTutors).toBe(1);
+    expect(summary.tutorSignals).toBe(3);
+    expect(summary.trueTutorBreakdown.map((row) => row.name)).toEqual(["Demonic Tutor"]);
+    expect(summary.tutorSignalOnlyBreakdown.map((row) => row.name)).toEqual([
+      "Ancient Stirrings",
+      "Cultivate"
+    ]);
   });
 });
 

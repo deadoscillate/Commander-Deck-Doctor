@@ -20,8 +20,13 @@ const SCRYFALL_HEADERS = {
 // Promise cache deduplicates repeated lookups for identical names.
 const cardCache = new Map<string, Promise<ScryfallCard | null>>();
 
+type DeckPriceMode = "oracle-default" | "decklist-set";
+
 type ScryfallApiCard = {
   object: string;
+  id?: string;
+  oracle_id?: string;
+  set?: string;
   name: string;
   type_line?: string;
   cmc?: number;
@@ -29,18 +34,48 @@ type ScryfallApiCard = {
   colors?: string[] | null;
   color_identity?: string[] | null;
   oracle_text?: string;
+  keywords?: string[] | null;
   image_uris?: ScryfallImageUris | null;
   card_faces?: ScryfallCardFace[];
   prices?: ScryfallPrices | null;
 };
 
+function normalizeScryfallCard(data: ScryfallApiCard): ScryfallCard {
+  const oracleText =
+    data.oracle_text ??
+    data.card_faces?.map((face) => face.oracle_text ?? "").filter(Boolean).join("\n") ??
+    "";
+
+  return {
+    id: data.id,
+    oracle_id: data.oracle_id,
+    set: typeof data.set === "string" ? data.set.toLowerCase() : undefined,
+    name: data.name,
+    type_line: data.type_line ?? "",
+    cmc: typeof data.cmc === "number" ? data.cmc : 0,
+    mana_cost: data.mana_cost ?? "",
+    colors: Array.isArray(data.colors) ? data.colors : [],
+    color_identity: Array.isArray(data.color_identity) ? data.color_identity : [],
+    oracle_text: oracleText,
+    keywords: Array.isArray(data.keywords) ? data.keywords : [],
+    image_uris: data.image_uris ?? null,
+    card_faces: Array.isArray(data.card_faces) ? data.card_faces : [],
+    prices: data.prices ?? null
+  };
+}
+
 async function fetchNamedCard(
   key: "exact" | "fuzzy",
-  name: string
+  name: string,
+  options?: { setCode?: string | null }
 ): Promise<ScryfallCard | null> {
   try {
     const url = new URL(NAMED_ENDPOINT);
     url.searchParams.set(key, name);
+    const requestedSet = options?.setCode?.trim().toLowerCase() ?? "";
+    if (requestedSet) {
+      url.searchParams.set("set", requestedSet);
+    }
 
     const response = await fetch(url.toString(), {
       method: "GET",
@@ -57,24 +92,30 @@ async function fetchNamedCard(
       return null;
     }
 
-    // Some cards expose oracle text only on faces.
-    const oracleText =
-      data.oracle_text ??
-      data.card_faces?.map((face) => face.oracle_text ?? "").filter(Boolean).join("\n") ??
-      "";
+    return normalizeScryfallCard(data);
+  } catch {
+    return null;
+  }
+}
 
-    return {
-      name: data.name,
-      type_line: data.type_line ?? "",
-      cmc: typeof data.cmc === "number" ? data.cmc : 0,
-      mana_cost: data.mana_cost ?? "",
-      colors: Array.isArray(data.colors) ? data.colors : [],
-      color_identity: Array.isArray(data.color_identity) ? data.color_identity : [],
-      oracle_text: oracleText,
-      image_uris: data.image_uris ?? null,
-      card_faces: Array.isArray(data.card_faces) ? data.card_faces : [],
-      prices: data.prices ?? null
-    };
+async function fetchCardById(printingId: string): Promise<ScryfallCard | null> {
+  try {
+    const response = await fetch(`https://api.scryfall.com/cards/${encodeURIComponent(printingId)}`, {
+      method: "GET",
+      headers: SCRYFALL_HEADERS,
+      cache: "no-store"
+    });
+
+    if (!response.ok) {
+      return null;
+    }
+
+    const data = (await response.json()) as ScryfallApiCard;
+    if (data.object === "error" || !data.name) {
+      return null;
+    }
+
+    return normalizeScryfallCard(data);
   } catch {
     return null;
   }
@@ -95,6 +136,48 @@ export async function getCardByName(name: string): Promise<ScryfallCard | null> 
     }
 
     return fetchNamedCard("fuzzy", name);
+  })();
+
+  cardCache.set(key, pending);
+  return pending;
+}
+
+export async function getCardById(printingId: string): Promise<ScryfallCard | null> {
+  const normalizedId = printingId.trim().toLowerCase();
+  if (!normalizedId) {
+    return null;
+  }
+
+  const key = `id:${normalizedId}`;
+  const cached = cardCache.get(key);
+  if (cached) {
+    return cached;
+  }
+
+  const pending = fetchCardById(normalizedId);
+  cardCache.set(key, pending);
+  return pending;
+}
+
+export async function getCardByNameWithSet(name: string, setCode: string): Promise<ScryfallCard | null> {
+  const normalizedSet = setCode.trim().toLowerCase();
+  if (!normalizedSet) {
+    return getCardByName(name);
+  }
+
+  const key = `${name.toLowerCase().trim()}|set:${normalizedSet}`;
+  const cached = cardCache.get(key);
+  if (cached) {
+    return cached;
+  }
+
+  const pending = (async () => {
+    const exact = await fetchNamedCard("exact", name, { setCode: normalizedSet });
+    if (exact) {
+      return exact;
+    }
+
+    return fetchNamedCard("fuzzy", name, { setCode: normalizedSet });
   })();
 
   cardCache.set(key, pending);
@@ -133,10 +216,28 @@ async function mapWithConcurrency<T, R>(
  */
 export async function fetchDeckCards(
   parsedDeck: ParsedDeckEntry[],
-  concurrency = DEFAULT_CONCURRENCY
+  concurrency = DEFAULT_CONCURRENCY,
+  options?: { deckPriceMode?: DeckPriceMode }
 ): Promise<{ knownCards: DeckCard[]; unknownCards: string[] }> {
+  const mode = options?.deckPriceMode ?? "oracle-default";
   const lookedUp = await mapWithConcurrency(parsedDeck, Math.max(1, concurrency), async (entry) => {
-    const card = await getCardByName(entry.name);
+    const setCode = typeof entry.setCode === "string" && entry.setCode.trim() ? entry.setCode : null;
+    const printingId =
+      typeof entry.printingId === "string" && entry.printingId.trim() ? entry.printingId : null;
+    let card: ScryfallCard | null = null;
+
+    if (mode === "decklist-set" && printingId) {
+      card = await getCardById(printingId);
+    }
+
+    if (mode === "decklist-set" && setCode) {
+      card = card ?? await getCardByNameWithSet(entry.name, setCode);
+    }
+
+    if (!card) {
+      card = await getCardByName(entry.name);
+    }
+
     return { entry, card };
   });
 

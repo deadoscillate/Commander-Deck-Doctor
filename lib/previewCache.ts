@@ -7,6 +7,11 @@ export type CardPreviewPrices = {
 
 export type CardPreviewData = {
   name: string;
+  scryfallId: string | null;
+  setCode: string | null;
+  setName: string | null;
+  collectorNumber: string | null;
+  releasedAt: string | null;
   imageUrl: string | null;
   manaCost: string | null;
   typeLine: string | null;
@@ -24,22 +29,57 @@ export function normalizePreviewName(name: string): string {
     .replace(/[^a-z0-9]/g, "");
 }
 
-export function getCachedPreview(name: string): CardPreviewData | null | undefined {
-  return previewCache.get(normalizePreviewName(name));
+function normalizeKeyPart(value: string | null | undefined): string {
+  if (!value) {
+    return "";
+  }
+
+  return value.trim().toLowerCase();
 }
 
-export function setCachedPreview(name: string, preview: CardPreviewData | null): void {
-  previewCache.set(normalizePreviewName(name), preview);
+export function buildPreviewKey(
+  name: string,
+  options?: { setCode?: string | null; printingId?: string | null }
+): string {
+  const normalizedName = normalizePreviewName(name);
+  const setCode = normalizeKeyPart(options?.setCode);
+  const printingId = normalizeKeyPart(options?.printingId);
+  return `${normalizedName}|set:${setCode}|id:${printingId}`;
 }
 
-export function getInflightPreview(name: string): Promise<CardPreviewData | null> | undefined {
-  return inflightPreviewRequests.get(normalizePreviewName(name));
+export function getCachedPreview(
+  name: string,
+  options?: { setCode?: string | null; printingId?: string | null }
+): CardPreviewData | null | undefined {
+  return previewCache.get(buildPreviewKey(name, options));
 }
 
-export function setInflightPreview(name: string, request: Promise<CardPreviewData | null>): void {
-  inflightPreviewRequests.set(normalizePreviewName(name), request);
+export function setCachedPreview(
+  name: string,
+  preview: CardPreviewData | null,
+  options?: { setCode?: string | null; printingId?: string | null }
+): void {
+  previewCache.set(buildPreviewKey(name, options), preview);
 }
 
-export function clearInflightPreview(name: string): void {
-  inflightPreviewRequests.delete(normalizePreviewName(name));
+export function getInflightPreview(
+  name: string,
+  options?: { setCode?: string | null; printingId?: string | null }
+): Promise<CardPreviewData | null> | undefined {
+  return inflightPreviewRequests.get(buildPreviewKey(name, options));
+}
+
+export function setInflightPreview(
+  name: string,
+  request: Promise<CardPreviewData | null>,
+  options?: { setCode?: string | null; printingId?: string | null }
+): void {
+  inflightPreviewRequests.set(buildPreviewKey(name, options), request);
+}
+
+export function clearInflightPreview(
+  name: string,
+  options?: { setCode?: string | null; printingId?: string | null }
+): void {
+  inflightPreviewRequests.delete(buildPreviewKey(name, options));
 }

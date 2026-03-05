@@ -1,15 +1,12 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useState } from "react";
 import { AnalysisReport } from "@/components/AnalysisReport";
 import { CardLink } from "@/components/CardLink";
 import { ExportButtons } from "@/components/ExportButtons";
-import type { AnalyzeResponse } from "@/lib/contracts";
+import type { AnalyzeResponse, DeckPriceMode } from "@/lib/contracts";
 import { parseDecklist, parseDecklistWithCommander } from "@/lib/decklist";
 import { SAMPLE_DECKLIST, SAMPLE_DECK_NAME } from "@/lib/sampleDeck";
-import { SANDBOX_DEMO_DECKS } from "@/lib/sandboxDecklists";
-import { saveRulesSandboxPreset } from "@/lib/sandboxPreset";
 const SAVED_DECKS_STORAGE_KEY = "commanderDeckDoctor.savedDecks.v1";
 const MAX_SAVED_DECKS = 30;
 
@@ -26,12 +23,37 @@ type SavedDeck = {
   id: string;
   name: string;
   decklist: string;
+  deckPriceMode: DeckPriceMode;
+  printingOverrides: Record<string, DeckPrintingOverride>;
   targetBracket: string;
   expectedWinTurn: string;
   commanderName: string;
   userCedhFlag: boolean;
   userHighPowerNoGCFlag: boolean;
   updatedAt: string;
+};
+
+type DeckPrintingOption = {
+  id: string;
+  name: string;
+  setCode: string;
+  setName: string;
+  collectorNumber: string;
+  releasedAt: string | null;
+  imageUrl: string | null;
+  label: string;
+};
+
+type DeckPrintingOverride = {
+  setCode: string;
+  printingId: string;
+  label: string;
+};
+
+type CardPrintingsResponse = {
+  name: string;
+  count: number;
+  printings: DeckPrintingOption[];
 };
 
 function parseSavedDecks(raw: string | null): SavedDeck[] {
@@ -63,6 +85,8 @@ function parseSavedDecks(raw: string | null): SavedDeck[] {
           id: typeof candidate.id === "string" && candidate.id ? candidate.id : fallbackId,
           name,
           decklist,
+          deckPriceMode: candidate.deckPriceMode === "decklist-set" ? "decklist-set" : "oracle-default",
+          printingOverrides: parsePrintingOverrides(candidate.printingOverrides),
           targetBracket: typeof candidate.targetBracket === "string" ? candidate.targetBracket : "",
           expectedWinTurn: typeof candidate.expectedWinTurn === "string" ? candidate.expectedWinTurn : "",
           commanderName: typeof candidate.commanderName === "string" ? candidate.commanderName : "",
@@ -118,11 +142,85 @@ function normalizeImportError(message: string): string {
   return "Could not import deck. Check the link is public and try again.";
 }
 
+function normalizeCardKey(name: string): string {
+  return name
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "");
+}
+
+function parsePrintingOverrides(raw: unknown): Record<string, DeckPrintingOverride> {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+    return {};
+  }
+
+  const record = raw as Record<string, unknown>;
+  const parsed: Record<string, DeckPrintingOverride> = {};
+  for (const [cardKey, value] of Object.entries(record)) {
+    const normalizedCardKey = normalizeCardKey(cardKey);
+    if (!normalizedCardKey) {
+      continue;
+    }
+
+    if (!value || typeof value !== "object" || Array.isArray(value)) {
+      continue;
+    }
+
+    const row = value as Record<string, unknown>;
+    const setCode =
+      typeof row.setCode === "string" && row.setCode.trim()
+        ? row.setCode.trim().toLowerCase()
+        : "";
+    const printingId =
+      typeof row.printingId === "string" && row.printingId.trim()
+        ? row.printingId.trim()
+        : "";
+    const label =
+      typeof row.label === "string" && row.label.trim()
+        ? row.label.trim()
+        : "";
+    if (!setCode || !printingId || !label) {
+      continue;
+    }
+
+    parsed[normalizedCardKey] = {
+      setCode,
+      printingId,
+      label
+    };
+  }
+
+  return parsed;
+}
+
+function toSetOverrides(
+  overrides: Record<string, DeckPrintingOverride>
+): Record<string, { setCode: string; printingId: string }> {
+  const mapped: Record<string, { setCode: string; printingId: string }> = {};
+  for (const [cardKey, override] of Object.entries(overrides)) {
+    if (!override.setCode || !override.printingId) {
+      continue;
+    }
+
+    mapped[cardKey] = {
+      setCode: override.setCode,
+      printingId: override.printingId
+    };
+  }
+
+  return mapped;
+}
+
 export default function Page() {
-  const router = useRouter();
   const [deckUrl, setDeckUrl] = useState("");
   const [deckName, setDeckName] = useState("");
   const [decklist, setDecklist] = useState("");
+  const [deckPriceMode, setDeckPriceMode] = useState<DeckPriceMode>("oracle-default");
+  const [printingOverrides, setPrintingOverrides] = useState<Record<string, DeckPrintingOverride>>({});
+  const [printingOptionsByCard, setPrintingOptionsByCard] = useState<Record<string, DeckPrintingOption[]>>({});
+  const [printingLoadByCard, setPrintingLoadByCard] = useState<Record<string, boolean>>({});
+  const [printingErrorByCard, setPrintingErrorByCard] = useState<Record<string, string>>({});
   const [targetBracket, setTargetBracket] = useState("");
   const [expectedWinTurn, setExpectedWinTurn] = useState("");
   const [commanderName, setCommanderName] = useState("");
@@ -181,6 +279,8 @@ export default function Page() {
       id: existing?.id ?? createSavedDeckId(),
       name: trimmedName,
       decklist: trimmedDecklist,
+      deckPriceMode,
+      printingOverrides,
       targetBracket,
       expectedWinTurn,
       commanderName,
@@ -204,6 +304,11 @@ export default function Page() {
   function onLoadSavedDeck(saved: SavedDeck) {
     setDeckName(saved.name);
     setDecklist(saved.decklist);
+    setDeckPriceMode(saved.deckPriceMode);
+    setPrintingOverrides(saved.printingOverrides);
+    setPrintingOptionsByCard({});
+    setPrintingLoadByCard({});
+    setPrintingErrorByCard({});
     setTargetBracket(saved.targetBracket);
     setExpectedWinTurn(saved.expectedWinTurn);
     setCommanderName(saved.commanderName);
@@ -266,6 +371,10 @@ export default function Page() {
       if (imported.deckName) {
         setDeckName(imported.deckName);
       }
+      setPrintingOverrides({});
+      setPrintingOptionsByCard({});
+      setPrintingLoadByCard({});
+      setPrintingErrorByCard({});
       setCommanderName("");
       setResult(null);
       const label = imported.provider === "moxfield" ? "Moxfield" : "Archidekt";
@@ -290,10 +399,88 @@ export default function Page() {
     }
   }, [result]);
 
-  const previewRows = previewMode ? parseDecklist(decklist) : [];
+  const parsedRows = parseDecklist(decklist);
+  const previewRows = previewMode ? parsedRows : [];
   const tuningSummary = targetBracket && expectedWinTurn
     ? `Target: Bracket ${targetBracket} | Win/Lock: ${expectedWinTurn}`
     : null;
+
+  useEffect(() => {
+    const deckCardKeys = new Set(parseDecklist(decklist).map((entry) => normalizeCardKey(entry.name)));
+    setPrintingOverrides((previous) => {
+      const filtered = Object.fromEntries(
+        Object.entries(previous).filter(([cardKey]) => deckCardKeys.has(cardKey))
+      );
+      if (Object.keys(filtered).length === Object.keys(previous).length) {
+        return previous;
+      }
+
+      return filtered;
+    });
+  }, [decklist]);
+
+  async function ensurePrintingsLoaded(cardName: string) {
+    const cardKey = normalizeCardKey(cardName);
+    if (printingOptionsByCard[cardKey] || printingLoadByCard[cardKey]) {
+      return;
+    }
+
+    setPrintingLoadByCard((previous) => ({ ...previous, [cardKey]: true }));
+    setPrintingErrorByCard((previous) => ({ ...previous, [cardKey]: "" }));
+    try {
+      const response = await fetch(`/api/card-printings?name=${encodeURIComponent(cardName)}`, {
+        method: "GET",
+        cache: "no-store"
+      });
+      const payload = (await response.json()) as CardPrintingsResponse | { error: string };
+      if (!response.ok) {
+        const message = "error" in payload && payload.error ? payload.error : "Could not load printings.";
+        setPrintingErrorByCard((previous) => ({ ...previous, [cardKey]: message }));
+        return;
+      }
+
+      const data = payload as CardPrintingsResponse;
+      setPrintingOptionsByCard((previous) => ({ ...previous, [cardKey]: data.printings ?? [] }));
+    } catch {
+      setPrintingErrorByCard((previous) => ({ ...previous, [cardKey]: "Could not load printings." }));
+    } finally {
+      setPrintingLoadByCard((previous) => ({ ...previous, [cardKey]: false }));
+    }
+  }
+
+  function onSelectPrinting(cardName: string, printingId: string) {
+    const cardKey = normalizeCardKey(cardName);
+    if (!printingId) {
+      setPrintingOverrides((previous) => {
+        if (!previous[cardKey]) {
+          return previous;
+        }
+
+        const next = { ...previous };
+        delete next[cardKey];
+        return next;
+      });
+      return;
+    }
+
+    const options = printingOptionsByCard[cardKey] ?? [];
+    const selected = options.find((option) => option.id === printingId);
+    if (!selected) {
+      return;
+    }
+
+    setPrintingOverrides((previous) => ({
+      ...previous,
+      [cardKey]: {
+        setCode: selected.setCode,
+        printingId: selected.id,
+        label: selected.label
+      }
+    }));
+    if (deckPriceMode !== "decklist-set") {
+      setDeckPriceMode("decklist-set");
+    }
+  }
 
   async function runAnalysis(overrides?: { commanderName?: string | null }) {
     setLoading(true);
@@ -304,12 +491,15 @@ export default function Page() {
         typeof overrides?.commanderName === "string"
           ? overrides.commanderName
           : commanderName || null;
+      const setOverrides = toSetOverrides(printingOverrides);
 
       const response = await fetch("/api/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           decklist,
+          deckPriceMode,
+          setOverrides,
           targetBracket: targetBracket ? Number(targetBracket) : null,
           expectedWinTurn: expectedWinTurn || null,
           commanderName: commanderForRequest,
@@ -343,47 +533,14 @@ export default function Page() {
   async function onTrySampleDeck() {
     setDeckName(SAMPLE_DECK_NAME);
     setDecklist(SAMPLE_DECKLIST);
+    setPrintingOverrides({});
+    setPrintingOptionsByCard({});
+    setPrintingLoadByCard({});
+    setPrintingErrorByCard({});
     setCommanderName("");
     setImportError("");
     setImportInfo("Loaded sample deck. Running analysis...");
     await runAnalysis({ commanderName: null });
-  }
-
-  function onOpenRulesSandbox() {
-    const trimmedDecklist = decklist.trim();
-    if (trimmedDecklist) {
-      const parsed = parseDecklistWithCommander(trimmedDecklist);
-      const selectedCommander =
-        result?.commander.selectedName?.trim() ||
-        commanderName.trim() ||
-        parsed.commanderFromSection ||
-        null;
-
-      saveRulesSandboxPreset({
-        version: 1,
-        seed: "rules-sandbox",
-        updatedAt: new Date().toISOString(),
-        players: [
-          {
-            name: deckName.trim() ? `${deckName.trim()} (You)` : "You",
-            decklist: trimmedDecklist,
-            commanderName: selectedCommander
-          },
-          {
-            name: "Opponent 1",
-            decklist: SANDBOX_DEMO_DECKS.playerOne,
-            commanderName: "Captain Verity"
-          },
-          {
-            name: "Opponent 2",
-            decklist: SANDBOX_DEMO_DECKS.playerTwo,
-            commanderName: "Ravager of Embers"
-          }
-        ]
-      });
-    }
-
-    router.push("/rules-sandbox");
   }
 
   return (
@@ -397,9 +554,6 @@ export default function Page() {
         <div className="hero-actions">
           <button type="button" className="btn-secondary" onClick={() => void onTrySampleDeck()}>
             Try a sample deck
-          </button>
-          <button type="button" className="btn-secondary" onClick={onOpenRulesSandbox}>
-            Open Current Deck in Rules Sandbox
           </button>
         </div>
         <p>
@@ -477,7 +631,9 @@ export default function Page() {
           </section>
 
           <label htmlFor="decklist">Decklist (paste here)</label>
-          <p className="muted field-help">One card per line; quantities allowed.</p>
+          <p className="muted field-help">
+            One card per line; quantities allowed. Optional set tag for pricing: <code>1 Sol Ring [CMM]</code>.
+          </p>
           <label className="checkbox decklist-preview-toggle decklist-preview-header">
             <input
               type="checkbox"
@@ -493,11 +649,65 @@ export default function Page() {
                 <p className="muted">No valid deck lines to preview yet.</p>
               ) : (
                 <ul>
-                  {previewRows.map((entry) => (
-                    <li key={`${entry.name}-${entry.qty}`}>
-                      {entry.qty} <CardLink name={entry.name} />
-                    </li>
-                  ))}
+                  {previewRows.map((entry) => {
+                    const cardKey = normalizeCardKey(entry.name);
+                    const override = printingOverrides[cardKey];
+                    const options = printingOptionsByCard[cardKey] ?? [];
+                    const loading = Boolean(printingLoadByCard[cardKey]);
+                    const errorMessage = printingErrorByCard[cardKey] ?? "";
+                    const selectedPrintingId = override?.printingId ?? "";
+                    const activeSetCode = override?.setCode ?? entry.setCode ?? null;
+
+                    return (
+                      <li key={`${entry.name}-${entry.qty}`}>
+                        <div className="decklist-preview-row">
+                          <span>
+                            {entry.qty}{" "}
+                            <CardLink
+                              name={entry.name}
+                              setCode={activeSetCode}
+                              printingId={override?.printingId ?? null}
+                            />
+                            {activeSetCode ? (
+                              <span className="decklist-preview-set-chip">[{activeSetCode.toUpperCase()}]</span>
+                            ) : null}
+                          </span>
+                          <span className="decklist-preview-printing-controls">
+                            <button
+                              type="button"
+                              className="btn-tertiary"
+                              onClick={() => void ensurePrintingsLoaded(entry.name)}
+                              disabled={loading}
+                            >
+                              {loading ? "Loading..." : "Printings"}
+                            </button>
+                            {(options.length > 0 || selectedPrintingId) ? (
+                              <select
+                                value={selectedPrintingId}
+                                onChange={(event) => onSelectPrinting(entry.name, event.target.value)}
+                                onFocus={() => {
+                                  if (!printingOptionsByCard[cardKey]) {
+                                    void ensurePrintingsLoaded(entry.name);
+                                  }
+                                }}
+                              >
+                                <option value="">Auto/default printing</option>
+                                {options.map((option) => (
+                                  <option key={option.id} value={option.id}>
+                                    {option.label}
+                                  </option>
+                                ))}
+                              </select>
+                            ) : null}
+                          </span>
+                        </div>
+                        {override?.label ? (
+                          <p className="muted decklist-preview-printing-label">{override.label}</p>
+                        ) : null}
+                        {errorMessage ? <p className="error">{errorMessage}</p> : null}
+                      </li>
+                    );
+                  })}
                 </ul>
               )}
             </div>
@@ -515,6 +725,36 @@ export default function Page() {
           ) : (
             <p className="muted">Preview mode is on. Disable it to edit the raw decklist text.</p>
           )}
+
+          <section className="tuning-controls">
+            <div className="tuning-header">
+              <strong>Pricing Mode</strong>
+              <span
+                className="info-pill"
+                title="Decklist set mode uses [SET] tags like [CMM] for print-aware lookup, then falls back to name lookup."
+              >
+                i
+              </span>
+            </div>
+            <div className="row">
+              <label htmlFor="deck-price-mode">Card pricing lookup</label>
+              <select
+                id="deck-price-mode"
+                value={deckPriceMode}
+                onChange={(event) =>
+                  setDeckPriceMode(
+                    event.target.value === "decklist-set" ? "decklist-set" : "oracle-default"
+                  )
+                }
+              >
+                <option value="oracle-default">Oracle default lookup</option>
+                <option value="decklist-set">Use [SET] tags in decklist</option>
+              </select>
+            </div>
+            <p className="muted">
+              Set-aware mode example: <code>1 Rhystic Study [JMP]</code>.
+            </p>
+          </section>
 
           <section className="tuning-controls">
             <div className="tuning-header">

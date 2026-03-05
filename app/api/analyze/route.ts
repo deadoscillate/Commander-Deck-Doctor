@@ -1,4 +1,4 @@
-import { computeDeckSummary, computeRoleBreakdown, computeRoleCounts } from "@/lib/analysis";
+import { computeDeckSummary, computeRoleBreakdown, computeRoleCounts, computeTutorSummary } from "@/lib/analysis";
 import { CardDatabase, createEngine } from "@/engine";
 import { computeDeckArchetypes } from "@/lib/archetypes";
 import {
@@ -8,7 +8,7 @@ import {
   computeMassLandDenial,
   estimateBracket
 } from "@/lib/brackets";
-import type { AnalyzeRequest, DeckPriceSummary, ExpectedWinTurn } from "@/lib/contracts";
+import type { AnalyzeRequest, DeckPriceMode, DeckPriceSummary, ExpectedWinTurn } from "@/lib/contracts";
 import { buildDeckHealthReport } from "@/lib/deckHealth";
 import { parseDecklistWithCommander } from "@/lib/decklist";
 import { GAME_CHANGERS_VERSION, findGameChangerName } from "@/lib/gameChangers";
@@ -84,6 +84,50 @@ function parseCommanderName(value: unknown): string | null {
   return trimmed ? trimmed : null;
 }
 
+function parseDeckPriceMode(value: unknown): DeckPriceMode {
+  return value === "decklist-set" ? "decklist-set" : "oracle-default";
+}
+
+function parseSetOverrides(
+  value: unknown
+): Map<string, { setCode: string; printingId: string | null }> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return new Map();
+  }
+
+  const record = value as Record<string, unknown>;
+  const overrides = new Map<string, { setCode: string; printingId: string | null }>();
+  for (const [rawCardName, rawOverride] of Object.entries(record)) {
+    let normalizedSetCode = "";
+    let normalizedPrintingId: string | null = null;
+    if (typeof rawOverride === "string") {
+      normalizedSetCode = rawOverride.trim().toLowerCase();
+    } else if (rawOverride && typeof rawOverride === "object" && !Array.isArray(rawOverride)) {
+      const row = rawOverride as Record<string, unknown>;
+      normalizedSetCode =
+        typeof row.setCode === "string" ? row.setCode.trim().toLowerCase() : "";
+      normalizedPrintingId =
+        typeof row.printingId === "string" && row.printingId.trim()
+          ? row.printingId.trim()
+          : null;
+    } else {
+      continue;
+    }
+
+    const normalizedCardName = normalizeLookupName(rawCardName);
+    if (!normalizedCardName || !/^[a-z0-9]{2,10}$/.test(normalizedSetCode)) {
+      continue;
+    }
+
+    overrides.set(normalizedCardName, {
+      setCode: normalizedSetCode,
+      printingId: normalizedPrintingId
+    });
+  }
+
+  return overrides;
+}
+
 function normalizeLookupName(name: string): string {
   return name
     .normalize("NFKD")
@@ -157,7 +201,10 @@ function stableSimulationSeed(
   return `analyze-${(hash >>> 0).toString(16)}`;
 }
 
-function buildDeckPriceSummary(cards: Array<{ qty: number; card: ScryfallCard }>): DeckPriceSummary {
+function buildDeckPriceSummary(
+  cards: Array<{ name: string; qty: number; card: ScryfallCard }>,
+  options: { pricingMode: DeckPriceMode; requestedSetCodeByCardName: Map<string, string | null> }
+): DeckPriceSummary {
   const totals = {
     usd: 0,
     usdFoil: 0,
@@ -171,9 +218,19 @@ function buildDeckPriceSummary(cards: Array<{ qty: number; card: ScryfallCard }>
     tix: 0
   };
   let totalKnownCardQty = 0;
+  let setTaggedCardQty = 0;
+  let setMatchedCardQty = 0;
 
   for (const entry of cards) {
     totalKnownCardQty += entry.qty;
+    const requestedSet = options.requestedSetCodeByCardName.get(entry.name.toLowerCase()) ?? null;
+    if (requestedSet) {
+      setTaggedCardQty += entry.qty;
+      const resolvedSet = typeof entry.card.set === "string" ? entry.card.set.toLowerCase() : "";
+      if (resolvedSet && resolvedSet === requestedSet.toLowerCase()) {
+        setMatchedCardQty += entry.qty;
+      }
+    }
 
     const usd = parsePriceNumber(entry.card.prices?.usd);
     const usdFoil = parsePriceNumber(entry.card.prices?.usd_foil);
@@ -229,7 +286,13 @@ function buildDeckPriceSummary(cards: Array<{ qty: number; card: ScryfallCard }>
       usdEtched: coverage(pricedCardQty.usdEtched),
       tix: coverage(pricedCardQty.tix)
     },
-    disclaimer: "Totals are quantity-weighted Scryfall prices for resolved cards only and may change over time."
+    pricingMode: options.pricingMode,
+    setTaggedCardQty,
+    setMatchedCardQty,
+    disclaimer:
+      options.pricingMode === "decklist-set"
+        ? "Totals are quantity-weighted Scryfall prices with set-aware lookup when [SET] tags are present. Unmatched tags fall back to named lookup."
+        : "Totals are quantity-weighted Scryfall prices for resolved cards only and may change over time."
   };
 }
 
@@ -274,22 +337,48 @@ export async function POST(request: Request) {
       );
     }
 
-    const inputDeckSize = parsedDeck.reduce((sum, card) => sum + card.qty, 0);
+    const setOverridesByCardName = parseSetOverrides(payload.setOverrides);
+    const effectiveParsedDeck = parsedDeck.map((entry) => {
+      const override = setOverridesByCardName.get(normalizeLookupName(entry.name));
+      if (!override) {
+        return entry;
+      }
+
+      if (
+        entry.setCode?.toLowerCase() === override.setCode &&
+        entry.printingId === override.printingId
+      ) {
+        return entry;
+      }
+
+      return {
+        ...entry,
+        setCode: override.setCode,
+        printingId: override.printingId ?? undefined
+      };
+    });
+
+    const inputDeckSize = effectiveParsedDeck.reduce((sum, card) => sum + card.qty, 0);
+    const deckPriceMode = parseDeckPriceMode(payload.deckPriceMode);
+    const requestedSetCodeByCardName = new Map(
+      effectiveParsedDeck.map((entry) => [entry.name.toLowerCase(), entry.setCode?.toLowerCase() ?? null])
+    );
 
     // Fetch only the cards we can resolve; unknown names are reported separately.
-    const { knownCards, unknownCards } = await fetchDeckCards(parsedDeck, 8);
+    const { knownCards, unknownCards } = await fetchDeckCards(effectiveParsedDeck, 8, { deckPriceMode });
     const summary = computeDeckSummary(knownCards);
     const analyzer = getAnalyzerEngine();
     const engineCardByName = (cardName: string) => analyzer.cardDatabase.getCardByName(cardName);
     const behaviorIdByCardName = (cardName: string) => engineCardByName(cardName)?.behaviorId ?? null;
     const roles = computeRoleCounts(knownCards, { engineCardByName, behaviorIdByCardName });
     const roleBreakdown = computeRoleBreakdown(knownCards, { engineCardByName, behaviorIdByCardName });
+    const tutorSummary = computeTutorSummary(knownCards, { engineCardByName, behaviorIdByCardName });
 
     const knownByInputName = new Map(
       knownCards.map((entry) => [entry.name.toLowerCase(), entry.card.name])
     );
 
-    const parsedDeckView = parsedDeck.map((entry) => {
+    const parsedDeckView = effectiveParsedDeck.map((entry) => {
       const resolvedName = knownByInputName.get(entry.name.toLowerCase()) ?? null;
       const matchedGameChanger = findGameChangerName(resolvedName ?? entry.name);
 
@@ -312,7 +401,7 @@ export async function POST(request: Request) {
     );
     const { count: extraTurnsCount, cards: extraTurnCards } = computeExtraTurns(knownCards);
     const { count: massLandDenialCount, cards: massLandDenialCards } = computeMassLandDenial(knownCards);
-    const checksBase = buildDeckChecks(parsedDeck, unknownCards);
+    const checksBase = buildDeckChecks(effectiveParsedDeck, unknownCards);
 
     const commanderOptions = [
       ...new Map(
@@ -372,7 +461,7 @@ export async function POST(request: Request) {
       colorIdentity: colorIdentityCheck
     };
     const rulesEngine = evaluateCommanderRules({
-      parsedDeck,
+      parsedDeck: effectiveParsedDeck,
       knownCards,
       unknownCards,
       commander: {
@@ -400,7 +489,10 @@ export async function POST(request: Request) {
       deckSize: inputDeckSize,
       unknownCardsCount: unknownCards.length
     });
-    const deckPrice = buildDeckPriceSummary(knownCards);
+    const deckPrice = buildDeckPriceSummary(knownCards, {
+      pricingMode: deckPriceMode,
+      requestedSetCodeByCardName
+    });
     const archetypeReport = computeDeckArchetypes(knownCards, inputDeckSize);
     const comboReport = detectCombosInDeck(
       parsedDeckView.flatMap((entry) =>
@@ -541,6 +633,7 @@ export async function POST(request: Request) {
       {
         schemaVersion: "1.0",
         input: {
+          deckPriceMode,
           targetBracket,
           expectedWinTurn,
           commanderName: selectedCommanderName,
@@ -567,6 +660,7 @@ export async function POST(request: Request) {
         metrics: roundedSummary,
         roles,
         roleBreakdown,
+        tutorSummary,
         checks,
         rulesEngine,
         deckHealth,

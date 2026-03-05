@@ -1,353 +1,99 @@
-# Commander Deck Doctor (Current MVP)
+# Commander Deck Doctor
 
 Commander deck analysis app built with Next.js + TypeScript.
 
-## Current MVP features
+## What It Does
 
-- Parse free-form Commander decklists (including Commander section detection).
-- Resolve card data from Scryfall (`exact` then `fuzzy` fallback).
-- Show summary metrics:
-  - deck size, unique cards, average mana value
-  - mana curve and card-type counts
-  - engine-backed role counts (ramp/draw/removal/wipes/tutors/protection/finishers)
-- Run core deck checks:
-  - deck size
-  - singleton (basic-land exceptions)
-  - unknown card names
-  - commander color identity validation
-- Commander UI:
-  - commander hero header with art background (`art_crop` fallback logic)
-  - commander name hover image preview
-  - color identity shown as mana icons
-  - manual commander selector in the right report panel (auto re-analyzes on change)
-- Card hover previews:
-  - image preview from Scryfall
-  - Scryfall prices in preview (USD/Foil/Etched/TIX when available)
-  - local cache for hover metadata
-- Archetype detection using Commander parlance categories (for example: tokens, aristocrats, spellslinger, stax, pillow fort, group hug/slug, lands, kindred, infect, cheat-into-play).
-- Combo detection from local combo database.
-- Rule 0 snapshot (player-facing heuristic layer):
-  - win style
-  - speed band
-  - consistency score
-  - table-impact flags
-- Deterministic engine simulations in reports:
-  - opening hand quality (playable/dead/ramp percentages)
-  - simplified goldfish pacing (first spell turn, commander cast turn)
-- Commander Bracket heuristic report:
-  - Game Changer detection
-  - extra-turn and mass-land-denial flags
-  - explanation + notes + warnings
-- Deck improvement suggestions for low role buckets.
-- Deck import from Moxfield and Archidekt URLs.
-- Local saved deck history (`localStorage`).
-- Report sharing/export:
-  - copy plaintext report
-  - download JSON
-  - shared report URLs at `/report/{hash}` via local SQLite store
+- Parses free-form Commander decklists (Commander section supported).
+- Imports public decks from Moxfield and Archidekt.
+- Resolves card metadata from Scryfall.
+- Runs analyzer output for:
+  - deck summary and mana curve
+  - role composition (ramp/draw/removal/wipes/tutors/protection/finishers)
+  - commander/deck checks (size, singleton, color identity, unknown cards)
+  - bracket heuristics, archetype signals, combo signals, Rule 0 snapshot
+  - deterministic simulation summaries
+- Supports set-aware pricing and printing-aware preview art selection.
 
-## Run locally
+## Quick Start
 
 ```bash
 npm install
+npm run scryfall:update
 npm run dev
 ```
 
 Open `http://localhost:3000`.
 
-Production build:
-
-```bash
-npm run build
-npm run start
-```
-
-## Scryfall Oracle Data Pipeline (Offline-First)
-
-Initial setup (required before engine tests/build that use the rules engine DB):
-
-```bash
-npm run scryfall:update
-```
-
-This runs:
-
-- `npm run scryfall:download` to fetch the latest `oracle_cards` bulk file metadata + raw dataset.
-- `npm run scryfall:compile` to generate `data/scryfall/oracle-cards.compiled.json` (engine-friendly subset).
-- `npm run scryfall:verify` to validate that the compiled file exists and is structurally usable.
-
-Update data later with the same command:
-
-```bash
-npm run scryfall:update
-```
-
-Notes:
-
-- Only `data/scryfall/oracle-cards.compiled.json` is committed for deploy/runtime use.
-- Raw download artifacts (`oracle-cards.raw.json`, `oracle-cards.meta.json`) remain ignored by git.
-- Engine/tests load card metadata from the local compiled file and do not call Scryfall at runtime.
-- Production build runs `npm run scryfall:verify` before `next build` and fails fast if data is missing.
-- `next.config.mjs` uses `outputFileTracingIncludes` so Vercel packages the compiled Scryfall file with API functions.
-- `/api/analyze` is pinned to Node runtime (`export const runtime = "nodejs"`) so filesystem loading works consistently on Vercel.
-- If the compiled file is missing, run `npm run scryfall:update`.
-
-## Testing
+## Build And Test
 
 ```bash
 npm run test
+npm run lint
+npm run build
 ```
 
-Watch mode:
+## Scryfall Data (Offline-First)
+
+The app/engine read from the local compiled Oracle file:
+
+- `data/scryfall/oracle-cards.compiled.json`
+
+Update pipeline:
 
 ```bash
-npm run test:watch
+npm run scryfall:update
 ```
 
-## Vercel Free-Tier Storage Setup
+This runs download + compile. Build also verifies compiled data exists.
 
-Shared report links (`/report/{hash}`) need persistent storage on Vercel.
+Notes:
 
-1. In Vercel, open this project and add the Neon integration from Marketplace.
-1. Select the free Neon plan and connect it to this project.
-1. Confirm `POSTGRES_URL` (or `DATABASE_URL`) appears in project env vars.
-1. Redeploy after linking storage.
+- Raw Oracle downloads are ignored by git.
+- Engine/tests do not require Scryfall network access at runtime.
 
-Without those env vars, `/api/share-report` is disabled on Vercel by design.
+## Pricing And Printing Selection
 
-## Security Baseline (Implemented)
+- `Oracle default lookup`: name-based pricing.
+- `Use [SET] tags in decklist`: set-aware pricing.
+- Decklist tag example: `1 Sol Ring [CMM]`.
+- In decklist preview mode, each card can load printings and select a specific printing.
+  - Preview art uses the selected Scryfall printing.
+  - Analyzer receives printing/set overrides for set-aware pricing lookup.
+  - Includes special printings (for example Secret Lair and Judge promo printings) when available from Scryfall.
 
-- API boundaries validate JSON content type and enforce request body size limits.
-- Public API routes (`/api/analyze`, `/api/import-url`, `/api/share-report`) have per-IP rate limits.
-- API responses include `x-request-id` and no-store caching headers.
-- Structured server logs include request IDs for API failures.
-- Import URL flow enforces HTTPS-only provider URLs and provider fetch timeouts.
-- Global response headers include `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, and `Permissions-Policy`.
+## Deployment Notes
 
-## Automation (Implemented)
+- Vercel hosts the app.
+- Shared report persistence uses Neon Postgres (`POSTGRES_URL` or `DATABASE_URL`).
+- `/api/analyze` runs on Node runtime and loads local compiled Scryfall data.
 
-- GitHub CI workflow runs on PRs and `main` pushes: lint, test, and build.
-- Dependabot is configured for weekly npm and GitHub Actions updates.
-- Vercel project is connected to GitHub repository `deadoscillate/Commander-Deck-Doctor` for push-based deployments.
-- Post-deploy production smoke tests run in GitHub Actions after successful CI on `main` pushes.
-- `staging` branch has preview smoke checks before production promotion.
+## Branch Flow
 
-## Branch and deployment flow (test first)
-
-- `staging` branch: test environment branch (Vercel Preview).
-- `main` branch: production branch (Vercel Production).
-- Default working flow:
-  1. Push changes to `staging` first.
-  1. Wait for CI + preview smoke checks to pass.
-  1. Verify behavior on the staging preview URL.
-  1. Promote to `main` only when explicitly approved.
-
-Optional repository variable:
-
-1. `STAGING_BASE_URL` to override preview smoke target URL.  
-   Default is `https://commander-deck-doctor-git-staging-deadoscillates-projects.vercel.app`.
-
-Required GitHub secret when preview protection is enabled:
-
-1. `VERCEL_AUTOMATION_BYPASS_SECRET` so `Smoke Preview` can access protected Vercel preview deployments.
-
-## Observability and alerting (implemented)
-
-- Sentry SDK is wired for Next.js server, edge, and client runtimes.
-- App Router `error.tsx` and `global-error.tsx` capture render/runtime exceptions to Sentry.
-- API 5xx responses are captured with route and `x-request-id` context for correlation in logs.
-- `/api/import-url` distinguishes user input errors (400) from upstream provider failures (502).
-
-Set up in production:
-
-1. Create a Sentry project for this app.
-1. Add `SENTRY_DSN` to Vercel environment variables (all environments).
-1. Optionally add `NEXT_PUBLIC_SENTRY_DSN` if you want browser-side issue capture in addition to server-side capture.
-1. In Sentry Alerts, create a production rule for high error rate or 5xx spikes and route notifications to email/Slack/PagerDuty.
-
-## Production smoke checks (implemented)
-
-- Workflow: `.github/workflows/smoke-prod.yml`
-- Triggers:
-  - automatic: after CI succeeds for a push to `main`
-  - manual: `workflow_dispatch`
-- Checks:
-  - `GET /` returns `200`
-  - security headers are present on `/`
-  - `POST /api/analyze` guardrail response (empty payload -> `400`)
-  - `POST /api/import-url` guardrail response (empty payload -> `400`)
-  - `POST /api/share-report` guardrail response (empty decklist -> `400`)
-
-Optional repo variable:
-
-1. `PROD_BASE_URL` (for custom domain or alternate prod URL). Defaults to `https://commander-deck-doctor.vercel.app`.
-
-## Shared report retention, backup, and restore (implemented)
-
-- Retention policy: shared reports are retained for `180` days by default.
-- Runtime pruning: expired reports are pruned periodically on API read/write paths.
-- Override retention with `REPORT_RETENTION_DAYS` (clamped to `7`-`3650` days).
-
-Backup and restore scripts:
-
-```bash
-# Export to backups/shared-reports-<timestamp>.json
-npm run backup:reports
-
-# Export to a custom file path
-npm run backup:reports -- ./backups/my-snapshot.json
+- `staging`: preview/test deployments.
+- `main`: production deployments.
 
-# Restore from backup file (upsert by hash)
-npm run restore:reports -- ./backups/my-snapshot.json
+Recommended flow:
 
-# Full replace restore
-npm run restore:reports -- ./backups/my-snapshot.json --truncate
-```
+1. Push to `staging` and validate preview.
+1. Promote to `main` for production.
 
-Current regression coverage includes:
-
-- decklist parsing edge cases (commander section + split cards/comments)
-- `/api/analyze` guardrails (empty input 400 + controlled 500 on dependency failure)
-- deck price total calculations in analysis responses
-
-## Project structure (key files)
-
-- `app/page.tsx`: main UI and analysis flow orchestration on client.
-- `app/api/analyze/route.ts`: parse -> fetch -> analyze -> response assembly.
-- `app/api/import-url/route.ts`: Moxfield/Archidekt import endpoint.
-- `app/api/share-report/route.ts`: stores shared report snapshots.
-- `app/report/[hash]/page.tsx`: shared report page.
-- `app/error.tsx`, `app/global-error.tsx`: runtime error boundaries wired to Sentry.
-- `components/AnalysisReport.tsx`: report renderer (player snapshot + technical details).
-- `components/CommanderHeroHeader.tsx`: commander hero art header.
-- `components/CardNameHover.tsx`: hover image + prices preview.
-- `components/ManaIcon.tsx`, `components/ManaCost.tsx`, `components/ColorIdentityIcons.tsx`: mana/icon UI.
-- `components/Checks.tsx`: legality/sanity checks panel.
-- `components/DeckHealth.tsx`, `components/RecommendedCounts.tsx`: deck-health diagnostics.
-- `components/ImprovementSuggestions.tsx`: low-role suggestions panel.
-- `lib/decklist.ts`: deck parsing and commander section extraction.
-- `lib/scryfall.ts`: Scryfall client + cache/concurrency handling.
-- `lib/analysis.ts`: summary/curve/types/roles calculations.
-- `lib/archetypes.ts`: archetype heuristics.
-- `lib/combos.ts`, `lib/combos.json`: combo detection and data.
-- `lib/playerHeuristics.ts`: Rule 0 summary logic.
-- `lib/brackets.ts`, `lib/gameChangers.ts`: bracket heuristics and dataset.
-- `lib/checks.ts`: deck checks and color-identity validation.
-- `lib/api/monitoring.ts`: API error capture and Sentry context tagging.
-- `lib/reportText.ts`: plaintext export formatter.
-- `lib/reportStore.ts`: SQLite persistence for share links.
-- `lib/contracts.ts`, `lib/types.ts`: shared contracts/domain types.
-- `instrumentation.ts`, `instrumentation-client.ts`: Next.js instrumentation bootstrap.
-- `sentry.server.config.ts`, `sentry.edge.config.ts`: Sentry runtime init.
-- `.github/workflows/ci.yml`, `.github/workflows/smoke-prod.yml`: quality and production smoke workflows.
-- `scripts/export-shared-reports.mjs`, `scripts/import-shared-reports.mjs`: backup/restore runbook scripts.
-
-## Rules engine correctness status (current)
-
-- Deterministic core loop is implemented (zones, stack, priority passing, seeded RNG, event logs).
-- Commander format support exists for command zone, commander tax, commander replacement choice, and commander damage tracking.
-- State-based actions include life<=0, toughness<=0, planeswalker loyalty<=0, legend rule, token cleanup, and commander-damage lethal checks.
-- Engine-backed role classification now uses shared rule classifier logic (behavior templates + structured oracle patterns).
-- Remaining gap to "judge-level correctness": card behavior coverage and advanced rules interactions are still incomplete.
-
-## Known gaps (post-MVP backlog)
-
-- Full Commander legality engine is not complete yet:
-  - partner/friends forever/doctor/background pair-rule validation
-  - companion-specific full deckbuilding rule map
-  - versioned Commander banlist dataset enforcement panel
-- Heuristics are intentionally approximate (Rule 0, archetype, bracket).
-- Test coverage is focused on high-risk analysis paths; UI interaction coverage is still limited.
-
-## Development roadmap (proposed)
-
-1. Stability and correctness (next sprint)
-
-   - Expand analyzer test coverage for legality, archetypes, combo detection, and preview behaviors.
-   - Add integration tests for `/api/analyze` and `/api/import-url` with representative real decklists.
-   - Add stricter runtime validation for API payloads and responses.
-   - Harden error surfaces in UI (clear user-facing error messages, retry actions, no silent failures).
-
-1. Judge-level engine track (next major phase)
-
-   - Build conformance scenarios for priority/stack/SBA/replacement/trigger ordering against Comprehensive Rules references.
-   - Expand layer system correctness (type/color/ability/P/T interactions) with golden replay tests.
-   - Add APNAP ordering and multiplayer trigger-choice edge cases.
-   - Continue replacing shortcut implementations with rule-accurate SBA-driven outcomes (current milestone includes commander-damage SBA loss).
-
-1. Full Commander legality engine
-
-   - Complete commander pair rules: Partner, Partner With, Friends Forever, Doctor's Companion, Background.
-   - Add companion deckbuilding rule validators with deterministic outputs.
-   - Introduce versioned banlist dataset and legality panel with explicit source/date.
-   - Return machine-readable legality issues/warnings for UI and export.
-
-1. Analysis quality upgrades
-
-   - Expand archetype taxonomy and weighting beyond keyword-only matching.
-   - Grow combo dataset with tags (infinite/combat/drain/lock) and confidence/evidence.
-   - Add matchup/table-profile summary (what this deck pressures, what it folds to).
-   - Improve suggestion quality using role deficits + color identity + curve context.
-
-1. Product features (post-core)
-
-   - User accounts and cloud deck history (replace local-only storage option).
-   - Saved report diffing (compare two deck versions).
-   - Import/export improvements (more deck sites, CSV/clipboard quality-of-life).
-   - Team sharing and immutable report snapshots.
-
-1. Performance and scale
-
-   - Add optional response caching for repeated analyzes of same deck hash.
-   - Add background warm-cache jobs for frequent card lookups.
-   - Profile and reduce server response latency for large decklists.
-   - Add benchmark suite with baseline latency thresholds.
-
-## Live product standards (production bar)
-
-1. Reliability and operations
-
-   - Define SLOs (API success rate and p95 latency) and monitor continuously.
-   - Structured logs with request IDs on all API routes.
-   - Error tracking with alerting for 5xx spikes and failed external calls.
-   - Runbooks for common incidents (Scryfall outage, DB issues, deploy rollback).
-
-1. Testing and release gates
-
-   - Required CI checks: `npm run test`, `npm run lint`, `npm run build`.
-   - Block merge on failing checks.
-   - Add smoke tests against deployed environment before promoting release.
-   - Maintain changelog/release notes per deploy.
-
-1. Security and compliance
-
-   - Validate and sanitize all inputs at API boundaries.
-   - Rate limit public endpoints and share/report creation.
-   - Secrets only via environment variables, never committed.
-   - Dependency vulnerability scanning with scheduled updates.
-
-1. Data and storage
-
-   - Backup and restore plan for report storage.
-   - Versioned datasets (banlist/game changers) with source attribution and update date.
-   - Data retention policy for shared reports.
-   - Migration strategy for schema changes.
-
-1. UX and accessibility standards
-
-   - Keyboard-accessible interactions for all core flows.
-   - Basic WCAG color/contrast checks on critical report UI.
-   - Clear loading/empty/error states across all analysis panels.
-   - No blocking runtime errors in client; graceful fallback for unsupported browser APIs.
-
-1. Performance standards
-
-   - Target p95 analyze latency budget and track regression over time.
-   - Budget client bundle size and monitor with build reports.
-   - Cache strategy documented for card previews and analysis routes.
-   - Prevent hydration mismatches and extension-related hydration noise in production logs.
-
-## Notes
-
-- Bracket and Rule 0 outputs are conversation aids, not tournament legality rulings.
-- If dev mode throws chunk/module errors on Windows (e.g. missing `.next` chunk), clear `.next` and restart `npm run dev`.
+## API Routes
+
+- `POST /api/analyze`
+- `POST /api/import-url`
+- `POST /api/share-report`
+- `GET /api/card-printings`
+
+## Current Scope
+
+- Analyzer-first product focus.
+- Rules engine foundation exists but full judge-level gameplay correctness is still in progress.
+- Rules Sandbox route exists but is intentionally hidden from the main landing UI.
+
+## Near-Term Roadmap
+
+1. Continue analyzer role/category accuracy hardening with more fixtures and overrides.
+1. Expand deterministic engine behavior coverage for cards driving analysis signals.
+1. Improve smoke checks and release reliability for preview -> prod flow.
+1. Keep Scryfall compiled data and classifier artifacts refreshed.

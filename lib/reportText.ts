@@ -49,6 +49,9 @@ function formatTurn(value: unknown): string {
  * Generates share-friendly plaintext for clipboard export.
  */
 export function buildPlaintextReport(result: AnalyzeResponse): string {
+  const deckPriceMode = result.deckPrice?.pricingMode === "decklist-set" ? "Decklist [SET] tags" : "Oracle default";
+  const setTaggedCardQty = Math.max(0, result.deckPrice?.setTaggedCardQty ?? 0);
+  const setMatchedCardQty = Math.max(0, result.deckPrice?.setMatchedCardQty ?? 0);
   const archetypeReport = result.archetypeReport ?? {
     primary: null,
     secondary: null,
@@ -185,7 +188,11 @@ export function buildPlaintextReport(result: AnalyzeResponse): string {
     `- Colors: ${result.summary.colors.length > 0 ? result.summary.colors.join(", ") : "Colorless"}`,
     `- Deck Price (USD): ${formatUsd(result.deckPrice?.totals.usd)}`,
     `- Deck Price (Foil): ${formatUsd(result.deckPrice?.totals.usdFoil)}`,
-    `- Deck Price (MTGO): ${formatTix(result.deckPrice?.totals.tix)}`
+    `- Deck Price (MTGO): ${formatTix(result.deckPrice?.totals.tix)}`,
+    `- Pricing Mode: ${deckPriceMode}`,
+    ...(result.deckPrice?.pricingMode === "decklist-set"
+      ? [`- Set Tag Matches: ${setMatchedCardQty}/${setTaggedCardQty}`]
+      : [])
   ];
 
   const archetypeLines = [
@@ -226,6 +233,36 @@ export function buildPlaintextReport(result: AnalyzeResponse): string {
       ];
     })
   ];
+
+  const tutorSummaryRecord =
+    (result as { tutorSummary?: unknown }).tutorSummary &&
+    typeof (result as { tutorSummary?: unknown }).tutorSummary === "object"
+      ? ((result as { tutorSummary?: unknown }).tutorSummary as Record<string, unknown>)
+      : null;
+  const tutorSummaryLines = tutorSummaryRecord
+    ? [
+        "Tutor Classification",
+        `- True tutors: ${toFiniteNumber(tutorSummaryRecord.trueTutors, result.roles.tutors)}`,
+        `- Tutor-signal cards: ${Math.max(
+          0,
+          toFiniteNumber(tutorSummaryRecord.tutorSignals, result.roles.tutors) -
+            toFiniteNumber(tutorSummaryRecord.trueTutors, result.roles.tutors)
+        )}`,
+        ...(Array.isArray(tutorSummaryRecord.trueTutorBreakdown) && tutorSummaryRecord.trueTutorBreakdown.length > 0
+          ? [
+              `- True tutor cards: ${(tutorSummaryRecord.trueTutorBreakdown as Array<Record<string, unknown>>)
+                .map((row) => {
+                  const name = typeof row.name === "string" ? row.name.trim() : "";
+                  const qty = Math.max(0, Math.floor(toFiniteNumber(row.qty, 0)));
+                  return name && qty > 0 ? `${name}${qty > 1 ? ` x${qty}` : ""}` : "";
+                })
+                .filter(Boolean)
+                .slice(0, 20)
+                .join(", ")}`
+            ]
+          : [])
+      ]
+    : [];
 
   const comboLines = [
     "Combo Detection",
@@ -367,6 +404,7 @@ export function buildPlaintextReport(result: AnalyzeResponse): string {
     ...openingHandLines,
     ...(openingHandLines.length > 0 ? [""] : []),
     ...roleLines,
+    ...(tutorSummaryLines.length > 0 ? ["", ...tutorSummaryLines] : []),
     "",
     ...bracketLines,
     "",

@@ -4,6 +4,8 @@
 export type ParsedDeckEntry = {
   name: string;
   qty: number;
+  setCode?: string;
+  printingId?: string;
 };
 
 /**
@@ -28,6 +30,9 @@ export type ScryfallPrices = {
 };
 
 export type ScryfallCard = {
+  id?: string;
+  oracle_id?: string;
+  set?: string;
   name: string;
   type_line: string;
   cmc: number;
@@ -35,6 +40,7 @@ export type ScryfallCard = {
   colors: string[];
   color_identity: string[];
   oracle_text: string;
+  keywords?: string[];
   image_uris: ScryfallImageUris | null;
   card_faces: ScryfallCardFace[];
   prices: ScryfallPrices | null;

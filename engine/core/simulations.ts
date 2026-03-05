@@ -87,7 +87,9 @@ function cardRoleFlags(card: CardDefinition): ReturnType<typeof classifyCardRole
     typeLine: card.typeLine,
     oracleText: card.oracleText,
     keywords: card.keywords,
-    behaviorId: card.behaviorId ?? null
+    behaviorId: card.behaviorId ?? null,
+    oracleId: card.oracleId,
+    cardName: card.name
   });
 
   roleFlagsCache.set(cacheKey, computed);
