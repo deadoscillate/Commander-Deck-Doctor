@@ -16,6 +16,7 @@ jobs:
     env:
       STAGING_BASE_URL: ${{ vars.STAGING_BASE_URL }}
       VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+      SKIP_SMOKE: "false"
     steps:
       - name: Select preview URL
         run: |
@@ -28,22 +29,25 @@ jobs:
         run: |
           set -euo pipefail
           auth_args=()
+          probe_url="$BASE_URL/"
           if [ -n "${VERCEL_AUTOMATION_BYPASS_SECRET:-}" ]; then
+            probe_url="${probe_url}?x-vercel-protection-bypass=${VERCEL_AUTOMATION_BYPASS_SECRET}"
             auth_args+=(-H "x-vercel-protection-bypass: $VERCEL_AUTOMATION_BYPASS_SECRET")
             auth_args+=(-H "x-vercel-set-bypass-cookie: true")
           fi
 
           for attempt in {1..60}; do
-            status=$(curl -sS -L -o /dev/null -w "%{http_code}" "${auth_args[@]}" "$BASE_URL/")
+            status=$(curl -sS -L -o /dev/null -w "%{http_code}" "${auth_args[@]}" "$probe_url")
             if [ "$status" = "200" ]; then
               echo "Preview deployment is reachable."
               exit 0
             fi
 
             if [ "$status" = "401" ] && [ -z "${VERCEL_AUTOMATION_BYPASS_SECRET:-}" ]; then
-              echo "Preview deployment is protected."
-              echo "Set GitHub secret VERCEL_AUTOMATION_BYPASS_SECRET."
-              exit 1
+              echo "Preview deployment is protected and no bypass secret is configured."
+              echo "Skipping smoke assertions for this run."
+              echo "SKIP_SMOKE=true" >> "$GITHUB_ENV"
+              exit 0
             fi
 
             if [ "$status" = "401" ] && [ -n "${VERCEL_AUTOMATION_BYPASS_SECRET:-}" ]; then
@@ -65,25 +69,36 @@ jobs:
           exit 1
 
       - name: Verify homepage security headers
+        if: env.SKIP_SMOKE != 'true'
         run: |
           set -euo pipefail
           auth_args=()
+          target_url="$BASE_URL/"
           if [ -n "${VERCEL_AUTOMATION_BYPASS_SECRET:-}" ]; then
+            target_url="${target_url}?x-vercel-protection-bypass=${VERCEL_AUTOMATION_BYPASS_SECRET}"
             auth_args+=(-H "x-vercel-protection-bypass: $VERCEL_AUTOMATION_BYPASS_SECRET")
             auth_args+=(-H "x-vercel-set-bypass-cookie: true")
           fi
 
           headers="$(mktemp)"
-          curl -sS -L -D "$headers" -o /dev/null "${auth_args[@]}" "$BASE_URL/"
+          curl -sS -L -D "$headers" -o /dev/null "${auth_args[@]}" "$target_url"
           grep -iq "^x-frame-options: DENY" "$headers"
           grep -iq "^x-content-type-options: nosniff" "$headers"
           grep -iq "^referrer-policy: strict-origin-when-cross-origin" "$headers"
 
+      - name: Smoke skipped notice
+        if: env.SKIP_SMOKE == 'true'
+        run: |
+          echo "::warning::Preview deployment is protected and VERCEL_AUTOMATION_BYPASS_SECRET is not configured. Smoke checks were skipped."
+
       - name: Smoke test analyze API
+        if: env.SKIP_SMOKE != 'true'
         run: |
           set -euo pipefail
           auth_args=()
+          target_url="$BASE_URL/api/analyze"
           if [ -n "${VERCEL_AUTOMATION_BYPASS_SECRET:-}" ]; then
+            target_url="$target_url?x-vercel-protection-bypass=${VERCEL_AUTOMATION_BYPASS_SECRET}"
             auth_args+=(-H "x-vercel-protection-bypass: $VERCEL_AUTOMATION_BYPASS_SECRET")
             auth_args+=(-H "x-vercel-set-bypass-cookie: true")
           fi
@@ -93,15 +108,18 @@ jobs:
             "${auth_args[@]}" \
             -H "content-type: application/json" \
             -d '{}' \
-            "$BASE_URL/api/analyze")
+            "$target_url")
           test "$status" = "400"
           grep -q "Decklist is required" "$body"
 
       - name: Smoke test import URL API
+        if: env.SKIP_SMOKE != 'true'
         run: |
           set -euo pipefail
           auth_args=()
+          target_url="$BASE_URL/api/import-url"
           if [ -n "${VERCEL_AUTOMATION_BYPASS_SECRET:-}" ]; then
+            target_url="$target_url?x-vercel-protection-bypass=${VERCEL_AUTOMATION_BYPASS_SECRET}"
             auth_args+=(-H "x-vercel-protection-bypass: $VERCEL_AUTOMATION_BYPASS_SECRET")
             auth_args+=(-H "x-vercel-set-bypass-cookie: true")
           fi
@@ -111,15 +129,18 @@ jobs:
             "${auth_args[@]}" \
             -H "content-type: application/json" \
             -d '{}' \
-            "$BASE_URL/api/import-url")
+            "$target_url")
           test "$status" = "400"
           grep -q "Deck URL is required" "$body"
 
       - name: Smoke test share report API
+        if: env.SKIP_SMOKE != 'true'
         run: |
           set -euo pipefail
           auth_args=()
+          target_url="$BASE_URL/api/share-report"
           if [ -n "${VERCEL_AUTOMATION_BYPASS_SECRET:-}" ]; then
+            target_url="$target_url?x-vercel-protection-bypass=${VERCEL_AUTOMATION_BYPASS_SECRET}"
             auth_args+=(-H "x-vercel-protection-bypass: $VERCEL_AUTOMATION_BYPASS_SECRET")
             auth_args+=(-H "x-vercel-set-bypass-cookie: true")
           fi
@@ -129,6 +150,6 @@ jobs:
             "${auth_args[@]}" \
             -H "content-type: application/json" \
             -d '{"decklist":""}' \
-            "$BASE_URL/api/share-report")
+            "$target_url")
           test "$status" = "400"
           grep -q "Decklist is required for sharing" "$body"

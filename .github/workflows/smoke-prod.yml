@@ -30,7 +30,7 @@ jobs:
         run: |
           set -euo pipefail
           for attempt in {1..30}; do
-            status=$(curl -s -o /dev/null -w "%{http_code}" "$BASE_URL/")
+            status=$(curl -sS -L -o /dev/null -w "%{http_code}" "$BASE_URL/")
             if [ "$status" = "200" ]; then
               echo "Deployment is reachable."
               exit 0
@@ -45,7 +45,7 @@ jobs:
         run: |
           set -euo pipefail
           headers="$(mktemp)"
-          curl -sS -D "$headers" -o /dev/null "$BASE_URL/"
+          curl -sS -L -D "$headers" -o /dev/null "$BASE_URL/"
           grep -iq "^x-frame-options: DENY" "$headers"
           grep -iq "^x-content-type-options: nosniff" "$headers"
           grep -iq "^referrer-policy: strict-origin-when-cross-origin" "$headers"
