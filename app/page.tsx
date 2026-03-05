@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useState } from "react";
 import { AnalysisReport } from "@/components/AnalysisReport";
 import { CardLink } from "@/components/CardLink";
@@ -8,6 +8,8 @@ import { ExportButtons } from "@/components/ExportButtons";
 import type { AnalyzeResponse } from "@/lib/contracts";
 import { parseDecklist, parseDecklistWithCommander } from "@/lib/decklist";
 import { SAMPLE_DECKLIST, SAMPLE_DECK_NAME } from "@/lib/sampleDeck";
+import { SANDBOX_DEMO_DECKS } from "@/lib/sandboxDecklists";
+import { saveRulesSandboxPreset } from "@/lib/sandboxPreset";
 const SAVED_DECKS_STORAGE_KEY = "commanderDeckDoctor.savedDecks.v1";
 const MAX_SAVED_DECKS = 30;
 
@@ -117,6 +119,7 @@ function normalizeImportError(message: string): string {
 }
 
 export default function Page() {
+  const router = useRouter();
   const [deckUrl, setDeckUrl] = useState("");
   const [deckName, setDeckName] = useState("");
   const [decklist, setDecklist] = useState("");
@@ -289,7 +292,7 @@ export default function Page() {
 
   const previewRows = previewMode ? parseDecklist(decklist) : [];
   const tuningSummary = targetBracket && expectedWinTurn
-    ? `Target: Bracket ${targetBracket} • Win/Lock: ${expectedWinTurn}`
+    ? `Target: Bracket ${targetBracket} | Win/Lock: ${expectedWinTurn}`
     : null;
 
   async function runAnalysis(overrides?: { commanderName?: string | null }) {
@@ -346,6 +349,43 @@ export default function Page() {
     await runAnalysis({ commanderName: null });
   }
 
+  function onOpenRulesSandbox() {
+    const trimmedDecklist = decklist.trim();
+    if (trimmedDecklist) {
+      const parsed = parseDecklistWithCommander(trimmedDecklist);
+      const selectedCommander =
+        result?.commander.selectedName?.trim() ||
+        commanderName.trim() ||
+        parsed.commanderFromSection ||
+        null;
+
+      saveRulesSandboxPreset({
+        version: 1,
+        seed: "rules-sandbox",
+        updatedAt: new Date().toISOString(),
+        players: [
+          {
+            name: deckName.trim() ? `${deckName.trim()} (You)` : "You",
+            decklist: trimmedDecklist,
+            commanderName: selectedCommander
+          },
+          {
+            name: "Opponent 1",
+            decklist: SANDBOX_DEMO_DECKS.playerOne,
+            commanderName: "Captain Verity"
+          },
+          {
+            name: "Opponent 2",
+            decklist: SANDBOX_DEMO_DECKS.playerTwo,
+            commanderName: "Ravager of Embers"
+          }
+        ]
+      });
+    }
+
+    router.push("/rules-sandbox");
+  }
+
   return (
     <main className="page">
       <div className="hero">
@@ -358,9 +398,9 @@ export default function Page() {
           <button type="button" className="btn-secondary" onClick={() => void onTrySampleDeck()}>
             Try a sample deck
           </button>
-          <Link href="/rules-sandbox" className="inline-link">
-            Open Rules Sandbox
-          </Link>
+          <button type="button" className="btn-secondary" onClick={onOpenRulesSandbox}>
+            Open Current Deck in Rules Sandbox
+          </button>
         </div>
         <p>
           Supports Moxfield and Archidekt imports, or paste your decklist directly below.
@@ -483,7 +523,7 @@ export default function Page() {
                 className="info-pill"
                 title="Bracket and expected turn tune recommendation heuristics. They do not enforce deck legality."
               >
-                ⓘ
+                i
               </span>
             </div>
             {tuningSummary ? <p className="tuning-summary">{tuningSummary}</p> : null}

@@ -74,16 +74,16 @@ export function TimelineControls({
 
       <div className="timeline-buttons">
         <button type="button" onClick={onStart} disabled={atStart}>
-          ? Start
+          Start
         </button>
         <button type="button" onClick={onPrev} disabled={atStart}>
-          ? Prev Event
+          Prev Event
         </button>
         <button type="button" onClick={onNext} disabled={atEnd}>
-          ? Next Event
+          Next Event
         </button>
         <button type="button" onClick={onEnd} disabled={atEnd}>
-          ? End
+          End
         </button>
       </div>
 
@@ -93,7 +93,7 @@ export function TimelineControls({
         onClick={onToggleAutoplay}
         disabled={isLive || atEnd}
       >
-        {autoplay ? "? Stop Autoplay" : "? Autoplay"}
+        {autoplay ? "Stop Autoplay" : "Autoplay"}
       </button>
     </section>
   );

@@ -1244,6 +1244,90 @@ ul {
   align-items: center;
 }
 
+.sandbox-setup-panel {
+  max-width: 1300px;
+  margin: 0 auto 0.9rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+}
+
+.sandbox-setup-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.7rem;
+}
+
+.sandbox-setup-head h2 {
+  margin: 0;
+}
+
+.sandbox-setup-seed-row {
+  display: grid;
+  grid-template-columns: auto minmax(180px, 240px) 1fr;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.sandbox-howto {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fff;
+  padding: 0.62rem 0.72rem;
+}
+
+.sandbox-howto h3 {
+  margin: 0 0 0.2rem;
+}
+
+.sandbox-howto ol {
+  margin-top: 0.35rem;
+}
+
+.sandbox-setup-player-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 0.7rem;
+}
+
+.sandbox-setup-player-card {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fff;
+  padding: 0.62rem 0.72rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.sandbox-setup-player-card textarea {
+  min-height: 170px;
+}
+
+.sandbox-setup-player-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.sandbox-setup-player-head h3 {
+  margin: 0;
+}
+
+.sandbox-setup-feedback {
+  border: 1px solid #e4c6a8;
+  border-radius: 12px;
+  background: #fff6ed;
+  padding: 0.6rem 0.72rem;
+}
+
+.sandbox-setup-feedback strong {
+  display: block;
+  margin-bottom: 0.24rem;
+}
+
 .sandbox-player-list {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
@@ -1647,6 +1731,15 @@ ul {
   }
 
   .sim-controls {
+    grid-template-columns: 1fr;
+  }
+
+  .sandbox-setup-head {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .sandbox-setup-seed-row {
     grid-template-columns: 1fr;
   }
 }

@@ -10,10 +10,29 @@ import type {
   TargetKind
 } from "@/engine";
 import { legalTargetIds } from "@/engine/core/Targeting";
+import { parseDecklistWithCommander } from "@/lib/decklist";
+import { SANDBOX_DEMO_DECKS } from "@/lib/sandboxDecklists";
 
 type TargetOption = {
   id: string;
   label: string;
+};
+
+export type SandboxPlayerSetup = {
+  name: string;
+  decklist: string;
+  commanderName?: string | null;
+};
+
+export type SandboxCreateInput = {
+  seed?: string;
+  players: SandboxPlayerSetup[];
+};
+
+export type SandboxCreateResult = {
+  state: GameState;
+  warnings: string[];
+  unknownCardsByPlayer: Record<string, string[]>;
 };
 
 export type ActionDescriptor = {
@@ -138,57 +157,143 @@ function withTargets(action: LegalAction, targetIds: string[]): EngineAction {
   return action;
 }
 
-function starterDecks(): CreateGameInput {
+function defaultSandboxPlayers(): SandboxPlayerSetup[] {
+  return [
+    {
+      name: "Alice",
+      decklist: SANDBOX_DEMO_DECKS.playerOne,
+      commanderName: "Captain Verity"
+    },
+    {
+      name: "Bob",
+      decklist: SANDBOX_DEMO_DECKS.playerTwo,
+      commanderName: "Ravager of Embers"
+    }
+  ];
+}
+
+function normalizeSandboxPlayers(players: SandboxPlayerSetup[]): SandboxPlayerSetup[] {
+  return players.map((player, index) => ({
+    name: player.name.trim() || `Player ${index + 1}`,
+    decklist: player.decklist,
+    commanderName: player.commanderName?.trim() ? player.commanderName.trim() : null
+  }));
+}
+
+function createGameInputFromSandboxSetup(input: SandboxCreateInput): {
+  gameInput: CreateGameInput;
+  warnings: string[];
+  unknownCardsByPlayer: Record<string, string[]>;
+} {
+  const normalizedPlayers = normalizeSandboxPlayers(input.players);
+  if (normalizedPlayers.length < 2 || normalizedPlayers.length > 4) {
+    throw new Error("Rules Sandbox supports 2 to 4 players.");
+  }
+
+  const warnings: string[] = [];
+  const unknownCardsByPlayer: Record<string, string[]> = {};
+  const players: CreateGameInput["players"] = [];
+  const decks: CreateGameInput["decks"] = {};
+  const commanders: CreateGameInput["commanders"] = {};
+
+  normalizedPlayers.forEach((player, index) => {
+    const id = `p${index + 1}`;
+    players.push({
+      id,
+      name: player.name
+    });
+
+    const parsed = parseDecklistWithCommander(player.decklist ?? "");
+    if (parsed.entries.length === 0) {
+      throw new Error(`${player.name}: decklist is empty or could not be parsed.`);
+    }
+
+    const resolved: Array<{ card: NonNullable<ReturnType<typeof engine.cardDatabase.getCardByName>>; qty: number }> = [];
+    const unknown: string[] = [];
+    for (const entry of parsed.entries) {
+      const card = engine.cardDatabase.getCardByName(entry.name);
+      if (!card) {
+        unknown.push(entry.name);
+        continue;
+      }
+
+      resolved.push({
+        card,
+        qty: entry.qty
+      });
+    }
+
+    if (resolved.length === 0) {
+      throw new Error(`${player.name}: no recognized cards found for the current engine card set.`);
+    }
+
+    if (unknown.length > 0) {
+      warnings.push(`${player.name}: omitted ${unknown.length} unknown card name(s).`);
+    }
+
+    const commanderFromInput = player.commanderName ?? parsed.commanderFromSection ?? null;
+    if (commanderFromInput) {
+      const commanderCard = engine.cardDatabase.getCardByName(commanderFromInput);
+      if (!commanderCard) {
+        warnings.push(`${player.name}: commander "${commanderFromInput}" is unknown to the engine.`);
+      } else {
+        const alreadyInDeck = resolved.some(
+          (entry) => entry.card.name.toLowerCase() === commanderCard.name.toLowerCase()
+        );
+        if (!alreadyInDeck) {
+          resolved.unshift({
+            card: commanderCard,
+            qty: 1
+          });
+          warnings.push(`${player.name}: added commander ${commanderCard.name} to decklist for sandbox setup.`);
+        }
+
+        commanders[id] = [commanderCard.name];
+      }
+    } else {
+      commanders[id] = [];
+    }
+
+    decks[id] = resolved;
+    unknownCardsByPlayer[id] = unknown;
+  });
+
   return {
-    format: "commander",
-    players: [
-      { id: "p1", name: "Alice" },
-      { id: "p2", name: "Bob" }
-    ],
-    decks: {
-      p1: [
-        { card: engine.cardDatabase.getCardByName("Captain Verity")!, qty: 1 },
-        { card: engine.cardDatabase.getCardByName("Shock")!, qty: 1 },
-        { card: engine.cardDatabase.getCardByName("Elvish Visionary")!, qty: 1 },
-        { card: engine.cardDatabase.getCardByName("Divination")!, qty: 1 },
-        { card: engine.cardDatabase.getCardByName("Counterspell")!, qty: 1 },
-        { card: engine.cardDatabase.getCardByName("Arcane Signet")!, qty: 1 },
-        { card: engine.cardDatabase.getCardByName("Forest")!, qty: 5 },
-        { card: engine.cardDatabase.getCardByName("Island")!, qty: 3 },
-        { card: engine.cardDatabase.getCardByName("Plains")!, qty: 3 },
-        { card: engine.cardDatabase.getCardByName("Mountain")!, qty: 2 }
-      ],
-      p2: [
-        { card: engine.cardDatabase.getCardByName("Ravager of Embers")!, qty: 1 },
-        { card: engine.cardDatabase.getCardByName("Murder")!, qty: 1 },
-        { card: engine.cardDatabase.getCardByName("Doom Blade")!, qty: 1 },
-        { card: engine.cardDatabase.getCardByName("Llanowar Elves")!, qty: 1 },
-        { card: engine.cardDatabase.getCardByName("Sol Ring")!, qty: 1 },
-        { card: engine.cardDatabase.getCardByName("Forest")!, qty: 7 },
-        { card: engine.cardDatabase.getCardByName("Mountain")!, qty: 4 },
-        { card: engine.cardDatabase.getCardByName("Swamp")!, qty: 3 }
-      ]
+    gameInput: {
+      format: "commander",
+      players,
+      decks,
+      commanders,
+      seed: input.seed ?? "rules-sandbox"
     },
-    commanders: {
-      p1: ["Captain Verity"],
-      p2: ["Ravager of Embers"]
-    },
-    seed: "rules-sandbox"
+    warnings,
+    unknownCardsByPlayer
   };
 }
 
 export const engineClient = {
   createSandboxGame(seed?: string): GameState {
-    const config = starterDecks();
+    const result = this.createSandboxGameFromDecklists({
+      seed,
+      players: defaultSandboxPlayers()
+    });
+    return result.state;
+  },
+
+  createSandboxGameFromDecklists(input: SandboxCreateInput): SandboxCreateResult {
+    const prepared = createGameInputFromSandboxSetup(input);
     const state = engine.createGame({
-      ...config,
-      seed: seed ?? String(config.seed)
+      ...prepared.gameInput,
+      seed: input.seed ?? String(prepared.gameInput.seed)
     });
 
-    // Timeline baseline at index 0 starts from this board state.
     return {
-      ...state,
-      log: []
+      state: {
+        ...state,
+        log: []
+      },
+      warnings: prepared.warnings,
+      unknownCardsByPlayer: prepared.unknownCardsByPlayer
     };
   },
 
