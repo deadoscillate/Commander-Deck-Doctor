@@ -11,10 +11,12 @@ const CLOSE_DELAY_MS = 150;
 
 type CardLinkProps = {
   name: string;
+  setCode?: string | null;
+  printingId?: string | null;
   className?: string;
 };
 
-export function CardLink({ name, className }: CardLinkProps) {
+export function CardLink({ name, setCode, printingId, className }: CardLinkProps) {
   const [open, setOpen] = useState(false);
   const [state, setState] = useState<"idle" | "loading" | "ready" | "error">("idle");
   const [preview, setPreview] = useState<CardPreviewData | null>(null);
@@ -23,6 +25,12 @@ export function CardLink({ name, className }: CardLinkProps) {
   const openTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const requestIdRef = useRef(0);
+
+  useEffect(() => {
+    setState("idle");
+    setPreview(null);
+    requestIdRef.current += 1;
+  }, [name, setCode, printingId]);
 
   useEffect(() => {
     return () => {
@@ -106,7 +114,7 @@ export function CardLink({ name, className }: CardLinkProps) {
     const requestId = requestIdRef.current + 1;
     requestIdRef.current = requestId;
 
-    const resolved = await getCardPreview(name);
+    const resolved = await getCardPreview(name, { setCode, printingId });
     if (requestIdRef.current !== requestId) {
       return;
     }

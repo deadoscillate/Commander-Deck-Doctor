@@ -75,10 +75,62 @@ export function queueTriggersForEvent(
   };
 }
 
+function activePlayerOrder(state: GameState): string[] {
+  const alivePlayerIds = state.players.filter((player) => !player.lost).map((player) => player.id);
+  if (alivePlayerIds.length === 0) {
+    return [];
+  }
+
+  const activePlayerId = state.players[state.activePlayerIndex]?.id ?? "";
+  const activeIndex = alivePlayerIds.indexOf(activePlayerId);
+  if (activeIndex < 0) {
+    return alivePlayerIds;
+  }
+
+  return [...alivePlayerIds.slice(activeIndex), ...alivePlayerIds.slice(0, activeIndex)];
+}
+
+function triggersInApnapOrder(state: GameState, queue: QueuedTrigger[]): QueuedTrigger[] {
+  if (queue.length <= 1) {
+    return queue;
+  }
+
+  const byController = new Map<string, QueuedTrigger[]>();
+  for (const trigger of queue) {
+    const existing = byController.get(trigger.controllerId) ?? [];
+    existing.push(trigger);
+    byController.set(trigger.controllerId, existing);
+  }
+
+  const ordered: QueuedTrigger[] = [];
+  const controllerOrder = activePlayerOrder(state);
+  const controllerSet = new Set(controllerOrder);
+
+  for (const controllerId of controllerOrder) {
+    const triggers = byController.get(controllerId);
+    if (!triggers) {
+      continue;
+    }
+
+    ordered.push(...triggers);
+  }
+
+  for (const [controllerId, triggers] of byController.entries()) {
+    if (controllerSet.has(controllerId)) {
+      continue;
+    }
+
+    ordered.push(...triggers);
+  }
+
+  return ordered;
+}
+
 export function flushTriggerQueueToStack(state: GameState): GameState {
   let next = state;
+  const queue = triggersInApnapOrder(state, state.triggerQueue);
 
-  for (const queued of state.triggerQueue) {
+  for (const queued of queue) {
     next = pushToStackTop(next, {
       kind: "ABILITY",
       id: `stack-${queued.id}`,

@@ -12,6 +12,8 @@
     "scryfall:download": "node scripts/scryfall-download-oracle.mjs",
     "scryfall:compile": "node scripts/scryfall-compile-oracle.mjs",
     "scryfall:verify": "node scripts/scryfall-verify-compiled.mjs",
+    "scryfall:categorize": "tsx scripts/scryfall-cross-reference-categories.ts",
+    "scryfall:review": "npm run scryfall:categorize",
     "scryfall:update": "npm run scryfall:download && npm run scryfall:compile",
     "backup:reports": "node scripts/export-shared-reports.mjs",
     "restore:reports": "node scripts/import-shared-reports.mjs"
@@ -30,6 +32,7 @@
     "@types/react-dom": "19.0.2",
     "eslint": "9.39.3",
     "eslint-config-next": "15.5.12",
+    "tsx": "^4.21.0",
     "typescript": "5.8.2",
     "vitest": "^4.0.18"
   }

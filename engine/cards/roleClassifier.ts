@@ -1,4 +1,5 @@
-export type RoleKey = "ramp" | "draw" | "removal" | "wipes" | "tutors" | "protection" | "finishers";
+import { applyRoleOverride, resolveRoleOverride } from "./roleOverrides";
+import type { RoleKey } from "./roleDefinitions";
 
 export type RoleFlags = Record<RoleKey, boolean>;
 
@@ -18,6 +19,8 @@ export type RoleClassifierCardInput = {
   oracleText: string;
   keywords?: string[];
   behaviorId?: string | null;
+  oracleId?: string | null;
+  cardName?: string | null;
 };
 
 const ROLE_HINTS_BY_BEHAVIOR_ID: Record<string, Array<RoleKey>> = {
@@ -53,7 +56,8 @@ const TYPE_NAMES = new Set([
 ]);
 
 const LAND_WORDS = "(?:plains|island|swamp|mountain|forest|wastes|desert)";
-const NONLAND_CARD_WORDS = "(?:artifact|battle|creature|enchantment|instant|kindred|planeswalker|sorcery|nonland)";
+const NONLAND_TYPE_WORDS = "(?:artifact|battle|creature|enchantment|instant|kindred|planeswalker|sorcery)";
+const CARD_COUNT_WORDS = "(?:\\d+|one|two|three|four|five|six|seven|eight|nine|ten|x)";
 
 function emptyRoleFlags(): RoleFlags {
   return {
@@ -108,19 +112,32 @@ function searchClauses(text: string): string[] {
 }
 
 function isLandOnlySearchClause(clause: string): boolean {
+  if (!/\bcards?\b/.test(clause)) {
+    return false;
+  }
+
   if (/\bnonland\b/.test(clause)) {
     return false;
   }
 
-  return matchesAny(clause, [
-    /\bbasic land\b/,
-    /\bland cards?\b/,
-    new RegExp(`\\b${LAND_WORDS}\\s+cards?\\b`)
-  ]);
+  if (new RegExp(`\\b${NONLAND_TYPE_WORDS}\\b`).test(clause)) {
+    return false;
+  }
+
+  if (matchesAny(clause, [/\bbasic land\b/, /\bland cards?\b/])) {
+    return true;
+  }
+
+  return new RegExp(`\\b${LAND_WORDS}\\b`).test(clause);
 }
 
 function hasTutorSignal(text: string): boolean {
-  return /\bsearch your library\b/.test(text) || /\blook at the top \d+ cards? of your library\b/.test(text);
+  return matchesAny(text, [
+    /\bsearch your library\b/,
+    new RegExp(`\\blook at the top ${CARD_COUNT_WORDS} cards? of your library\\b`),
+    /\breveal cards? from the top of your library until\b/,
+    /\breveal the top card of your library\b/
+  ]);
 }
 
 function isTrueTutor(text: string): boolean {
@@ -129,26 +146,18 @@ function isTrueTutor(text: string): boolean {
     return false;
   }
 
-  return clauses.some((clause) => {
-    if (/\b(?:a|any)\s+card\b/.test(clause)) {
-      return true;
-    }
-
-    if (isLandOnlySearchClause(clause)) {
-      return false;
-    }
-
-    return new RegExp(`\\b${NONLAND_CARD_WORDS}\\s+card\\b`).test(clause);
-  });
+  return clauses.some((clause) => /\bcards?\b/.test(clause) && !isLandOnlySearchClause(clause));
 }
 
 function isBoardWipe(text: string): boolean {
   return matchesAny(text, [
-    /\b(?:destroy|exile)\s+(?:all|each)\s+[^.]{0,100}\b(?:creatures?|artifacts?|enchantments?|planeswalkers?|nonland permanents?|permanents?|graveyards?)\b/,
+    /\b(?:destroy|exile|sacrifice)\s+(?:all|each)\s+[^.]{0,100}\b(?:creatures?|artifacts?|enchantments?|planeswalkers?|nonland permanents?|permanents?|graveyards?)\b/,
     /\breturn\s+(?:all|each)\s+[^.]{0,100}\b(?:creatures?|artifacts?|enchantments?|planeswalkers?|nonland permanents?|permanents?)\b[^.]{0,100}\bto\s+(?:its|their)\s+owner'?s\s+hand\b/,
-    /\b(?:all|each)\s+creatures?\s+get\s*-\d+\/-\d+/,
+    /\b(?:all|each)\s+creatures?\s+get\s*-(?:x|\d+)\/-(?:x|\d+)/,
     /\bdeals?\s+(?:x|\d+)\s+damage\s+to\s+each\s+creature\b/,
-    /\beach\s+player\s+sacrifices\s+(?:all\s+)?(?:creatures?|artifacts?|enchantments?|planeswalkers?)\b/
+    /\bdeals?\s+(?:x|\d+)\s+damage\s+to\s+each\s+(?:creature|planeswalker|opponent|player)\b[\s\S]{0,60}\bcreature\b/,
+    /\beach\s+player\s+sacrifices\s+(?:all\s+)?(?:creatures?|artifacts?|enchantments?|planeswalkers?)\b/,
+    /\b(?:all|each)\s+[^.]{0,100}\b(?:creatures?|artifacts?|enchantments?|planeswalkers?)\s+are destroyed\b/
   ]);
 }
 
@@ -159,7 +168,8 @@ function isRamp(typeLine: string, text: string): boolean {
     return matchesAny(text, [
       /\{t\}:\s*add\s+\{[wubrgc]\}\{[wubrgc]\}/,
       /\badd two mana\b/,
-      /\badd an additional\b[\s\S]{0,20}\bmana\b/
+      /\badd an additional\b[\s\S]{0,20}\bmana\b/,
+      /\bwhenever you tap\b[\s\S]{0,60}\bfor mana, add\b/
     ]);
   }
 
@@ -167,6 +177,8 @@ function isRamp(typeLine: string, text: string): boolean {
     /search your library for (?:up to )?(?:\d+|one|two|three)?\s*(?:basic )?land(?: card)?s?/,
     new RegExp(`search your library for [^.]{0,100}\\b${LAND_WORDS}\\b`),
     /\bput (?:that|those|a|an|up to two|two)\b[^.]{0,100}\bland cards?\b[^.]{0,100}\bonto the battlefield\b/,
+    /\byou may play an additional land on each of your turns\b/,
+    /\bspells? you cast cost\b[^.]{0,40}\bless to cast\b/,
     /\{t\}:\s*add\s+\{[wubrgc]/,
     /\badd\b[\s\S]{0,60}\bmana\b/,
     /\bcreate\b[\s\S]{0,40}\btreasure\b/,
@@ -177,6 +189,10 @@ function isRamp(typeLine: string, text: string): boolean {
 function isDraw(text: string): boolean {
   return matchesAny(text, [
     /\bdraw\b[\s\S]{0,25}\bcard/,
+    new RegExp(
+      `\\blook at the top ${CARD_COUNT_WORDS} cards? of your library\\b[\\s\\S]{0,100}\\bput\\b[\\s\\S]{0,80}\\binto your hand\\b`
+    ),
+    /\bexile the top card of your library\b[\s\S]{0,100}\byou may play\b/,
     /whenever you draw/,
     /\binvestigate\b/,
     /\bconnive\b/,
@@ -185,14 +201,21 @@ function isDraw(text: string): boolean {
 }
 
 function isRemoval(text: string): boolean {
+  if (isBoardWipe(text)) {
+    return false;
+  }
+
   return matchesAny(text, [
-    /\bdestroy target\b/,
-    /\bexile target\b/,
+    /\bdestroy (?:up to )?target\b/,
+    /\bexile (?:up to )?target\b/,
     /\bcounter target\b/,
     /\bdeals? (?:x|\d+) damage to target\b/,
+    /\bdeals? (?:x|\d+) damage to any target\b/,
     /\btarget [^.]{0,70} gets -\d+\/-\d+/,
     /\breturn target [^.]{0,80}\bto (?:its|their) owner'?s hand\b/,
     /\btarget player sacrifices\b[\s\S]{0,40}\b(?:creature|artifact|enchantment|planeswalker)\b/,
+    /\beach player sacrifices\b[\s\S]{0,40}\b(?:creature|artifact|enchantment|planeswalker)\b/,
+    /\beach opponent sacrifices\b[\s\S]{0,40}\b(?:creature|artifact|enchantment|planeswalker)\b/,
     /\bfight target\b/
   ]);
 }
@@ -208,9 +231,12 @@ function isProtection(text: string, keywords: string[]): boolean {
     /\bward\b/,
     /\bphases? out\b/,
     /\bprotection from\b/,
+    /\bshroud\b/,
     /\b(?:can'?t|cannot) be countered\b/,
+    /\b(?:can'?t|cannot) be the target of spells or abilities\b/,
     /\bprevent all\b[\s\S]{0,40}\bdamage\b/,
-    /\bcounter target spell that targets\b/
+    /\bcounter target spell that targets\b/,
+    /\bregenerate target\b/
   ]);
 }
 
@@ -219,8 +245,10 @@ function isFinisher(text: string): boolean {
     /\byou win the game\b/,
     /\beach opponent loses (?:x|[2-9]|\d{2,}) life\b/,
     /\beach opponent loses life equal to\b/,
+    /\beach opponent loses half (?:their|his or her) life\b/,
     /\bdouble damage\b/,
     /\bextra combat phase\b/,
+    /\bwhenever this creature attacks\b[\s\S]{0,100}\bplayer loses\b/,
     /\bcreatures you control (?:gain [^.]{0,30} and )?get \+[x\d]+\/\+[x\d]+(?: and gain [^.]{0,30})?\b/
   ]);
 }
@@ -253,7 +281,7 @@ export function classifyCardRoles(input: RoleClassifierCardInput): RoleFlags {
   const typeLine = normalizeText(input.typeLine ?? "");
   const text = normalizeText(input.oracleText ?? "");
   const keywords = normalizeKeywords(input.keywords);
-  const flags = emptyRoleFlags();
+  let flags = emptyRoleFlags();
 
   applyBehaviorHints(flags, input.behaviorId);
 
@@ -264,6 +292,13 @@ export function classifyCardRoles(input: RoleClassifierCardInput): RoleFlags {
   flags.tutors = flags.tutors || isTrueTutor(text);
   flags.protection = flags.protection || isProtection(text, keywords);
   flags.finishers = flags.finishers || isFinisher(text);
+  flags = applyRoleOverride(
+    flags,
+    resolveRoleOverride({
+      oracleId: input.oracleId,
+      cardName: input.cardName
+    })
+  );
 
   return flags;
 }

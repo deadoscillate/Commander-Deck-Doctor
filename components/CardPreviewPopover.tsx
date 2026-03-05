@@ -82,6 +82,13 @@ export function CardPreviewPopover({
           <strong>{resolvedName}</strong>
           {preview?.manaCost ? <ManaCost manaCost={preview.manaCost} size={14} /> : null}
           {preview?.typeLine ? <span className="card-hover-type">{preview.typeLine}</span> : null}
+          {preview?.setCode ? (
+            <span className="card-hover-type">
+              {preview.setCode.toUpperCase()}
+              {preview.collectorNumber ? ` #${preview.collectorNumber}` : ""}
+              {preview.setName ? ` - ${preview.setName}` : ""}
+            </span>
+          ) : null}
           {priceLine ? <span className="card-hover-prices">{priceLine}</span> : null}
           {state === "error" ? <span className="card-hover-prices">Preview unavailable.</span> : null}
         </span>
