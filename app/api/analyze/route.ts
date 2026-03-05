@@ -17,7 +17,7 @@ import { detectCombosInDeck } from "@/lib/combos";
 import { computePlayerHeuristics } from "@/lib/playerHeuristics";
 import { buildRoleSuggestions } from "@/lib/suggestions";
 import { evaluateCommanderRules } from "@/lib/rulesEngine";
-import { fetchDeckCards, getCardByName } from "@/lib/scryfall";
+import { fetchDeckCards, getCardById, getCardByName, getCardByNameWithSet } from "@/lib/scryfall";
 import type { ScryfallCard } from "@/lib/types";
 import { apiJson, getRequestId, parseJsonBody } from "@/lib/api/http";
 import { buildRateLimitHeaders, checkRateLimit } from "@/lib/api/rateLimit";
@@ -425,6 +425,9 @@ export async function POST(request: Request) {
       : manualCommanderName
         ? "manual"
         : "none";
+    const selectedCommanderOverride = selectedCommanderName
+      ? setOverridesByCardName.get(normalizeLookupName(selectedCommanderName)) ?? null
+      : null;
 
     const knownCommander = selectedCommanderName
       ? knownCards.find(
@@ -436,7 +439,13 @@ export async function POST(request: Request) {
 
     const selectedCommanderCard =
       knownCommander ??
-      (selectedCommanderName ? await getCardByName(selectedCommanderName) : null);
+      (selectedCommanderName
+        ? selectedCommanderOverride?.printingId
+          ? await getCardById(selectedCommanderOverride.printingId)
+          : selectedCommanderOverride?.setCode
+            ? await getCardByNameWithSet(selectedCommanderName, selectedCommanderOverride.setCode)
+            : await getCardByName(selectedCommanderName)
+        : null);
 
     const colorIdentityCheck = selectedCommanderCard
       ? buildColorIdentityCheck(
