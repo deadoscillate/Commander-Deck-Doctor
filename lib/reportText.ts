@@ -8,6 +8,14 @@ function lineBreakJoin(lines: string[]): string {
  * Generates share-friendly plaintext for clipboard export.
  */
 export function buildPlaintextReport(result: AnalyzeResponse): string {
+  const archetypeReport = result.archetypeReport ?? {
+    primary: null,
+    secondary: null,
+    confidence: 0,
+    counts: [],
+    disclaimer: "Archetype detection is keyword-based and heuristic."
+  };
+
   const summaryLines = [
     "Summary",
     `- Commander: ${result.commander.selectedName ?? "Not selected"}`,
@@ -15,6 +23,16 @@ export function buildPlaintextReport(result: AnalyzeResponse): string {
     `- Unique Cards: ${result.summary.uniqueCards}`,
     `- Avg Mana Value: ${result.summary.averageManaValue.toFixed(2)}`,
     `- Colors: ${result.summary.colors.length > 0 ? result.summary.colors.join(", ") : "Colorless"}`
+  ];
+
+  const archetypeLines = [
+    "Deck Archetype",
+    `- Primary: ${archetypeReport.primary?.archetype ?? "Not enough signal detected"}`,
+    `- Secondary: ${archetypeReport.secondary?.archetype ?? "Not enough signal detected"}`,
+    `- Confidence: ${Math.round(archetypeReport.confidence * 100)}%`,
+    ...(archetypeReport.counts.length > 0
+      ? [`- Top Tags: ${archetypeReport.counts.slice(0, 4).map((item) => `${item.archetype} (${item.tagCount})`).join(", ")}`]
+      : [])
   ];
 
   const roleLines = [
@@ -76,6 +94,8 @@ export function buildPlaintextReport(result: AnalyzeResponse): string {
     "Commander Deck Doctor Report",
     "",
     ...summaryLines,
+    "",
+    ...archetypeLines,
     "",
     ...roleLines,
     "",

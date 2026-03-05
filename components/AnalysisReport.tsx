@@ -28,6 +28,15 @@ type AnalysisReportProps = {
  */
 export function AnalysisReport({ result }: AnalysisReportProps) {
   const maxCurveCount = Math.max(...Object.values(result.summary.manaCurve), 0);
+  const archetypeReport = result.archetypeReport ?? {
+    primary: null,
+    secondary: null,
+    confidence: 0,
+    counts: [],
+    disclaimer: "Archetype detection is keyword-based and heuristic."
+  };
+
+  const confidencePercent = `${Math.round(archetypeReport.confidence * 100)}%`;
 
   return (
     <div className="results">
@@ -118,6 +127,31 @@ export function AnalysisReport({ result }: AnalysisReportProps) {
             </span>
           ))}
         </div>
+      </section>
+
+      <section>
+        <h2>Deck Archetype</h2>
+        <p>
+          Primary:{" "}
+          <strong>{archetypeReport.primary?.archetype ?? "Not enough signal detected"}</strong>
+        </p>
+        <p>
+          Secondary:{" "}
+          <strong>{archetypeReport.secondary?.archetype ?? "Not enough signal detected"}</strong>
+        </p>
+        <p>
+          Confidence: <strong>{confidencePercent}</strong>
+        </p>
+        {archetypeReport.counts.length > 0 ? (
+          <div className="chips">
+            {archetypeReport.counts.slice(0, 4).map((item) => (
+              <span key={item.archetype} className="chip">
+                {item.archetype}: {item.tagCount}
+              </span>
+            ))}
+          </div>
+        ) : null}
+        <p className="muted">{archetypeReport.disclaimer}</p>
       </section>
 
       <RecommendedCounts rows={result.deckHealth.rows} />

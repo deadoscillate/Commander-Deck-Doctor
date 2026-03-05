@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { computeDeckSummary, computeRoleCounts } from "@/lib/analysis";
+import { computeDeckArchetypes } from "@/lib/archetypes";
 import {
   buildBracketExplanation,
   computeExtraTurns,
@@ -195,6 +196,7 @@ export async function POST(request: Request) {
     deckSize: inputDeckSize,
     unknownCardsCount: unknownCards.length
   });
+  const archetypeReport = computeDeckArchetypes(knownCards, inputDeckSize);
 
   const suggestionColorIdentity =
     selectedCommanderCard?.color_identity && selectedCommanderCard.color_identity.length > 0
@@ -277,6 +279,7 @@ export async function POST(request: Request) {
     roles,
     checks,
     deckHealth,
+    archetypeReport,
     improvementSuggestions,
     warnings: [...new Set([...deckHealth.warnings, ...explanation.warnings])],
     bracketReport

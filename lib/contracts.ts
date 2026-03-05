@@ -1,6 +1,7 @@
 import type { DeckSummary, RoleCounts } from "./types";
 import type { CountStatus } from "./status";
 import type { CountKey } from "./thresholds";
+import type { DeckArchetypeReport } from "./archetypes";
 
 // Optional UI selector values used for bracket-intent hints.
 export type ExpectedWinTurn = ">=10" | "8-9" | "6-7" | "<=5";
@@ -146,6 +147,7 @@ export type AnalyzeResponse = {
   roles: RoleCounts;
   checks: DeckChecks;
   deckHealth: DeckHealthReport;
+  archetypeReport: DeckArchetypeReport;
   improvementSuggestions: ImprovementSuggestions;
   warnings: string[];
   bracketReport: BracketReport;
