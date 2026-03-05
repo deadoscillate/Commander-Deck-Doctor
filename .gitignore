@@ -10,4 +10,5 @@ backups/
 *.tsbuildinfo
 
 .vercel
-data/scryfall/
+data/scryfall/*
+!data/scryfall/oracle-cards.compiled.json

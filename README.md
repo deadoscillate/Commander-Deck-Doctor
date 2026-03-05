@@ -80,7 +80,8 @@ npm run scryfall:update
 
 Notes:
 
-- `data/scryfall/` is ignored by git.
+- Only `data/scryfall/oracle-cards.compiled.json` is committed for deploy/runtime use.
+- Raw download artifacts (`oracle-cards.raw.json`, `oracle-cards.meta.json`) remain ignored by git.
 - Engine/tests load card metadata from the local compiled file and do not call Scryfall at runtime.
 - If the compiled file is missing, run `npm run scryfall:update`.
 
