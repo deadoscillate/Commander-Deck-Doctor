@@ -130,5 +130,88 @@ describe("POST /api/analyze", () => {
     expect(body.deckPrice?.pricedCardQty?.usd).toBe(3);
     expect(body.deckPrice?.totalKnownCardQty).toBe(3);
   });
-});
 
+  it("returns opening hand simulation metrics", async () => {
+    vi.doMock("@/lib/scryfall", () => ({
+      fetchDeckCards: vi.fn(async () => ({
+        knownCards: [
+          {
+            name: "Forest",
+            qty: 35,
+            card: buildCard({
+              name: "Forest",
+              type_line: "Basic Land - Forest",
+              cmc: 0,
+              mana_cost: "",
+              oracle_text: "({T}: Add {G}.)"
+            })
+          },
+          {
+            name: "Arcane Signet",
+            qty: 8,
+            card: buildCard({
+              name: "Arcane Signet",
+              type_line: "Artifact",
+              cmc: 2,
+              mana_cost: "{2}",
+              oracle_text: "{T}: Add one mana of any color in your commander's color identity."
+            })
+          },
+          {
+            name: "Cultivate",
+            qty: 8,
+            card: buildCard({
+              name: "Cultivate",
+              type_line: "Sorcery",
+              cmc: 3,
+              mana_cost: "{2}{G}",
+              oracle_text:
+                "Search your library for up to two basic land cards, reveal those cards, put one onto the battlefield tapped and the other into your hand."
+            })
+          }
+        ],
+        unknownCards: []
+      })),
+      getCardByName: vi.fn(async () =>
+        buildCard({
+          name: "Aesi, Tyrant of Gyre Strait",
+          type_line: "Legendary Creature - Serpent",
+          cmc: 6,
+          mana_cost: "{4}{G}{U}",
+          colors: ["G", "U"],
+          color_identity: ["G", "U"]
+        })
+      )
+    }));
+
+    const { POST } = await import("@/app/api/analyze/route");
+    const response = await POST(
+      buildRequest({
+        decklist: "35 Forest\n8 Arcane Signet\n8 Cultivate",
+        commanderName: "Aesi, Tyrant of Gyre Strait"
+      })
+    );
+    const body = (await response.json()) as {
+      openingHandSimulation?: {
+        simulations?: number;
+        playablePct?: number;
+        deadPct?: number;
+        rampInOpeningPct?: number;
+        averageFirstSpellTurn?: number | null;
+        estimatedCommanderCastTurn?: number | null;
+      };
+    };
+
+    expect(response.status).toBe(200);
+    expect(body.openingHandSimulation).toBeDefined();
+    expect(body.openingHandSimulation?.simulations).toBe(1000);
+    expect(body.openingHandSimulation?.playablePct).toBeGreaterThanOrEqual(0);
+    expect(body.openingHandSimulation?.playablePct).toBeLessThanOrEqual(100);
+    expect(body.openingHandSimulation?.deadPct).toBeGreaterThanOrEqual(0);
+    expect(body.openingHandSimulation?.deadPct).toBeLessThanOrEqual(100);
+    expect(body.openingHandSimulation?.rampInOpeningPct).toBeGreaterThanOrEqual(0);
+    expect(body.openingHandSimulation?.rampInOpeningPct).toBeLessThanOrEqual(100);
+    expect(body.openingHandSimulation?.averageFirstSpellTurn).not.toBeNull();
+    expect(body.openingHandSimulation?.estimatedCommanderCastTurn).not.toBeNull();
+  });
+});

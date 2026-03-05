@@ -111,6 +111,26 @@ function toRatio(value: unknown): number {
   return typeof value === "number" && Number.isFinite(value) ? Math.max(0, Math.min(1, value)) : 0;
 }
 
+function toPercent(value: unknown): number {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return 0;
+  }
+
+  return Math.max(0, Math.min(100, value));
+}
+
+function toNullableFiniteNumber(value: unknown): number | null {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+function formatPercent(value: number): string {
+  return `${value.toFixed(1)}%`;
+}
+
+function formatTurnEstimate(value: number | null): string {
+  return value === null ? "N/A" : `Turn ${value.toFixed(1)}`;
+}
+
 function normalizeDeckPrice(result: AnalyzeResponse): {
   totals: {
     usd: number | null;
@@ -212,6 +232,60 @@ function normalizeCommanderInfo(result: AnalyzeResponse): {
       typeof commanderRecord.selectedArtUrl === "string" && commanderRecord.selectedArtUrl
         ? commanderRecord.selectedArtUrl
         : null
+  };
+}
+
+function normalizeOpeningHandSimulation(result: AnalyzeResponse): {
+  simulations: number;
+  playableHands: number;
+  deadHands: number;
+  rampInOpening: number;
+  playablePct: number;
+  deadPct: number;
+  rampInOpeningPct: number;
+  averageFirstSpellTurn: number | null;
+  estimatedCommanderCastTurn: number | null;
+  cardCounts: {
+    lands: number;
+    rampCards: number;
+    manaRocks: number;
+  };
+  totalDeckSize: number;
+  unknownCardCount: number;
+  disclaimer: string;
+} | null {
+  const rawSimulation = (result as { openingHandSimulation?: unknown }).openingHandSimulation;
+  if (!rawSimulation || typeof rawSimulation !== "object") {
+    return null;
+  }
+
+  const record = rawSimulation as Record<string, unknown>;
+  const rawCardCounts =
+    record.cardCounts && typeof record.cardCounts === "object"
+      ? (record.cardCounts as Record<string, unknown>)
+      : {};
+
+  return {
+    simulations: Math.max(0, Math.floor(toFiniteNumber(record.simulations, 0))),
+    playableHands: Math.max(0, Math.floor(toFiniteNumber(record.playableHands, 0))),
+    deadHands: Math.max(0, Math.floor(toFiniteNumber(record.deadHands, 0))),
+    rampInOpening: Math.max(0, Math.floor(toFiniteNumber(record.rampInOpening, 0))),
+    playablePct: toPercent(record.playablePct),
+    deadPct: toPercent(record.deadPct),
+    rampInOpeningPct: toPercent(record.rampInOpeningPct),
+    averageFirstSpellTurn: toNullableFiniteNumber(record.averageFirstSpellTurn),
+    estimatedCommanderCastTurn: toNullableFiniteNumber(record.estimatedCommanderCastTurn),
+    cardCounts: {
+      lands: Math.max(0, Math.floor(toFiniteNumber(rawCardCounts.lands, 0))),
+      rampCards: Math.max(0, Math.floor(toFiniteNumber(rawCardCounts.rampCards, 0))),
+      manaRocks: Math.max(0, Math.floor(toFiniteNumber(rawCardCounts.manaRocks, 0)))
+    },
+    totalDeckSize: Math.max(0, Math.floor(toFiniteNumber(record.totalDeckSize, 0))),
+    unknownCardCount: Math.max(0, Math.floor(toFiniteNumber(record.unknownCardCount, 0))),
+    disclaimer:
+      typeof record.disclaimer === "string" && record.disclaimer.trim()
+        ? record.disclaimer
+        : "Simulation is an estimate using simplified opening-hand heuristics."
   };
 }
 
@@ -379,6 +453,7 @@ export function AnalysisReport({ result }: AnalysisReportProps) {
   const ruleZero = normalizeRuleZero(result);
   const commanderInfo = normalizeCommanderInfo(result);
   const deckPrice = normalizeDeckPrice(result);
+  const openingHandSimulation = normalizeOpeningHandSimulation(result);
 
   const archetypeLabel =
     archetypeReport.primary?.archetype && archetypeReport.secondary?.archetype
@@ -630,6 +705,40 @@ export function AnalysisReport({ result }: AnalysisReportProps) {
       <Checks checks={result.checks} />
       <RecommendedCounts rows={result.deckHealth.rows} />
       <DeckHealth report={result.deckHealth} />
+      {openingHandSimulation ? (
+        <section>
+          <h2>Opening Hand Simulation</h2>
+          <div className="summary-grid">
+            <div className="summary-card">
+              <span>Playable Hands</span>
+              <strong>{formatPercent(openingHandSimulation.playablePct)}</strong>
+            </div>
+            <div className="summary-card">
+              <span>Dead Hands</span>
+              <strong>{formatPercent(openingHandSimulation.deadPct)}</strong>
+            </div>
+            <div className="summary-card">
+              <span>Ramp In Opening</span>
+              <strong>{formatPercent(openingHandSimulation.rampInOpeningPct)}</strong>
+            </div>
+            <div className="summary-card">
+              <span>Avg First Spell Turn</span>
+              <strong>{formatTurnEstimate(openingHandSimulation.averageFirstSpellTurn)}</strong>
+            </div>
+            <div className="summary-card">
+              <span>Estimated Commander Cast</span>
+              <strong>{formatTurnEstimate(openingHandSimulation.estimatedCommanderCastTurn)}</strong>
+            </div>
+          </div>
+          <p className="muted deck-price-meta">
+            {openingHandSimulation.simulations} simulations | modeled cards:{" "}
+            {openingHandSimulation.totalDeckSize} (lands {openingHandSimulation.cardCounts.lands}, ramp{" "}
+            {openingHandSimulation.cardCounts.rampCards}, rocks {openingHandSimulation.cardCounts.manaRocks}, unknown{" "}
+            {openingHandSimulation.unknownCardCount})
+          </p>
+          <p className="muted">{openingHandSimulation.disclaimer}</p>
+        </section>
+      ) : null}
       <ImprovementSuggestions suggestions={result.improvementSuggestions} />
 
       <section>

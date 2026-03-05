@@ -14,6 +14,7 @@ import { parseDecklistWithCommander } from "@/lib/decklist";
 import { GAME_CHANGERS_VERSION, findGameChangerName } from "@/lib/gameChangers";
 import { buildColorIdentityCheck, buildDeckChecks } from "@/lib/checks";
 import { detectCombosInDeck } from "@/lib/combos";
+import { simulateOpeningHands } from "@/lib/openingHandSimulation";
 import { computePlayerHeuristics } from "@/lib/playerHeuristics";
 import { buildRoleSuggestions } from "@/lib/suggestions";
 import { fetchDeckCards, getCardByName } from "@/lib/scryfall";
@@ -324,6 +325,11 @@ export async function POST(request: Request) {
         entry.resolvedName ? [entry.name, entry.resolvedName] : [entry.name]
       )
     );
+    const openingHandSimulation = simulateOpeningHands({
+      knownCards,
+      totalDeckSize: inputDeckSize,
+      commanderCmc: selectedCommanderCard?.cmc ?? null
+    });
     const ruleZero = computePlayerHeuristics({
       deckCards: knownCards,
       averageManaValue: roundedSummary.averageManaValue,
@@ -421,6 +427,7 @@ export async function POST(request: Request) {
       checks,
       deckHealth,
       deckPrice,
+      openingHandSimulation,
       archetypeReport,
       comboReport,
       ruleZero,

@@ -28,6 +28,23 @@ function formatTix(value: number | null | undefined): string {
   return `${value.toFixed(2)} tix`;
 }
 
+function formatPercent(value: unknown): string {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return "0.0%";
+  }
+
+  const bounded = Math.max(0, Math.min(100, value));
+  return `${bounded.toFixed(1)}%`;
+}
+
+function formatTurn(value: unknown): string {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return "N/A";
+  }
+
+  return `Turn ${value.toFixed(1)}`;
+}
+
 /**
  * Generates share-friendly plaintext for clipboard export.
  */
@@ -220,6 +237,22 @@ export function buildPlaintextReport(result: AnalyzeResponse): string {
     `- Counts: extraTurns=${ruleZero.tableImpact.extraTurnsCount}, massLandDenial=${ruleZero.tableImpact.massLandDenialCount}, stax=${ruleZero.tableImpact.staxPiecesCount}, freeInteraction=${ruleZero.tableImpact.freeInteractionCount}, fastMana=${ruleZero.tableImpact.fastManaCount}`
   ];
 
+  const openingHandSimulationRecord =
+    result.openingHandSimulation && typeof result.openingHandSimulation === "object"
+      ? (result.openingHandSimulation as Record<string, unknown>)
+      : null;
+  const openingHandLines = openingHandSimulationRecord
+    ? [
+        "Opening Hand Simulation",
+        `- Simulations: ${toFiniteNumber(openingHandSimulationRecord.simulations, 0)}`,
+        `- Playable hands: ${formatPercent(openingHandSimulationRecord.playablePct)}`,
+        `- Dead hands: ${formatPercent(openingHandSimulationRecord.deadPct)}`,
+        `- Ramp in opening: ${formatPercent(openingHandSimulationRecord.rampInOpeningPct)}`,
+        `- Average first spell turn: ${formatTurn(openingHandSimulationRecord.averageFirstSpellTurn)}`,
+        `- Estimated commander cast turn: ${formatTurn(openingHandSimulationRecord.estimatedCommanderCastTurn)}`
+      ]
+    : [];
+
   const gameChangerLines =
     result.bracketReport.gameChangersFound.length > 0
       ? result.bracketReport.gameChangersFound.map(
@@ -281,6 +314,8 @@ export function buildPlaintextReport(result: AnalyzeResponse): string {
     "",
     ...tableImpactLines,
     "",
+    ...openingHandLines,
+    ...(openingHandLines.length > 0 ? [""] : []),
     ...roleLines,
     "",
     ...bracketLines,

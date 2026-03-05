@@ -187,6 +187,26 @@ export type RuleZeroReport = {
   disclaimer: string;
 };
 
+export type OpeningHandSimulationReport = {
+  simulations: number;
+  playableHands: number;
+  deadHands: number;
+  rampInOpening: number;
+  playablePct: number;
+  deadPct: number;
+  rampInOpeningPct: number;
+  averageFirstSpellTurn: number | null;
+  estimatedCommanderCastTurn: number | null;
+  cardCounts: {
+    lands: number;
+    rampCards: number;
+    manaRocks: number;
+  };
+  totalDeckSize: number;
+  unknownCardCount: number;
+  disclaimer: string;
+};
+
 // Commander brackets report returned by the API.
 export type BracketReport = {
   estimatedBracket: number;
@@ -224,6 +244,7 @@ export type AnalyzeResponse = {
   checks: DeckChecks;
   deckHealth: DeckHealthReport;
   deckPrice?: DeckPriceSummary;
+  openingHandSimulation?: OpeningHandSimulationReport;
   archetypeReport: DeckArchetypeReport;
   comboReport: ComboReport;
   ruleZero: RuleZeroReport;
