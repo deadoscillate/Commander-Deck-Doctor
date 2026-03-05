@@ -8,9 +8,12 @@
     "start": "next start",
     "lint": "next lint",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "backup:reports": "node scripts/export-shared-reports.mjs",
+    "restore:reports": "node scripts/import-shared-reports.mjs"
   },
   "dependencies": {
+    "@sentry/nextjs": "^10.22.0",
     "next": "15.5.12",
     "pg": "^8.16.3",
     "react": "19.0.0",

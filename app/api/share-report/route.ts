@@ -2,6 +2,7 @@ import type { AnalyzeResponse } from "@/lib/contracts";
 import { saveReport } from "@/lib/reportStore";
 import { apiJson, getRequestId, parseJsonBody } from "@/lib/api/http";
 import { buildRateLimitHeaders, checkRateLimit } from "@/lib/api/rateLimit";
+import { reportApiError } from "@/lib/api/monitoring";
 
 export const runtime = "nodejs";
 
@@ -171,9 +172,10 @@ export async function POST(request: Request) {
     const origin = new URL(request.url).origin;
     return apiJson({ hash, path, url: `${origin}${path}` }, { status: 200, requestId, headers: rateLimitHeaders });
   } catch (error) {
-    console.error("Share report save failed", {
+    reportApiError(error, {
       requestId,
-      error: error instanceof Error ? error.message : String(error)
+      route: "/api/share-report",
+      status: 500
     });
     return apiJson(
       { error: "Could not save shared report." },

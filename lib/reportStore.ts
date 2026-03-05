@@ -22,12 +22,17 @@ export type SavedReport = {
 
 const DATA_DIR = path.join(process.cwd(), ".data");
 const DB_PATH = path.join(DATA_DIR, "reports.sqlite");
+const DEFAULT_REPORT_RETENTION_DAYS = 180;
+const MIN_REPORT_RETENTION_DAYS = 7;
+const MAX_REPORT_RETENTION_DAYS = 3650;
+const RETENTION_SWEEP_INTERVAL_MS = 60 * 60 * 1000;
 
 type SqliteDatabase = import("node:sqlite").DatabaseSync;
 
 let db: SqliteDatabase | null = null;
 let pgPool: Pool | null = null;
 let postgresReady: Promise<void> | null = null;
+let nextRetentionSweepAtMs = 0;
 
 function shouldUsePostgres(): boolean {
   return Boolean(process.env.POSTGRES_URL || process.env.POSTGRES_PRISMA_URL || process.env.DATABASE_URL);
@@ -35,6 +40,43 @@ function shouldUsePostgres(): boolean {
 
 function shouldAllowSqliteFallback(): boolean {
   return !process.env.VERCEL;
+}
+
+function parsePositiveInt(raw: string | undefined): number | null {
+  if (!raw) {
+    return null;
+  }
+
+  const parsed = Number(raw);
+  if (!Number.isInteger(parsed) || parsed <= 0) {
+    return null;
+  }
+
+  return parsed;
+}
+
+function getReportRetentionDays(): number {
+  const parsed = parsePositiveInt(process.env.REPORT_RETENTION_DAYS);
+  if (!parsed) {
+    return DEFAULT_REPORT_RETENTION_DAYS;
+  }
+
+  return Math.min(Math.max(parsed, MIN_REPORT_RETENTION_DAYS), MAX_REPORT_RETENTION_DAYS);
+}
+
+function shouldRunRetentionSweep(nowMs: number): boolean {
+  if (nowMs < nextRetentionSweepAtMs) {
+    return false;
+  }
+
+  nextRetentionSweepAtMs = nowMs + RETENTION_SWEEP_INTERVAL_MS;
+  return true;
+}
+
+function getRetentionCutoffIso(nowMs: number): string {
+  const retentionDays = getReportRetentionDays();
+  const cutoffMs = nowMs - retentionDays * 24 * 60 * 60 * 1000;
+  return new Date(cutoffMs).toISOString();
 }
 
 function normalizePostgresConnectionString(value: string): string {
@@ -86,6 +128,12 @@ async function ensurePostgresTable(): Promise<void> {
         )
       `
       );
+      await getPostgresPool().query(
+        `
+        CREATE INDEX IF NOT EXISTS idx_shared_reports_updated_at
+          ON shared_reports (updated_at)
+      `
+      );
     })().catch((error) => {
       postgresReady = null;
       throw error;
@@ -111,9 +159,44 @@ async function ensureDb(): Promise<SqliteDatabase> {
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL
     );
+
+    CREATE INDEX IF NOT EXISTS idx_shared_reports_updated_at
+      ON shared_reports (updated_at);
   `);
 
   return db;
+}
+
+async function pruneExpiredReportsPostgres(cutoffIso: string): Promise<void> {
+  await getPostgresPool().query("DELETE FROM shared_reports WHERE updated_at < $1", [cutoffIso]);
+}
+
+function pruneExpiredReportsSqlite(database: SqliteDatabase, cutoffIso: string): void {
+  database.prepare("DELETE FROM shared_reports WHERE updated_at < ?").run(cutoffIso);
+}
+
+async function maybePruneExpiredReports(database: SqliteDatabase | null): Promise<void> {
+  const nowMs = Date.now();
+  if (!shouldRunRetentionSweep(nowMs)) {
+    return;
+  }
+
+  const cutoffIso = getRetentionCutoffIso(nowMs);
+  try {
+    if (shouldUsePostgres()) {
+      await pruneExpiredReportsPostgres(cutoffIso);
+      return;
+    }
+
+    if (database) {
+      pruneExpiredReportsSqlite(database, cutoffIso);
+    }
+  } catch (error) {
+    console.error("Shared report retention sweep failed", {
+      cutoffIso,
+      error: error instanceof Error ? error.message : String(error)
+    });
+  }
 }
 
 function normalizeDecklist(decklist: string): string {
@@ -139,6 +222,7 @@ export async function saveReport(decklist: string, analysis: AnalyzeResponse): P
 
   if (shouldUsePostgres()) {
     await ensurePostgresTable();
+    await maybePruneExpiredReports(null);
     await getPostgresPool().query(
       `
       INSERT INTO shared_reports (hash, decklist, analysis_json, created_at, updated_at)
@@ -158,6 +242,7 @@ export async function saveReport(decklist: string, analysis: AnalyzeResponse): P
   }
 
   const database = await ensureDb();
+  await maybePruneExpiredReports(database);
   const statement = database.prepare(
     `
       INSERT INTO shared_reports (hash, decklist, analysis_json, created_at, updated_at)
@@ -182,6 +267,7 @@ export async function getReport(hash: string): Promise<SavedReport | null> {
 
   if (shouldUsePostgres()) {
     await ensurePostgresTable();
+    await maybePruneExpiredReports(null);
     const result = await getPostgresPool().query<StoredRow>(
       `
       SELECT hash, decklist, analysis_json, created_at, updated_at
@@ -215,6 +301,7 @@ export async function getReport(hash: string): Promise<SavedReport | null> {
   }
 
   const database = await ensureDb();
+  await maybePruneExpiredReports(database);
   const statement = database.prepare(
     "SELECT hash, decklist, analysis_json, created_at, updated_at FROM shared_reports WHERE hash = ?"
   );

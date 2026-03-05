@@ -1,4 +1,6 @@
 "use client";
+import { useEffect } from "react";
+import * as Sentry from "@sentry/nextjs";
 
 type ErrorPageProps = {
   error: Error & { digest?: string };
@@ -6,6 +8,10 @@ type ErrorPageProps = {
 };
 
 export default function ErrorPage({ error, reset }: ErrorPageProps) {
+  useEffect(() => {
+    Sentry.captureException(error);
+  }, [error]);
+
   return (
     <main className="page">
       <section className="panel" style={{ maxWidth: 760, margin: "3rem auto" }}>

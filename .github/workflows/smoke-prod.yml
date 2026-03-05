@@ -1,0 +1,84 @@
+name: Smoke Prod
+
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows:
+      - CI
+    types:
+      - completed
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    if: github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' && github.event.workflow_run.head_branch == 'main')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      PROD_BASE_URL: ${{ vars.PROD_BASE_URL }}
+    steps:
+      - name: Select production URL
+        run: |
+          set -euo pipefail
+          BASE_URL="${PROD_BASE_URL:-https://commander-deck-doctor.vercel.app}"
+          echo "BASE_URL=$BASE_URL" >> "$GITHUB_ENV"
+          echo "Using BASE_URL=$BASE_URL"
+
+      - name: Wait for deployment readiness
+        run: |
+          set -euo pipefail
+          for attempt in {1..30}; do
+            status=$(curl -s -o /dev/null -w "%{http_code}" "$BASE_URL/")
+            if [ "$status" = "200" ]; then
+              echo "Deployment is reachable."
+              exit 0
+            fi
+            echo "Attempt $attempt: homepage status $status (retrying in 10s)"
+            sleep 10
+          done
+          echo "Timed out waiting for production deployment."
+          exit 1
+
+      - name: Verify homepage security headers
+        run: |
+          set -euo pipefail
+          headers="$(mktemp)"
+          curl -sS -D "$headers" -o /dev/null "$BASE_URL/"
+          grep -iq "^x-frame-options: DENY" "$headers"
+          grep -iq "^x-content-type-options: nosniff" "$headers"
+          grep -iq "^referrer-policy: strict-origin-when-cross-origin" "$headers"
+
+      - name: Smoke test analyze API
+        run: |
+          set -euo pipefail
+          body="$(mktemp)"
+          status=$(curl -sS -o "$body" -w "%{http_code}" \
+            -H "content-type: application/json" \
+            -d '{}' \
+            "$BASE_URL/api/analyze")
+          test "$status" = "400"
+          grep -q "Decklist is required" "$body"
+
+      - name: Smoke test import URL API
+        run: |
+          set -euo pipefail
+          body="$(mktemp)"
+          status=$(curl -sS -o "$body" -w "%{http_code}" \
+            -H "content-type: application/json" \
+            -d '{}' \
+            "$BASE_URL/api/import-url")
+          test "$status" = "400"
+          grep -q "Deck URL is required" "$body"
+
+      - name: Smoke test share report API
+        run: |
+          set -euo pipefail
+          body="$(mktemp)"
+          status=$(curl -sS -o "$body" -w "%{http_code}" \
+            -H "content-type: application/json" \
+            -d '{"decklist":""}' \
+            "$BASE_URL/api/share-report")
+          test "$status" = "400"
+          grep -q "Decklist is required for sharing" "$body"

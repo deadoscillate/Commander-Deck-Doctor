@@ -1,6 +1,7 @@
 import { importDeckFromUrl } from "@/lib/deckUrlImport";
 import { apiJson, getRequestId, parseJsonBody } from "@/lib/api/http";
 import { buildRateLimitHeaders, checkRateLimit } from "@/lib/api/rateLimit";
+import { reportApiError } from "@/lib/api/monitoring";
 
 type ImportUrlRequest = {
   url?: string;
@@ -13,6 +14,32 @@ const IMPORT_URL_RATE_LIMIT = {
   limit: 20,
   windowSeconds: 60
 };
+
+const IMPORT_CLIENT_ERRORS = [
+  "Invalid URL.",
+  "Only HTTPS deck URLs are supported.",
+  "Could not parse Moxfield deck ID from URL.",
+  "Could not parse Archidekt deck ID from URL.",
+  "Unsupported deck URL. Supported providers: Moxfield, Archidekt.",
+  "Deck not found. Check the URL and make sure the deck is public.",
+  "Provider denied access. Make sure the deck is public."
+];
+
+function classifyImportErrorStatus(message: string): 400 | 502 | 500 {
+  if (IMPORT_CLIENT_ERRORS.includes(message)) {
+    return 400;
+  }
+
+  if (
+    message === "Provider API timed out. Please retry." ||
+    message.includes("blocked automated requests") ||
+    /^Import failed \(\d+\) from provider API\.$/.test(message)
+  ) {
+    return 502;
+  }
+
+  return 500;
+}
 
 /**
  * POST /api/import-url
@@ -55,10 +82,23 @@ export async function POST(request: Request) {
     return apiJson(imported, { status: 200, requestId, headers: rateLimitHeaders });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Deck import failed.";
-    console.error("Import URL failed", {
+    const status = classifyImportErrorStatus(message);
+    reportApiError(error, {
       requestId,
-      error: error instanceof Error ? error.message : String(error)
+      route: "/api/import-url",
+      status,
+      details: {
+        upstreamMessage: message
+      }
     });
-    return apiJson({ error: message }, { status: 400, requestId, headers: rateLimitHeaders });
+
+    if (status >= 500) {
+      return apiJson(
+        { error: "Deck import failed due to an upstream provider issue. Please retry." },
+        { status, requestId, headers: rateLimitHeaders }
+      );
+    }
+
+    return apiJson({ error: message }, { status, requestId, headers: rateLimitHeaders });
   }
 }

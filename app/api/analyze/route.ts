@@ -20,6 +20,7 @@ import { fetchDeckCards, getCardByName } from "@/lib/scryfall";
 import type { ScryfallCard } from "@/lib/types";
 import { apiJson, getRequestId, parseJsonBody } from "@/lib/api/http";
 import { buildRateLimitHeaders, checkRateLimit } from "@/lib/api/rateLimit";
+import { reportApiError } from "@/lib/api/monitoring";
 
 const ANALYZE_REQUEST_MAX_BYTES = 500_000;
 const ANALYZE_DECKLIST_MAX_CHARS = 50_000;
@@ -466,9 +467,10 @@ export async function POST(request: Request) {
       { status: 200, requestId, headers: rateLimitHeaders }
     );
   } catch (error) {
-    console.error("Analyze route failed", {
+    reportApiError(error, {
       requestId,
-      error: error instanceof Error ? error.message : String(error)
+      route: "/api/analyze",
+      status: 500
     });
     return apiJson(
       { error: "Analysis failed due to a server error. Please retry." },

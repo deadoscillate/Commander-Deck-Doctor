@@ -96,6 +96,60 @@ Without those env vars, `/api/share-report` is disabled on Vercel by design.
 - GitHub CI workflow runs on PRs and `main` pushes: lint, test, and build.
 - Dependabot is configured for weekly npm and GitHub Actions updates.
 - Vercel project is connected to GitHub repository `deadoscillate/Commander-Deck-Doctor` for push-based deployments.
+- Post-deploy production smoke tests run in GitHub Actions after successful CI on `main` pushes.
+
+## Observability and alerting (implemented)
+
+- Sentry SDK is wired for Next.js server, edge, and client runtimes.
+- App Router `error.tsx` and `global-error.tsx` capture render/runtime exceptions to Sentry.
+- API 5xx responses are captured with route and `x-request-id` context for correlation in logs.
+- `/api/import-url` distinguishes user input errors (400) from upstream provider failures (502).
+
+Set up in production:
+
+1. Create a Sentry project for this app.
+1. Add `SENTRY_DSN` to Vercel environment variables (all environments).
+1. Optionally add `NEXT_PUBLIC_SENTRY_DSN` if you want browser-side issue capture in addition to server-side capture.
+1. In Sentry Alerts, create a production rule for high error rate or 5xx spikes and route notifications to email/Slack/PagerDuty.
+
+## Production smoke checks (implemented)
+
+- Workflow: `.github/workflows/smoke-prod.yml`
+- Triggers:
+  - automatic: after CI succeeds for a push to `main`
+  - manual: `workflow_dispatch`
+- Checks:
+  - `GET /` returns `200`
+  - security headers are present on `/`
+  - `POST /api/analyze` guardrail response (empty payload -> `400`)
+  - `POST /api/import-url` guardrail response (empty payload -> `400`)
+  - `POST /api/share-report` guardrail response (empty decklist -> `400`)
+
+Optional repo variable:
+
+1. `PROD_BASE_URL` (for custom domain or alternate prod URL). Defaults to `https://commander-deck-doctor.vercel.app`.
+
+## Shared report retention, backup, and restore (implemented)
+
+- Retention policy: shared reports are retained for `180` days by default.
+- Runtime pruning: expired reports are pruned periodically on API read/write paths.
+- Override retention with `REPORT_RETENTION_DAYS` (clamped to `7`-`3650` days).
+
+Backup and restore scripts:
+
+```bash
+# Export to backups/shared-reports-<timestamp>.json
+npm run backup:reports
+
+# Export to a custom file path
+npm run backup:reports -- ./backups/my-snapshot.json
+
+# Restore from backup file (upsert by hash)
+npm run restore:reports -- ./backups/my-snapshot.json
+
+# Full replace restore
+npm run restore:reports -- ./backups/my-snapshot.json --truncate
+```
 
 Current regression coverage includes:
 
@@ -110,6 +164,7 @@ Current regression coverage includes:
 - `app/api/import-url/route.ts`: Moxfield/Archidekt import endpoint.
 - `app/api/share-report/route.ts`: stores shared report snapshots.
 - `app/report/[hash]/page.tsx`: shared report page.
+- `app/error.tsx`, `app/global-error.tsx`: runtime error boundaries wired to Sentry.
 - `components/AnalysisReport.tsx`: report renderer (player snapshot + technical details).
 - `components/CommanderHeroHeader.tsx`: commander hero art header.
 - `components/CardNameHover.tsx`: hover image + prices preview.
@@ -125,9 +180,14 @@ Current regression coverage includes:
 - `lib/playerHeuristics.ts`: Rule 0 summary logic.
 - `lib/brackets.ts`, `lib/gameChangers.ts`: bracket heuristics and dataset.
 - `lib/checks.ts`: deck checks and color-identity validation.
+- `lib/api/monitoring.ts`: API error capture and Sentry context tagging.
 - `lib/reportText.ts`: plaintext export formatter.
 - `lib/reportStore.ts`: SQLite persistence for share links.
 - `lib/contracts.ts`, `lib/types.ts`: shared contracts/domain types.
+- `instrumentation.ts`, `instrumentation-client.ts`: Next.js instrumentation bootstrap.
+- `sentry.server.config.ts`, `sentry.edge.config.ts`: Sentry runtime init.
+- `.github/workflows/ci.yml`, `.github/workflows/smoke-prod.yml`: quality and production smoke workflows.
+- `scripts/export-shared-reports.mjs`, `scripts/import-shared-reports.mjs`: backup/restore runbook scripts.
 
 ## Known gaps (post-MVP backlog)
 
