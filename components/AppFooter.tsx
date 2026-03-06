@@ -7,6 +7,13 @@ export function AppFooter() {
         <p className="muted">Not affiliated with Wizards of the Coast.</p>
         <p className="muted">Card data and symbols via Scryfall.</p>
         <p className="muted">
+          Combo data via{" "}
+          <Link href="https://commanderspellbook.com" target="_blank" rel="noreferrer" className="inline-link">
+            Commander Spellbook
+          </Link>
+          .
+        </p>
+        <p className="muted">
           Privacy: saved decks are stored locally in your browser (no server upload for saved-deck storage).
         </p>
         <p>
