@@ -7,6 +7,7 @@ type CommanderHeroHeaderProps = {
     colorIdentity: string[];
     cmc?: number | null;
     artUrl?: string | null;
+    cardImageUrl?: string | null;
   };
   archetypeLabel?: string | null;
   bracketLabel?: string | null;
@@ -17,20 +18,24 @@ export function CommanderHeroHeader({
   archetypeLabel,
   bracketLabel
 }: CommanderHeroHeaderProps) {
-  const heroArtStyle = commander.artUrl
+  const heroArtStyle = (commander.cardImageUrl ?? commander.artUrl)
     ? {
-        backgroundImage: `url("${commander.artUrl}")`
+        backgroundImage: `url("${commander.cardImageUrl ?? commander.artUrl}")`
       }
     : undefined;
 
-  const backgroundStyle = {
-    backgroundImage:
-      "radial-gradient(circle at 12% 22%, rgba(255, 236, 190, 0.16), transparent 42%), linear-gradient(120deg, rgba(10, 16, 24, 0.94) 0%, rgba(19, 30, 42, 0.82) 50%, rgba(10, 16, 24, 0.94) 100%)"
-  };
+  const backgroundStyle = commander.artUrl
+    ? {
+        backgroundImage: `radial-gradient(circle at 12% 22%, rgba(255, 236, 190, 0.16), transparent 42%), linear-gradient(120deg, rgba(10, 16, 24, 0.94) 0%, rgba(19, 30, 42, 0.82) 50%, rgba(10, 16, 24, 0.94) 100%), url("${commander.artUrl}")`
+      }
+    : {
+        backgroundImage:
+          "radial-gradient(circle at 12% 22%, rgba(255, 236, 190, 0.16), transparent 42%), linear-gradient(120deg, rgba(10, 16, 24, 0.94) 0%, rgba(19, 30, 42, 0.82) 50%, rgba(10, 16, 24, 0.94) 100%)"
+      };
 
   return (
     <section className="commander-hero" style={backgroundStyle}>
-      {commander.artUrl ? (
+      {heroArtStyle ? (
         <div className="commander-hero-art" aria-hidden="true">
           <div className="commander-hero-art-image" style={heroArtStyle} />
         </div>

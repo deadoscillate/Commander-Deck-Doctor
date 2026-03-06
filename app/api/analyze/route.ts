@@ -688,6 +688,7 @@ export async function POST(request: Request) {
               ? selectedCommanderCard.cmc
               : null,
           selectedArtUrl: getPreferredArtUrl(selectedCommanderCard),
+          selectedCardImageUrl: getPreferredCardPreviewUrl(selectedCommanderCard),
           source: commanderSource,
           options: commanderOptions,
           needsManualSelection: !commanderFromSection && !selectedCommanderName && commanderOptions.length > 0

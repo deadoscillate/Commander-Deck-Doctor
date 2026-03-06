@@ -156,6 +156,7 @@ export type CommanderInfo = {
   selectedManaCost: string | null;
   selectedCmc: number | null;
   selectedArtUrl: string | null;
+  selectedCardImageUrl: string | null;
   source: "section" | "manual" | "none";
   options: CommanderChoice[];
   needsManualSelection: boolean;
