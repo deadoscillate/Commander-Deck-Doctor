@@ -65,6 +65,26 @@ Commander
     );
   });
 
+  it("parses parenthetical print metadata and ignores standalone foil markers", () => {
+    const entries = parseDecklist(`
+1 Evolving Wilds (PLST) C18-245
+1 Forest (ONE) 369 *F*
+Negate (BBD) 123
+Otawara, Soaring City (NEO) 271
+*F*
+    `);
+
+    expect(entries).toEqual(
+      expect.arrayContaining([
+        { name: "Evolving Wilds", qty: 1, setCode: "plst" },
+        { name: "Forest", qty: 1, setCode: "one" },
+        { name: "Negate", qty: 1, setCode: "bbd" },
+        { name: "Otawara, Soaring City", qty: 1, setCode: "neo" }
+      ])
+    );
+    expect(entries.find((entry) => entry.name === "*F*")).toBeUndefined();
+  });
+
   it("drops ambiguous set tags when duplicate names use conflicting sets", () => {
     const entries = parseDecklist(`
 1 Sol Ring [CMM]
