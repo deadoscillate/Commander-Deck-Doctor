@@ -4,6 +4,7 @@
   ScryfallCard,
   ScryfallCardFace,
   ScryfallImageUris,
+  ScryfallPurchaseUris,
   ScryfallPrices
 } from "./types";
 
@@ -38,6 +39,7 @@ type ScryfallApiCard = {
   image_uris?: ScryfallImageUris | null;
   card_faces?: ScryfallCardFace[];
   prices?: ScryfallPrices | null;
+  purchase_uris?: ScryfallPurchaseUris | null;
 };
 
 function normalizeScryfallCard(data: ScryfallApiCard): ScryfallCard {
@@ -60,7 +62,8 @@ function normalizeScryfallCard(data: ScryfallApiCard): ScryfallCard {
     keywords: Array.isArray(data.keywords) ? data.keywords : [],
     image_uris: data.image_uris ?? null,
     card_faces: Array.isArray(data.card_faces) ? data.card_faces : [],
-    prices: data.prices ?? null
+    prices: data.prices ?? null,
+    purchase_uris: data.purchase_uris ?? null
   };
 }
 

@@ -8,6 +8,22 @@ function toFiniteNumber(value: unknown, fallback: number): number {
   return typeof value === "number" && Number.isFinite(value) ? value : fallback;
 }
 
+function normalizeComboText(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "");
+}
+
+function isRedundantComboCardList(comboName: string, cards: string[]): boolean {
+  const normalizedName = normalizeComboText(comboName);
+  if (!normalizedName) {
+    return false;
+  }
+
+  const normalizedCards = normalizeComboText(cards.join(" + "));
+  return Boolean(normalizedCards) && normalizedCards === normalizedName;
+}
+
 function toStringArray(value: unknown): string[] {
   return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
 }
@@ -61,6 +77,8 @@ export function buildPlaintextReport(result: AnalyzeResponse): string {
   };
   const comboReport = result.comboReport ?? {
     detected: [],
+    conditional: [],
+    potential: [],
     databaseSize: 0,
     disclaimer: "Combo detection uses an offline Commander Spellbook-derived combo snapshot."
   };
@@ -269,10 +287,24 @@ export function buildPlaintextReport(result: AnalyzeResponse): string {
     ...(comboReport.detected.length > 0
       ? comboReport.detected.map(
           (combo) =>
-            `- ${combo.comboName}: ${combo.cards.join(" + ")} (${combo.commanderSpellbookUrl})`
+            isRedundantComboCardList(combo.comboName, combo.cards)
+              ? `- ${combo.comboName} (${combo.commanderSpellbookUrl})`
+              : `- ${combo.comboName}: ${combo.cards.join(" + ")} (${combo.commanderSpellbookUrl})`
         )
       : ["- No known combos detected."]),
-    `- Combos detected: ${comboReport.detected.length} / ${comboReport.databaseSize} tracked`
+    ...(comboReport.conditional.length > 0
+      ? comboReport.conditional.slice(0, 10).map((combo) => {
+          const requires = combo.requires.length > 0 ? ` | requires: ${combo.requires.join("; ")}` : "";
+          return `- Conditional: ${combo.comboName} (${combo.commanderSpellbookUrl})${requires}`;
+        })
+      : []),
+    ...(comboReport.potential.length > 0
+      ? comboReport.potential.slice(0, 10).map((combo) => {
+          const requires = combo.isConditional && combo.requires.length > 0 ? ` | requires: ${combo.requires.join("; ")}` : "";
+          return `- Potential: ${combo.comboName} | missing: ${combo.missingCards.join(" + ")} | matched ${combo.matchCount}/${combo.cards.length}${requires} (${combo.commanderSpellbookUrl})`;
+        })
+      : []),
+    `- Live combos: ${comboReport.detected.length} | Conditional combos: ${comboReport.conditional.length} | Potential shown: ${comboReport.potential.length} / ${comboReport.databaseSize} tracked`
   ];
 
   const ruleZeroLines = [

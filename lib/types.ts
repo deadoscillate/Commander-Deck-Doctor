@@ -34,6 +34,13 @@ export type ScryfallPrices = {
   tix: string | null;
 };
 
+export type ScryfallPurchaseUris = {
+  tcgplayer?: string;
+  cardkingdom?: string;
+  cardmarket?: string;
+  cardhoarder?: string;
+};
+
 export type ScryfallCard = {
   id?: string;
   oracle_id?: string;
@@ -49,6 +56,7 @@ export type ScryfallCard = {
   image_uris: ScryfallImageUris | null;
   card_faces: ScryfallCardFace[];
   prices: ScryfallPrices | null;
+  purchase_uris?: ScryfallPurchaseUris | null;
 };
 
 /**

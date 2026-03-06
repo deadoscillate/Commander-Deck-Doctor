@@ -11,9 +11,9 @@ Commander deck analysis app built with Next.js + TypeScript.
   - deck summary and mana curve
   - role composition (ramp/draw/removal/wipes/tutors/protection/finishers)
   - commander/deck checks (size, singleton, color identity, unknown cards)
-  - bracket heuristics, archetype signals, combo signals, Rule 0 snapshot
+  - bracket heuristics, archetype signals, combo signals, Rule 0 snapshot (including true tutor cards in table-talk flags)
   - deterministic simulation summaries
-- Supports set-aware pricing and printing-aware preview art selection.
+- Supports set-aware pricing, per-card seller links, and per-card printing selection.
 
 ## Quick Start
 
@@ -73,10 +73,18 @@ Runtime/tests do not call Commander Spellbook.
 - `Oracle default lookup`: name-based pricing.
 - `Use [SET] tags in decklist`: set-aware pricing.
 - Decklist tag example: `1 Sol Ring [CMM]`.
-- In decklist preview mode, each card can load printings and select a specific printing.
-  - Preview art uses the selected Scryfall printing.
-  - Analyzer receives printing/set overrides for set-aware pricing lookup.
-  - Includes special printings (for example Secret Lair and Judge promo printings) when available from Scryfall.
+- Deck entry uses a plain textarea (no preview-mode toggle).
+- In the `Cards` tab, each detected card supports:
+  - TCGplayer price display (from Scryfall price fields)
+  - seller links (`TCGplayer`, `Card Kingdom`)
+  - `Select Printing` picker (includes special printings, including Secret Lair and Judge promo printings when available)
+- Selected printings update card art and set-aware pricing lookup via analyzer overrides.
+
+## Simulations UI
+
+- The `Simulations` tab uses a single interactive simulation panel.
+- Run counts: `100`, `1000`, `5000`.
+- Optional seed toggle for reproducible runs.
 
 ## Deployment Notes
 

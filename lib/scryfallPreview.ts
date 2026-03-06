@@ -51,13 +51,18 @@ type CardPreviewRequestOptions = {
   printingId?: string | null;
 };
 
+const SCRYFALL_HEADERS = {
+  Accept: "application/json",
+  "User-Agent": "CommanderDeckDoctor/1.0"
+};
+
 async function fetchPrintingById(printingId: string): Promise<RawScryfallCard | null> {
   const endpoint = `https://api.scryfall.com/cards/${encodeURIComponent(printingId)}`;
 
   try {
     const response = await fetch(endpoint, {
       method: "GET",
-      headers: { Accept: "application/json" },
+      headers: SCRYFALL_HEADERS,
       cache: "no-store"
     });
 
@@ -91,7 +96,7 @@ async function fetchNamed(
   try {
     const response = await fetch(endpoint.toString(), {
       method: "GET",
-      headers: { Accept: "application/json" },
+      headers: SCRYFALL_HEADERS,
       cache: "no-store"
     });
 
@@ -129,7 +134,7 @@ async function fetchBySetAndCollector(
     try {
       const response = await fetch(endpoint, {
         method: "GET",
-        headers: { Accept: "application/json" },
+        headers: SCRYFALL_HEADERS,
         cache: "no-store"
       });
 

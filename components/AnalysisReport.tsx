@@ -115,24 +115,25 @@ function toRatio(value: unknown): number {
   return typeof value === "number" && Number.isFinite(value) ? Math.max(0, Math.min(1, value)) : 0;
 }
 
-function toPercent(value: unknown): number {
-  if (typeof value !== "number" || !Number.isFinite(value)) {
-    return 0;
+function normalizeComboText(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "");
+}
+
+function isRedundantComboCardList(comboName: string, cards: string[], matchedCards: string[]): boolean {
+  const normalizedName = normalizeComboText(comboName);
+  if (!normalizedName) {
+    return false;
   }
 
-  return Math.max(0, Math.min(100, value));
-}
+  const normalizedRawCards = normalizeComboText(cards.join(" + "));
+  if (normalizedRawCards && normalizedRawCards === normalizedName) {
+    return true;
+  }
 
-function toNullableFiniteNumber(value: unknown): number | null {
-  return typeof value === "number" && Number.isFinite(value) ? value : null;
-}
-
-function formatPercent(value: number): string {
-  return `${value.toFixed(1)}%`;
-}
-
-function formatTurnEstimate(value: number | null): string {
-  return value === null ? "N/A" : `Turn ${value.toFixed(1)}`;
+  const normalizedMatchedCards = normalizeComboText(matchedCards.join(" + "));
+  return Boolean(normalizedMatchedCards) && normalizedMatchedCards === normalizedName;
 }
 
 function normalizeDeckPrice(result: AnalyzeResponse): {
@@ -247,60 +248,6 @@ function normalizeCommanderInfo(result: AnalyzeResponse): {
       typeof commanderRecord.selectedCardImageUrl === "string" && commanderRecord.selectedCardImageUrl
         ? commanderRecord.selectedCardImageUrl
         : null
-  };
-}
-
-function normalizeOpeningHandSimulation(result: AnalyzeResponse): {
-  simulations: number;
-  playableHands: number;
-  deadHands: number;
-  rampInOpening: number;
-  playablePct: number;
-  deadPct: number;
-  rampInOpeningPct: number;
-  averageFirstSpellTurn: number | null;
-  estimatedCommanderCastTurn: number | null;
-  cardCounts: {
-    lands: number;
-    rampCards: number;
-    manaRocks: number;
-  };
-  totalDeckSize: number;
-  unknownCardCount: number;
-  disclaimer: string;
-} | null {
-  const rawSimulation = (result as { openingHandSimulation?: unknown }).openingHandSimulation;
-  if (!rawSimulation || typeof rawSimulation !== "object") {
-    return null;
-  }
-
-  const record = rawSimulation as Record<string, unknown>;
-  const rawCardCounts =
-    record.cardCounts && typeof record.cardCounts === "object"
-      ? (record.cardCounts as Record<string, unknown>)
-      : {};
-
-  return {
-    simulations: Math.max(0, Math.floor(toFiniteNumber(record.simulations, 0))),
-    playableHands: Math.max(0, Math.floor(toFiniteNumber(record.playableHands, 0))),
-    deadHands: Math.max(0, Math.floor(toFiniteNumber(record.deadHands, 0))),
-    rampInOpening: Math.max(0, Math.floor(toFiniteNumber(record.rampInOpening, 0))),
-    playablePct: toPercent(record.playablePct),
-    deadPct: toPercent(record.deadPct),
-    rampInOpeningPct: toPercent(record.rampInOpeningPct),
-    averageFirstSpellTurn: toNullableFiniteNumber(record.averageFirstSpellTurn),
-    estimatedCommanderCastTurn: toNullableFiniteNumber(record.estimatedCommanderCastTurn),
-    cardCounts: {
-      lands: Math.max(0, Math.floor(toFiniteNumber(rawCardCounts.lands, 0))),
-      rampCards: Math.max(0, Math.floor(toFiniteNumber(rawCardCounts.rampCards, 0))),
-      manaRocks: Math.max(0, Math.floor(toFiniteNumber(rawCardCounts.manaRocks, 0)))
-    },
-    totalDeckSize: Math.max(0, Math.floor(toFiniteNumber(record.totalDeckSize, 0))),
-    unknownCardCount: Math.max(0, Math.floor(toFiniteNumber(record.unknownCardCount, 0))),
-    disclaimer:
-      typeof record.disclaimer === "string" && record.disclaimer.trim()
-        ? record.disclaimer
-        : "Simulation is an estimate using deterministic engine runs."
   };
 }
 
@@ -521,22 +468,24 @@ function normalizeTutorSummary(result: AnalyzeResponse): TutorSummary | null {
 
 type AnalysisReportProps = {
   result: AnalyzeResponse;
+  onOpenPrintingPicker?: (cardName: string) => void;
 };
 
-type ReportTabKey = "overview" | "composition" | "validation" | "simulations" | "cards";
+type ReportTabKey = "overview" | "composition" | "validation" | "simulations" | "cards" | "advanced";
 
 const REPORT_TABS: Array<{ key: ReportTabKey; label: string }> = [
   { key: "overview", label: "Overview" },
   { key: "composition", label: "Composition" },
   { key: "validation", label: "Validation" },
   { key: "simulations", label: "Simulations" },
-  { key: "cards", label: "Cards" }
+  { key: "cards", label: "Cards" },
+  { key: "advanced", label: "Advanced" }
 ];
 
 /**
  * Read-only report renderer shared by the main analysis page and /report/[hash].
  */
-export function AnalysisReport({ result }: AnalysisReportProps) {
+export function AnalysisReport({ result, onOpenPrintingPicker }: AnalysisReportProps) {
   const maxCurveCount = Math.max(...Object.values(result.summary.manaCurve), 0);
   const archetypeReport = result.archetypeReport ?? {
     primary: null,
@@ -547,6 +496,8 @@ export function AnalysisReport({ result }: AnalysisReportProps) {
   };
   const comboReport = result.comboReport ?? {
     detected: [],
+    conditional: [],
+    potential: [],
     databaseSize: 0,
     disclaimer: "Combo detection uses an offline Commander Spellbook-derived combo snapshot."
   };
@@ -555,7 +506,6 @@ export function AnalysisReport({ result }: AnalysisReportProps) {
   const tutorSummary = normalizeTutorSummary(result);
   const commanderInfo = normalizeCommanderInfo(result);
   const deckPrice = normalizeDeckPrice(result);
-  const openingHandSimulation = normalizeOpeningHandSimulation(result);
   const simulationDeck = result.parsedDeck.map((entry) => ({
     name: entry.name,
     qty: entry.qty,
@@ -602,15 +552,17 @@ export function AnalysisReport({ result }: AnalysisReportProps) {
     });
   }
 
-  if (result.roles.tutors > 0) {
+  if (!tableTalkRows.some((row) => row.key === "tutors") && (tutorSummary?.trueTutors ?? 0) > 0) {
+    const tutorCards = (tutorSummary?.trueTutorBreakdown ?? []).map((entry) => entry.name);
+    const trueTutorCount = tutorSummary?.trueTutors ?? 0;
     tableTalkRows.push({
       key: "tutors",
       severity: "INFO",
       label: TABLE_TALK_META.tutors.label,
       icon: TABLE_TALK_META.tutors.icon,
-      count: result.roles.tutors,
-      message: `${result.roles.tutors} true tutor${result.roles.tutors === 1 ? "" : "s"} detected.`,
-      cards: []
+      count: trueTutorCount,
+      message: `${trueTutorCount} true tutor${trueTutorCount === 1 ? "" : "s"} detected.`,
+      cards: tutorCards
     });
   }
 
@@ -705,10 +657,8 @@ export function AnalysisReport({ result }: AnalysisReportProps) {
       <section hidden={activeTab !== "overview"}>
         <h2>Table Talk Flags</h2>
         <p className="table-talk-intro muted">
-          Rule 0 Snapshot is a quick read of how this deck may feel at the table.
-        </p>
-        <p className="table-talk-intro muted">
-          Signals include fast mana, true tutors, free interaction, extra turns, and lock pressure.
+          Rule 0 Snapshot is a quick read of table pressure signals: fast mana, true tutors, free interaction,
+          extra turns, and lock pressure.
         </p>
 
         {tableTalkRows.length === 0 ? (
@@ -876,40 +826,6 @@ export function AnalysisReport({ result }: AnalysisReportProps) {
       <div hidden={activeTab !== "composition"}>
         <DeckHealth report={result.deckHealth} />
       </div>
-      {openingHandSimulation ? (
-        <section hidden={activeTab !== "simulations"}>
-          <h2>Opening Hand Simulation</h2>
-          <div className="summary-grid">
-            <div className="summary-card">
-              <span>Playable Hands</span>
-              <strong>{formatPercent(openingHandSimulation.playablePct)}</strong>
-            </div>
-            <div className="summary-card">
-              <span>Dead Hands</span>
-              <strong>{formatPercent(openingHandSimulation.deadPct)}</strong>
-            </div>
-            <div className="summary-card">
-              <span>Ramp In Opening</span>
-              <strong>{formatPercent(openingHandSimulation.rampInOpeningPct)}</strong>
-            </div>
-            <div className="summary-card">
-              <span>Avg First Spell Turn</span>
-              <strong>{formatTurnEstimate(openingHandSimulation.averageFirstSpellTurn)}</strong>
-            </div>
-            <div className="summary-card">
-              <span>Estimated Commander Cast</span>
-              <strong>{formatTurnEstimate(openingHandSimulation.estimatedCommanderCastTurn)}</strong>
-            </div>
-          </div>
-          <p className="muted deck-price-meta">
-            {openingHandSimulation.simulations} simulations | modeled cards:{" "}
-            {openingHandSimulation.totalDeckSize} (lands {openingHandSimulation.cardCounts.lands}, ramp{" "}
-            {openingHandSimulation.cardCounts.rampCards}, rocks {openingHandSimulation.cardCounts.manaRocks}, unknown{" "}
-            {openingHandSimulation.unknownCardCount})
-          </p>
-          <p className="muted">{openingHandSimulation.disclaimer}</p>
-        </section>
-      ) : null}
       <div hidden={activeTab !== "simulations"} id="report-panel-simulations" role="tabpanel">
         <SimulationsSection deck={simulationDeck} commanderName={commanderInfo.name} />
       </div>
@@ -919,120 +835,197 @@ export function AnalysisReport({ result }: AnalysisReportProps) {
 
       <section hidden={activeTab !== "cards"} id="report-panel-cards" role="tabpanel">
         <h2>Detected Cards</h2>
-        <p className="muted">Full preview tile set for resolved deck cards.</p>
+        <p className="muted">
+          Full preview tile set for resolved deck cards. TCGplayer numbers come from Scryfall price fields;
+          Card Kingdom is linked separately.
+        </p>
         <div className="detected-cards-grid">
-          {result.parsedDeck.map((entry) => (
-            <article className="detected-card-tile" key={entry.name.toLowerCase()}>
-              {entry.previewImageUrl ? (
-                <div
-                  className="detected-card-image"
-                  style={{ backgroundImage: `url("${entry.previewImageUrl}")` }}
-                />
-              ) : (
-                <div className="detected-card-image-fallback">
-                  <span>{cardLabel(entry)}</span>
+          {result.parsedDeck.map((entry) => {
+            const usdPrice = entry.prices?.usd ?? null;
+            const usdFoilPrice = entry.prices?.usdFoil ?? null;
+            const usdEtchedPrice = entry.prices?.usdEtched ?? null;
+            const tcgplayerLink = entry.sellerLinks?.tcgplayer ?? null;
+            const cardKingdomLink = entry.sellerLinks?.cardKingdom ?? null;
+
+            return (
+              <article className="detected-card-tile" key={entry.name.toLowerCase()}>
+                {entry.previewImageUrl ? (
+                  <div
+                    className="detected-card-image"
+                    style={{ backgroundImage: `url("${entry.previewImageUrl}")` }}
+                  />
+                ) : (
+                  <div className="detected-card-image-fallback">
+                    <span>{cardLabel(entry)}</span>
+                  </div>
+                )}
+                <div className="detected-card-meta">
+                  <p className="detected-card-name">
+                    <CardNameHover name={cardLabel(entry)} />
+                  </p>
+                  <p className="detected-card-qty">Qty {entry.qty}</p>
+                  <div className="detected-card-badges">
+                    {entry.isGameChanger ? <span className="gc-badge">{"\u2B50"} Game Changer</span> : null}
+                    {!entry.known ? <span className="unknown-badge">Unknown</span> : null}
+                  </div>
+                  <div className="detected-card-pricing">
+                    <p className="detected-card-price-row">
+                      <span>TCGplayer</span>
+                      <strong>{formatUsd(usdPrice)}</strong>
+                    </p>
+                    {(usdFoilPrice !== null || usdEtchedPrice !== null) ? (
+                      <p className="muted detected-card-price-note">
+                        Foil {formatUsd(usdFoilPrice)} | Etched {formatUsd(usdEtchedPrice)}
+                      </p>
+                    ) : null}
+                    <div className="detected-card-sellers">
+                      {tcgplayerLink ? (
+                        <a href={tcgplayerLink} target="_blank" rel="noreferrer noopener">
+                          TCGplayer
+                        </a>
+                      ) : (
+                        <span className="muted">TCGplayer link unavailable</span>
+                      )}
+                      {cardKingdomLink ? (
+                        <a href={cardKingdomLink} target="_blank" rel="noreferrer noopener">
+                          Card Kingdom
+                        </a>
+                      ) : (
+                        <span className="muted">Card Kingdom link unavailable</span>
+                      )}
+                    </div>
+                    {onOpenPrintingPicker ? (
+                      <button
+                        type="button"
+                        className="btn-tertiary detected-card-printings-btn"
+                        onClick={() => onOpenPrintingPicker(entry.name)}
+                      >
+                        Select Printing
+                      </button>
+                    ) : null}
+                  </div>
                 </div>
-              )}
-              <div className="detected-card-meta">
-                <p className="detected-card-name">
-                  <CardNameHover name={cardLabel(entry)} />
-                </p>
-                <p className="detected-card-qty">Qty {entry.qty}</p>
-                <div className="detected-card-badges">
-                  {entry.isGameChanger ? <span className="gc-badge">{"\u2B50"} Game Changer</span> : null}
-                  {!entry.known ? <span className="unknown-badge">Unknown</span> : null}
-                </div>
-              </div>
-            </article>
-          ))}
+              </article>
+            );
+          })}
         </div>
-        <details>
-          <summary>Show text list ({result.parsedDeck.length})</summary>
-          <ul className="detected-cards">
-            {result.parsedDeck.map((entry) => (
-              <li key={entry.name.toLowerCase()}>
-                {entry.qty} <CardNameHover name={cardLabel(entry)} />
-                {entry.isGameChanger ? <span className="gc-badge">{"\u2B50"} Game Changer</span> : null}
-                {!entry.known ? <span className="unknown-badge">Unknown</span> : null}
-              </li>
-            ))}
-          </ul>
-        </details>
       </section>
 
-      <section hidden={activeTab !== "validation"}>
-        <details className="technical-details">
-          <summary>Show advanced analysis details</summary>
+      <section hidden={activeTab !== "advanced"} id="report-panel-advanced" role="tabpanel">
+        <h2>Advanced Analysis Details</h2>
+        <div className="technical-group">
+          <h3>Archetype Signals</h3>
+          <p>
+            Primary: <strong>{archetypeReport.primary?.archetype ?? "Not enough signal detected"}</strong>
+          </p>
+          <p>
+            Secondary: <strong>{archetypeReport.secondary?.archetype ?? "Not enough signal detected"}</strong>
+          </p>
+          <p className="muted">{archetypeReport.disclaimer}</p>
+        </div>
 
-          <div className="technical-group">
-            <h3>Archetype Signals</h3>
-            <p>
-              Primary: <strong>{archetypeReport.primary?.archetype ?? "Not enough signal detected"}</strong>
-            </p>
-            <p>
-              Secondary: <strong>{archetypeReport.secondary?.archetype ?? "Not enough signal detected"}</strong>
-            </p>
-            <p className="muted">{archetypeReport.disclaimer}</p>
-          </div>
-
-          <div className="technical-group">
-            <h3>Combo Detection</h3>
-            {comboReport.detected.length === 0 ? (
-              <p className="muted">No known combos detected from the current combo database.</p>
-            ) : (
+        <div className="technical-group">
+          <h3>Combo Detection</h3>
+          {comboReport.detected.length === 0 ? (
+            <p className="muted">No known combos detected from the current combo database.</p>
+          ) : (
+            <ul>
+              {comboReport.detected.map((combo) => (
+                <li key={`${combo.comboName}-${combo.commanderSpellbookUrl}`}>
+                  <strong>{combo.comboName}</strong>{" "}
+                  <a href={combo.commanderSpellbookUrl} target="_blank" rel="noreferrer noopener">
+                    [Commander Spellbook]
+                  </a>
+                  {!isRedundantComboCardList(combo.comboName, combo.cards, combo.matchedCards) ? (
+                    <>
+                      :{" "}
+                      {combo.cards.map((cardName, index) => (
+                        <span key={`${combo.comboName}-${combo.commanderSpellbookUrl}-${cardName}-${index}`}>
+                          <CardNameHover name={cardName} />
+                          {index < combo.cards.length - 1 ? " + " : ""}
+                        </span>
+                      ))}
+                    </>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+          )}
+          {comboReport.conditional.length > 0 ? (
+            <>
+              <p className="muted">Conditional combos (cards present, setup still required):</p>
               <ul>
-                {comboReport.detected.map((combo) => (
-                  <li key={combo.comboName}>
+                {comboReport.conditional.map((combo) => (
+                  <li key={`conditional-${combo.comboName}-${combo.commanderSpellbookUrl}`}>
                     <strong>{combo.comboName}</strong>{" "}
                     <a href={combo.commanderSpellbookUrl} target="_blank" rel="noreferrer noopener">
                       [Commander Spellbook]
                     </a>
-                    :{" "}
-                    {combo.cards.map((cardName, index) => (
-                      <span key={`${combo.comboName}-${cardName}`}>
-                        <CardNameHover name={cardName} />
-                        {index < combo.cards.length - 1 ? " + " : ""}
-                      </span>
-                    ))}
+                    {combo.requires.length > 0 ? (
+                      <span className="muted"> | Requires: {combo.requires.join("; ")}</span>
+                    ) : null}
                   </li>
                 ))}
               </ul>
-            )}
-            <p className="muted">
-              Combos detected: {comboReport.detected.length} / {comboReport.databaseSize} tracked.
-            </p>
-          </div>
-
-          <div className="technical-group">
-            <h3>Commander Bracket Detail</h3>
-            <p>
-              Estimated bracket:{" "}
-              <strong>
-                {result.bracketReport.estimatedBracket} ({result.bracketReport.estimatedLabel})
-              </strong>
-            </p>
-            <p className="muted">{result.bracketReport.explanation}</p>
-            {result.bracketReport.gameChangersFound.length > 0 ? (
+            </>
+          ) : null}
+          {comboReport.potential.length > 0 ? (
+            <>
+              <p className="muted">Potential combos (near misses):</p>
               <ul>
-                {result.bracketReport.gameChangersFound.map((card) => (
-                  <li key={card.name}>
-                    <CardNameHover name={card.name} />
-                    {card.qty > 1 ? ` x${card.qty}` : ""}{" "}
-                    <span className="gc-badge">{"\u2B50"} Game Changer</span>
+                {comboReport.potential.map((combo) => (
+                  <li key={`potential-${combo.comboName}-${combo.commanderSpellbookUrl}`}>
+                    <strong>{combo.comboName}</strong>{" "}
+                    <a href={combo.commanderSpellbookUrl} target="_blank" rel="noreferrer noopener">
+                      [Commander Spellbook]
+                    </a>{" "}
+                    <span className="muted">
+                      | Missing: {combo.missingCards.join(" + ")} | Matched: {combo.matchCount}/{combo.cards.length}
+                    </span>
+                    {combo.isConditional && combo.requires.length > 0 ? (
+                      <span className="muted"> | Requires: {combo.requires.join("; ")}</span>
+                    ) : null}
                   </li>
                 ))}
               </ul>
-            ) : null}
-            {result.bracketReport.warnings.length > 0 ? (
-              <ul className="warnings">
-                {result.bracketReport.warnings.map((warning) => (
-                  <li key={warning}>{warning}</li>
-                ))}
-              </ul>
-            ) : null}
-            <p className="muted">{result.bracketReport.disclaimer}</p>
-          </div>
-        </details>
+            </>
+          ) : null}
+          <p className="muted">
+            Live combos: {comboReport.detected.length} | Conditional combos: {comboReport.conditional.length} |
+            Potential shown: {comboReport.potential.length} / {comboReport.databaseSize} tracked.
+          </p>
+          <p className="muted">{comboReport.disclaimer}</p>
+        </div>
+
+        <div className="technical-group">
+          <h3>Commander Bracket Detail</h3>
+          <p>
+            Estimated bracket:{" "}
+            <strong>
+              {result.bracketReport.estimatedBracket} ({result.bracketReport.estimatedLabel})
+            </strong>
+          </p>
+          <p className="muted">{result.bracketReport.explanation}</p>
+          {result.bracketReport.gameChangersFound.length > 0 ? (
+            <ul>
+              {result.bracketReport.gameChangersFound.map((card) => (
+                <li key={card.name}>
+                  <CardNameHover name={card.name} />
+                  {card.qty > 1 ? ` x${card.qty}` : ""}{" "}
+                  <span className="gc-badge">{"\u2B50"} Game Changer</span>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+          {result.bracketReport.warnings.length > 0 ? (
+            <ul className="warnings">
+              {result.bracketReport.warnings.map((warning) => (
+                <li key={warning}>{warning}</li>
+              ))}
+            </ul>
+          ) : null}
+          <p className="muted">{result.bracketReport.disclaimer}</p>
+        </div>
       </section>
     </div>
   );
