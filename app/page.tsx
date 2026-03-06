@@ -678,7 +678,8 @@ export default function Page() {
 
           <label htmlFor="decklist">Decklist (paste here)</label>
           <p className="muted field-help">
-            One card per line; quantities allowed. Optional set tag for pricing: <code>1 Sol Ring [CMM]</code>.
+            One card per line; quantities allowed. Optional print-aware tags: <code>1 Sol Ring [CMM]</code> or{" "}
+            <code>1 Sol Ring (CMM) 217</code>.
           </p>
           <label className="checkbox decklist-preview-toggle decklist-preview-header">
             <input
@@ -701,6 +702,7 @@ export default function Page() {
                     const loading = Boolean(printingLoadByCard[cardKey]);
                     const errorMessage = printingErrorByCard[cardKey] ?? "";
                     const activeSetCode = override?.setCode ?? entry.setCode ?? null;
+                    const activeCollectorNumber = entry.collectorNumber ?? null;
 
                     return (
                       <li key={`${entry.name}-${entry.qty}`}>
@@ -710,6 +712,7 @@ export default function Page() {
                             <CardLink
                               name={entry.name}
                               setCode={activeSetCode}
+                              collectorNumber={activeCollectorNumber}
                               printingId={override?.printingId ?? null}
                             />
                             {activeSetCode ? (
@@ -778,7 +781,7 @@ export default function Page() {
               </select>
             </div>
             <p className="muted">
-              Set-aware mode example: <code>1 Rhystic Study [JMP]</code>.
+              Set-aware mode examples: <code>1 Rhystic Study [JMP]</code>, <code>1 Sol Ring (CMM) 217</code>.
             </p>
           </section>
 

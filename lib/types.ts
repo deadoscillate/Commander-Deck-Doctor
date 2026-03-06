@@ -5,6 +5,7 @@ export type ParsedDeckEntry = {
   name: string;
   qty: number;
   setCode?: string;
+  collectorNumber?: string;
   printingId?: string;
 };
 
