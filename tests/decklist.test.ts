@@ -76,7 +76,7 @@ Otawara, Soaring City (NEO) 271
 
     expect(entries).toEqual(
       expect.arrayContaining([
-        { name: "Evolving Wilds", qty: 1, setCode: "plst", collectorNumber: "c18-245" },
+        { name: "Evolving Wilds", qty: 1, setCode: "plst", collectorNumber: "C18-245" },
         { name: "Forest", qty: 1, setCode: "one", collectorNumber: "369" },
         { name: "Negate", qty: 1, setCode: "bbd", collectorNumber: "123" },
         { name: "Otawara, Soaring City", qty: 1, setCode: "neo", collectorNumber: "271" }
@@ -93,6 +93,18 @@ Otawara, Soaring City (NEO) 271
 
     expect(entries).toEqual(expect.arrayContaining([{ name: "Sol Ring", qty: 2, setCode: "cmm" }]));
     expect(entries.find((entry) => entry.name === "Sol Ring")?.collectorNumber).toBeUndefined();
+  });
+
+  it("preserves alphanumeric collector casing for Spellbook-style collector numbers", () => {
+    const entries = parseDecklist(`
+1 Winding Constrictor (PLST) AER-140
+    `);
+
+    expect(entries).toEqual(
+      expect.arrayContaining([
+        { name: "Winding Constrictor", qty: 1, setCode: "plst", collectorNumber: "AER-140" }
+      ])
+    );
   });
 
   it("drops ambiguous set tags when duplicate names use conflicting sets", () => {

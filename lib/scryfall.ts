@@ -125,29 +125,35 @@ async function fetchCardBySetAndCollector(
   setCode: string,
   collectorNumber: string
 ): Promise<ScryfallCard | null> {
-  try {
-    const response = await fetch(
-      `https://api.scryfall.com/cards/${encodeURIComponent(setCode)}/${encodeURIComponent(collectorNumber)}`,
-      {
-        method: "GET",
-        headers: SCRYFALL_HEADERS,
-        cache: "no-store"
+  const candidates = [...new Set([collectorNumber, collectorNumber.toUpperCase(), collectorNumber.toLowerCase()])];
+
+  for (const candidate of candidates) {
+    try {
+      const response = await fetch(
+        `https://api.scryfall.com/cards/${encodeURIComponent(setCode)}/${encodeURIComponent(candidate)}`,
+        {
+          method: "GET",
+          headers: SCRYFALL_HEADERS,
+          cache: "no-store"
+        }
+      );
+
+      if (!response.ok) {
+        continue;
       }
-    );
 
-    if (!response.ok) {
-      return null;
+      const data = (await response.json()) as ScryfallApiCard;
+      if (data.object === "error" || !data.name) {
+        continue;
+      }
+
+      return normalizeScryfallCard(data);
+    } catch {
+      continue;
     }
-
-    const data = (await response.json()) as ScryfallApiCard;
-    if (data.object === "error" || !data.name) {
-      return null;
-    }
-
-    return normalizeScryfallCard(data);
-  } catch {
-    return null;
   }
+
+  return null;
 }
 
 export async function getCardByName(name: string): Promise<ScryfallCard | null> {
@@ -218,12 +224,12 @@ async function getCardBySetAndCollector(
   collectorNumber: string
 ): Promise<ScryfallCard | null> {
   const normalizedSet = setCode.trim().toLowerCase();
-  const normalizedCollector = collectorNumber.trim().toLowerCase();
+  const normalizedCollector = collectorNumber.trim();
   if (!normalizedSet || !normalizedCollector) {
     return null;
   }
 
-  const key = `set:${normalizedSet}|collector:${normalizedCollector}`;
+  const key = `set:${normalizedSet}|collector:${normalizedCollector.toLowerCase()}`;
   const cached = cardCache.get(key);
   if (cached) {
     return cached;
