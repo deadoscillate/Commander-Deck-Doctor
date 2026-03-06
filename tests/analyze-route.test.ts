@@ -177,6 +177,66 @@ describe("POST /api/analyze", () => {
     expect(body.rulesEngine?.rules?.some((rule) => rule.id === "commander.deck-size-exactly-100")).toBe(true);
   });
 
+  it("reuses analyze cache for identical requests", async () => {
+    const fetchDeckCardsMock = vi.fn(async () => ({
+      knownCards: [
+        {
+          name: "Sol Ring",
+          qty: 1,
+          card: buildCard({
+            name: "Sol Ring",
+            set: "cmm",
+            type_line: "Artifact",
+            cmc: 1,
+            mana_cost: "{1}",
+            oracle_text: "{T}: Add {C}{C}.",
+            prices: {
+              usd: "1.50",
+              usd_foil: null,
+              usd_etched: null,
+              tix: null
+            }
+          })
+        },
+        {
+          name: "Arcane Signet",
+          qty: 1,
+          card: buildCard({
+            name: "Arcane Signet",
+            set: "clb",
+            type_line: "Artifact",
+            cmc: 2,
+            mana_cost: "{2}",
+            oracle_text: "{T}: Add one mana of any color in your commander's color identity.",
+            prices: {
+              usd: "0.75",
+              usd_foil: null,
+              usd_etched: null,
+              tix: null
+            }
+          })
+        }
+      ],
+      unknownCards: []
+    }));
+
+    vi.doMock("@/lib/scryfall", () => ({
+      fetchDeckCards: fetchDeckCardsMock,
+      getCardById: vi.fn(async () => null),
+      getCardByName: vi.fn(async () => null),
+      getCardByNameWithSet: vi.fn(async () => null)
+    }));
+
+    const { POST } = await import("@/app/api/analyze/route");
+    const payload = { decklist: "1 Sol Ring\n1 Arcane Signet" };
+    const responseOne = await POST(buildRequest(payload));
+    const responseTwo = await POST(buildRequest(payload));
+
+    expect(responseOne.status).toBe(200);
+    expect(responseTwo.status).toBe(200);
+    expect(fetchDeckCardsMock).toHaveBeenCalledTimes(1);
+  });
+
   it("returns opening hand simulation metrics", async () => {
     vi.doMock("@/lib/scryfall", () => ({
       fetchDeckCards: vi.fn(async () => ({

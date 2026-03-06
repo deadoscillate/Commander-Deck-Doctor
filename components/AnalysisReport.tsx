@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Checks } from "@/components/Checks";
 import { CardNameHover } from "@/components/CardNameHover";
 import { ColorIdentityIcons } from "@/components/ColorIdentityIcons";
+import { ComboCardTile } from "@/components/ComboCardTile";
 import { CommanderHeroHeader } from "@/components/CommanderHeroHeader";
 import { DeckHealth } from "@/components/DeckHealth";
 import { ImprovementSuggestions } from "@/components/ImprovementSuggestions";
@@ -126,23 +127,10 @@ function toRatio(value: unknown): number {
 
 function normalizeComboText(value: string): string {
   return value
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "");
-}
-
-function isRedundantComboCardList(comboName: string, cards: string[], matchedCards: string[]): boolean {
-  const normalizedName = normalizeComboText(comboName);
-  if (!normalizedName) {
-    return false;
-  }
-
-  const normalizedRawCards = normalizeComboText(cards.join(" + "));
-  if (normalizedRawCards && normalizedRawCards === normalizedName) {
-    return true;
-  }
-
-  const normalizedMatchedCards = normalizeComboText(matchedCards.join(" + "));
-  return Boolean(normalizedMatchedCards) && normalizedMatchedCards === normalizedName;
 }
 
 function normalizeDeckPrice(result: AnalyzeResponse): {
@@ -535,6 +523,25 @@ export function AnalysisReport({ result, onOpenPrintingPicker }: AnalysisReportP
     qty: entry.qty,
     resolvedName: entry.resolvedName
   }));
+  const comboImageByName = new Map<string, string>();
+  for (const entry of result.parsedDeck) {
+    if (!entry.previewImageUrl) {
+      continue;
+    }
+
+    const lookupKeys = [entry.name, entry.resolvedName ?? ""];
+    for (const lookupKey of lookupKeys) {
+      const normalized = normalizeComboText(lookupKey);
+      if (!normalized || comboImageByName.has(normalized)) {
+        continue;
+      }
+
+      comboImageByName.set(normalized, entry.previewImageUrl);
+    }
+  }
+
+  const getComboCardImage = (cardName: string): string | null =>
+    comboImageByName.get(normalizeComboText(cardName)) ?? null;
   const [activeTab, setActiveTab] = useState<ReportTabKey>("overview");
 
   useEffect(() => {
@@ -544,20 +551,21 @@ export function AnalysisReport({ result, onOpenPrintingPicker }: AnalysisReportP
 
     const root = document.documentElement;
     const body = document.body;
-    if (!commanderInfo.artUrl) {
+    const pageArtUrl = commanderInfo.cardImageUrl ?? commanderInfo.artUrl;
+    if (!pageArtUrl) {
       body.classList.remove("has-commander-page-art");
       root.style.removeProperty("--commander-page-art");
       return;
     }
 
-    root.style.setProperty("--commander-page-art", `url("${commanderInfo.artUrl}")`);
+    root.style.setProperty("--commander-page-art", `url("${pageArtUrl}")`);
     body.classList.add("has-commander-page-art");
 
     return () => {
       body.classList.remove("has-commander-page-art");
       root.style.removeProperty("--commander-page-art");
     };
-  }, [commanderInfo.artUrl]);
+  }, [commanderInfo.cardImageUrl, commanderInfo.artUrl]);
 
   const archetypeLabel =
     archetypeReport.primary?.archetype && archetypeReport.secondary?.archetype
@@ -990,17 +998,15 @@ export function AnalysisReport({ result, onOpenPrintingPicker }: AnalysisReportP
                   <a href={combo.commanderSpellbookUrl} target="_blank" rel="noreferrer noopener">
                     [Commander Spellbook]
                   </a>
-                  {!isRedundantComboCardList(combo.comboName, combo.cards, combo.matchedCards) ? (
-                    <>
-                      :{" "}
-                      {combo.cards.map((cardName, index) => (
-                        <span key={`${combo.comboName}-${combo.commanderSpellbookUrl}-${cardName}-${index}`}>
-                          <CardNameHover name={cardName} />
-                          {index < combo.cards.length - 1 ? " + " : ""}
-                        </span>
-                      ))}
-                    </>
-                  ) : null}
+                  <div className="combo-card-strip">
+                    {combo.cards.map((cardName, index) => (
+                      <ComboCardTile
+                        key={`${combo.comboName}-${combo.commanderSpellbookUrl}-${cardName}-${index}`}
+                        name={cardName}
+                        imageUrl={getComboCardImage(cardName)}
+                      />
+                    ))}
+                  </div>
                 </li>
               ))}
             </ul>
@@ -1015,6 +1021,15 @@ export function AnalysisReport({ result, onOpenPrintingPicker }: AnalysisReportP
                     <a href={combo.commanderSpellbookUrl} target="_blank" rel="noreferrer noopener">
                       [Commander Spellbook]
                     </a>
+                    <div className="combo-card-strip">
+                      {combo.cards.map((cardName, index) => (
+                        <ComboCardTile
+                          key={`conditional-${combo.comboName}-${combo.commanderSpellbookUrl}-${cardName}-${index}`}
+                          name={cardName}
+                          imageUrl={getComboCardImage(cardName)}
+                        />
+                      ))}
+                    </div>
                     {combo.requires.length > 0 ? (
                       <span className="muted"> | Requires: {combo.requires.join("; ")}</span>
                     ) : null}
@@ -1027,20 +1042,34 @@ export function AnalysisReport({ result, onOpenPrintingPicker }: AnalysisReportP
             <>
               <p className="muted">Potential combos (near misses):</p>
               <ul>
-                {comboReport.potential.map((combo) => (
-                  <li key={`potential-${combo.comboName}-${combo.commanderSpellbookUrl}`}>
-                    <strong>{combo.comboName}</strong>{" "}
-                    <a href={combo.commanderSpellbookUrl} target="_blank" rel="noreferrer noopener">
-                      [Commander Spellbook]
-                    </a>{" "}
-                    <span className="muted">
-                      | Missing: {combo.missingCards.join(" + ")} | Matched: {combo.matchCount}/{combo.cards.length}
-                    </span>
-                    {combo.isConditional && combo.requires.length > 0 ? (
-                      <span className="muted"> | Requires: {combo.requires.join("; ")}</span>
-                    ) : null}
-                  </li>
-                ))}
+                {comboReport.potential.map((combo) => {
+                  const missingNames = new Set(combo.missingCards.map((cardName) => normalizeComboText(cardName)));
+
+                  return (
+                    <li key={`potential-${combo.comboName}-${combo.commanderSpellbookUrl}`}>
+                      <strong>{combo.comboName}</strong>{" "}
+                      <a href={combo.commanderSpellbookUrl} target="_blank" rel="noreferrer noopener">
+                        [Commander Spellbook]
+                      </a>{" "}
+                      <span className="muted">
+                        | Missing: {combo.missingCards.join(" + ")} | Matched: {combo.matchCount}/{combo.cards.length}
+                      </span>
+                      <div className="combo-card-strip">
+                        {combo.cards.map((cardName, index) => (
+                          <ComboCardTile
+                            key={`potential-${combo.comboName}-${combo.commanderSpellbookUrl}-${cardName}-${index}`}
+                            name={cardName}
+                            imageUrl={getComboCardImage(cardName)}
+                            missing={missingNames.has(normalizeComboText(cardName))}
+                          />
+                        ))}
+                      </div>
+                      {combo.isConditional && combo.requires.length > 0 ? (
+                        <span className="muted"> | Requires: {combo.requires.join("; ")}</span>
+                      ) : null}
+                    </li>
+                  );
+                })}
               </ul>
             </>
           ) : null}

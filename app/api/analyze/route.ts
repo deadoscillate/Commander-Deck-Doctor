@@ -27,13 +27,21 @@ export const runtime = "nodejs";
 
 const ANALYZE_REQUEST_MAX_BYTES = 500_000;
 const ANALYZE_DECKLIST_MAX_CHARS = 50_000;
+const ANALYZE_CACHE_TTL_MS = 2 * 60 * 1000;
+const ANALYZE_CACHE_MAX_ENTRIES = 120;
 const ANALYZE_RATE_LIMIT = {
   scope: "analyze" as const,
   limit: 45,
   windowSeconds: 60
 };
 
+type AnalyzeCacheEntry = {
+  expiresAt: number;
+  payload: unknown;
+};
+
 let analyzerEngine: ReturnType<typeof createEngine> | null = null;
+const analyzeResponseCache = new Map<string, AnalyzeCacheEntry>();
 
 function getAnalyzerEngine() {
   if (analyzerEngine) {
@@ -88,6 +96,16 @@ function parseDeckPriceMode(value: unknown): DeckPriceMode {
   return value === "decklist-set" ? "decklist-set" : "oracle-default";
 }
 
+function stableHashString(value: string): string {
+  let hash = 2166136261;
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+
+  return (hash >>> 0).toString(16);
+}
+
 function parseSetOverrides(
   value: unknown
 ): Map<string, { setCode: string; printingId: string | null }> {
@@ -126,6 +144,75 @@ function parseSetOverrides(
   }
 
   return overrides;
+}
+
+function stableSetOverrideKey(
+  overrides: Map<string, { setCode: string; printingId: string | null }>
+): string {
+  const rows = Array.from(overrides.entries())
+    .map(([cardName, row]) => `${cardName}:${row.setCode}:${row.printingId ?? ""}`)
+    .sort((a, b) => a.localeCompare(b));
+  return rows.join("|");
+}
+
+function buildAnalyzeCacheKey(input: {
+  decklist: string;
+  deckPriceMode: DeckPriceMode;
+  commanderName: string | null;
+  targetBracket: number | null;
+  expectedWinTurn: ExpectedWinTurn | null;
+  userCedhFlag: boolean;
+  userHighPowerNoGCFlag: boolean;
+  setOverrides: Map<string, { setCode: string; printingId: string | null }>;
+}): string {
+  const keySource = [
+    `deck:${input.decklist}`,
+    `price:${input.deckPriceMode}`,
+    `commander:${input.commanderName ?? ""}`,
+    `target:${input.targetBracket ?? ""}`,
+    `turn:${input.expectedWinTurn ?? ""}`,
+    `cedh:${input.userCedhFlag ? "1" : "0"}`,
+    `optimizedNoGc:${input.userHighPowerNoGCFlag ? "1" : "0"}`,
+    `setOverrides:${stableSetOverrideKey(input.setOverrides)}`
+  ].join("\n");
+
+  return `analyze:${stableHashString(keySource)}`;
+}
+
+function getCachedAnalyzePayload(cacheKey: string): unknown | null {
+  const now = Date.now();
+
+  for (const [key, entry] of analyzeResponseCache.entries()) {
+    if (entry.expiresAt <= now) {
+      analyzeResponseCache.delete(key);
+    }
+  }
+
+  const cached = analyzeResponseCache.get(cacheKey);
+  if (!cached) {
+    return null;
+  }
+
+  if (cached.expiresAt <= now) {
+    analyzeResponseCache.delete(cacheKey);
+    return null;
+  }
+
+  return cached.payload;
+}
+
+function setCachedAnalyzePayload(cacheKey: string, payload: unknown): void {
+  if (analyzeResponseCache.size >= ANALYZE_CACHE_MAX_ENTRIES) {
+    const oldestKey = analyzeResponseCache.keys().next().value;
+    if (typeof oldestKey === "string") {
+      analyzeResponseCache.delete(oldestKey);
+    }
+  }
+
+  analyzeResponseCache.set(cacheKey, {
+    expiresAt: Date.now() + ANALYZE_CACHE_TTL_MS,
+    payload
+  });
 }
 
 function normalizeLookupName(name: string): string {
@@ -361,6 +448,12 @@ export async function POST(request: Request) {
   }
 
   try {
+    const deckPriceMode = parseDeckPriceMode(payload.deckPriceMode);
+    const targetBracket = parseOptionalBracket(payload.targetBracket);
+    const expectedWinTurn = parseExpectedWinTurn(payload.expectedWinTurn);
+    const manualCommanderName = parseCommanderName(payload.commanderName);
+    const userCedhFlag = Boolean(payload.userCedhFlag);
+    const userHighPowerNoGCFlag = Boolean(payload.userHighPowerNoGCFlag);
     const { entries: parsedDeck, commanderFromSection } = parseDecklistWithCommander(decklist);
     if (parsedDeck.length === 0) {
       return apiJson(
@@ -370,6 +463,22 @@ export async function POST(request: Request) {
     }
 
     const setOverridesByCardName = parseSetOverrides(payload.setOverrides);
+    const selectedCommanderForCache = commanderFromSection ?? manualCommanderName ?? null;
+    const cacheKey = buildAnalyzeCacheKey({
+      decklist,
+      deckPriceMode,
+      commanderName: selectedCommanderForCache,
+      targetBracket,
+      expectedWinTurn,
+      userCedhFlag,
+      userHighPowerNoGCFlag,
+      setOverrides: setOverridesByCardName
+    });
+    const cachedPayload = getCachedAnalyzePayload(cacheKey);
+    if (cachedPayload) {
+      return apiJson(cachedPayload, { status: 200, requestId, headers: rateLimitHeaders });
+    }
+
     const effectiveParsedDeck = parsedDeck.map((entry) => {
       const override = setOverridesByCardName.get(normalizeLookupName(entry.name));
       if (!override) {
@@ -391,7 +500,6 @@ export async function POST(request: Request) {
     });
 
     const inputDeckSize = effectiveParsedDeck.reduce((sum, card) => sum + card.qty, 0);
-    const deckPriceMode = parseDeckPriceMode(payload.deckPriceMode);
     const requestedSetCodeByCardName = new Map(
       effectiveParsedDeck.map((entry) => [entry.name.toLowerCase(), entry.setCode?.toLowerCase() ?? null])
     );
@@ -463,7 +571,6 @@ export async function POST(request: Request) {
       ).values()
     ].sort((a, b) => a.name.localeCompare(b.name));
 
-    const manualCommanderName = parseCommanderName(payload.commanderName);
     const selectedCommanderName =
       commanderFromSection ?? (!commanderFromSection && manualCommanderName ? manualCommanderName : null);
     const commanderSource = commanderFromSection
@@ -670,16 +777,11 @@ export async function POST(request: Request) {
         "Suggestions prioritize staple options, then backfill from Commander-legal engine-classified cards in your color identity. Existing deck cards are excluded."
     };
 
-    const userCedhFlag = Boolean(payload.userCedhFlag);
-    const userHighPowerNoGCFlag = Boolean(payload.userHighPowerNoGCFlag);
     const estimate = estimateBracket({
       gcCount,
       userCedhFlag,
       userHighPowerNoGCFlag
     });
-
-    const targetBracket = parseOptionalBracket(payload.targetBracket);
-    const expectedWinTurn = parseExpectedWinTurn(payload.expectedWinTurn);
 
     const explanation = buildBracketExplanation({
       estimate,
@@ -708,66 +810,65 @@ export async function POST(request: Request) {
     };
 
     // Preserve parsed deck size/unique count even when some cards are unresolved.
-    return apiJson(
-      {
-        schemaVersion: "1.0",
-        input: {
-          deckPriceMode,
-          targetBracket,
-          expectedWinTurn,
-          commanderName: selectedCommanderName,
-          userCedhFlag,
-          userHighPowerNoGCFlag
-        },
-        commander: {
-          detectedFromSection: commanderFromSection,
-          selectedName: selectedCommanderCard?.name ?? selectedCommanderName,
-          selectedColorIdentity: selectedCommanderCard?.color_identity ?? [],
-          selectedManaCost: getPreferredManaCost(selectedCommanderCard),
-          selectedCmc:
-            typeof selectedCommanderCard?.cmc === "number" && Number.isFinite(selectedCommanderCard.cmc)
-              ? selectedCommanderCard.cmc
-              : null,
-          selectedArtUrl: getPreferredArtUrl(selectedCommanderCard),
-          selectedCardImageUrl: getPreferredCardPreviewUrl(selectedCommanderCard),
-          selectedSetCode:
-            typeof selectedCommanderCard?.set === "string" && selectedCommanderCard.set
-              ? selectedCommanderCard.set
-              : selectedCommanderOverride?.setCode ?? null,
-          selectedCollectorNumber:
-            typeof selectedCommanderCard?.collector_number === "string" &&
-            selectedCommanderCard.collector_number
-              ? selectedCommanderCard.collector_number
-              : null,
-          selectedPrintingId:
-            typeof selectedCommanderCard?.id === "string" && selectedCommanderCard.id
-              ? selectedCommanderCard.id
-              : selectedCommanderOverride?.printingId ?? null,
-          source: commanderSource,
-          options: commanderOptions,
-          needsManualSelection: !commanderFromSection && !selectedCommanderName && commanderOptions.length > 0
-        },
-        parsedDeck: parsedDeckView,
-        unknownCards,
-        summary: roundedSummary,
-        metrics: roundedSummary,
-        roles,
-        roleBreakdown,
-        tutorSummary,
-        checks,
-        rulesEngine,
-        deckHealth,
-        deckPrice,
-        openingHandSimulation,
-        archetypeReport,
-        comboReport,
-        ruleZero,
-        improvementSuggestions,
-        warnings: [...new Set([...deckHealth.warnings, ...explanation.warnings])],
-        bracketReport
+    const responsePayload = {
+      schemaVersion: "1.0",
+      input: {
+        deckPriceMode,
+        targetBracket,
+        expectedWinTurn,
+        commanderName: selectedCommanderName,
+        userCedhFlag,
+        userHighPowerNoGCFlag
       },
-      { status: 200, requestId, headers: rateLimitHeaders }
-    );
+      commander: {
+        detectedFromSection: commanderFromSection,
+        selectedName: selectedCommanderCard?.name ?? selectedCommanderName,
+        selectedColorIdentity: selectedCommanderCard?.color_identity ?? [],
+        selectedManaCost: getPreferredManaCost(selectedCommanderCard),
+        selectedCmc:
+          typeof selectedCommanderCard?.cmc === "number" && Number.isFinite(selectedCommanderCard.cmc)
+            ? selectedCommanderCard.cmc
+            : null,
+        selectedArtUrl: getPreferredArtUrl(selectedCommanderCard),
+        selectedCardImageUrl: getPreferredCardPreviewUrl(selectedCommanderCard),
+        selectedSetCode:
+          typeof selectedCommanderCard?.set === "string" && selectedCommanderCard.set
+            ? selectedCommanderCard.set
+            : selectedCommanderOverride?.setCode ?? null,
+        selectedCollectorNumber:
+          typeof selectedCommanderCard?.collector_number === "string" &&
+          selectedCommanderCard.collector_number
+            ? selectedCommanderCard.collector_number
+            : null,
+        selectedPrintingId:
+          typeof selectedCommanderCard?.id === "string" && selectedCommanderCard.id
+            ? selectedCommanderCard.id
+            : selectedCommanderOverride?.printingId ?? null,
+        source: commanderSource,
+        options: commanderOptions,
+        needsManualSelection: !commanderFromSection && !selectedCommanderName && commanderOptions.length > 0
+      },
+      parsedDeck: parsedDeckView,
+      unknownCards,
+      summary: roundedSummary,
+      metrics: roundedSummary,
+      roles,
+      roleBreakdown,
+      tutorSummary,
+      checks,
+      rulesEngine,
+      deckHealth,
+      deckPrice,
+      openingHandSimulation,
+      archetypeReport,
+      comboReport,
+      ruleZero,
+      improvementSuggestions,
+      warnings: [...new Set([...deckHealth.warnings, ...explanation.warnings])],
+      bracketReport
+    };
+    setCachedAnalyzePayload(cacheKey, responsePayload);
+    return apiJson(responsePayload, { status: 200, requestId, headers: rateLimitHeaders });
   } catch (error) {
     reportApiError(error, {
       requestId,
