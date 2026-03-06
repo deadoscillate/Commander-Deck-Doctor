@@ -5,7 +5,9 @@ export const runtime = "nodejs";
 
 type ScryfallSearchCardFace = {
   image_uris?: {
+    large?: string;
     normal?: string;
+    png?: string;
   };
 };
 
@@ -17,7 +19,9 @@ type ScryfallSearchCard = {
   collector_number?: string;
   released_at?: string;
   image_uris?: {
+    large?: string;
     normal?: string;
+    png?: string;
   };
   card_faces?: ScryfallSearchCardFace[];
 };
@@ -190,8 +194,12 @@ export async function GET(request: Request) {
           typeof row.collector_number === "string" ? row.collector_number.trim() : "";
         const releasedAt = typeof row.released_at === "string" ? row.released_at.trim() : null;
         const imageUrl =
+          row.image_uris?.large ??
           row.image_uris?.normal ??
+          row.image_uris?.png ??
+          row.card_faces?.[0]?.image_uris?.large ??
           row.card_faces?.[0]?.image_uris?.normal ??
+          row.card_faces?.[0]?.image_uris?.png ??
           null;
         if (!id || !cardName || !setCode || !setName || !collectorNumber) {
           return null;

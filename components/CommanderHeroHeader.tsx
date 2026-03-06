@@ -17,9 +17,15 @@ export function CommanderHeroHeader({
   archetypeLabel,
   bracketLabel
 }: CommanderHeroHeaderProps) {
+  const heroArtStyle = commander.artUrl
+    ? {
+        backgroundImage: `url("${commander.artUrl}")`
+      }
+    : undefined;
+
   const backgroundStyle = commander.artUrl
     ? {
-        backgroundImage: `linear-gradient(120deg, rgba(8, 13, 18, 0.9) 0%, rgba(8, 13, 18, 0.58) 48%, rgba(8, 13, 18, 0.86) 100%), url("${commander.artUrl}")`
+        backgroundImage: `radial-gradient(circle at 12% 22%, rgba(255, 236, 190, 0.18), transparent 42%), linear-gradient(120deg, rgba(10, 15, 20, 0.92) 0%, rgba(10, 15, 20, 0.62) 48%, rgba(10, 15, 20, 0.86) 100%), url("${commander.artUrl}")`
       }
     : {
         backgroundImage:
@@ -28,6 +34,11 @@ export function CommanderHeroHeader({
 
   return (
     <section className="commander-hero" style={backgroundStyle}>
+      {commander.artUrl ? (
+        <div className="commander-hero-art" aria-hidden="true">
+          <div className="commander-hero-art-image" style={heroArtStyle} />
+        </div>
+      ) : null}
       <div className="commander-hero-content">
         <p className="commander-hero-kicker">Commander</p>
         <h2 className="commander-hero-title">
