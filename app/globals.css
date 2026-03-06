@@ -1598,6 +1598,10 @@ button:disabled {
 .suggestion-card,
 .decklist-preview,
 .printing-modal,
+.role-bar-row,
+.check-item,
+.sandbox-stack-item,
+.sandbox-log-list,
 .card-hover-preview {
   border-color: #33465a;
   background: linear-gradient(145deg, rgba(14, 22, 34, 0.9), rgba(17, 28, 43, 0.84));
@@ -1675,6 +1679,24 @@ select:focus {
   color: #d6e3f1;
 }
 
+.check-ok .check-pill {
+  background: #1d3526;
+  border-color: #3d6b4d;
+  color: #bceecb;
+}
+
+.check-warn .check-pill {
+  background: #3d2619;
+  border-color: #86553d;
+  color: #ffd8bf;
+}
+
+.check-pending .check-pill {
+  background: #202a35;
+  border-color: #4c5f73;
+  color: #c0d1e3;
+}
+
 .status-badge-low {
   background: #3d2619;
   border-color: #86553d;
@@ -1699,6 +1721,18 @@ select:focus {
   color: #cedcff;
 }
 
+.status-low {
+  background: #3d2619;
+}
+
+.status-high {
+  background: #1f2a3e;
+}
+
+.status-ok {
+  background: transparent;
+}
+
 .detected-card-tile {
   border-color: #34475d;
   background: linear-gradient(180deg, #111b28, #0d1622);
@@ -1707,6 +1741,18 @@ select:focus {
 .detected-card-image-fallback {
   background: #162335;
   color: #d6e4f3;
+}
+
+.gc-badge {
+  background: #3b321d;
+  border-color: #8a7441;
+  color: #ffe8b3;
+}
+
+.unknown-badge {
+  background: #3a2621;
+  border-color: #85594f;
+  color: #ffd5cb;
 }
 
 ul {
@@ -2431,4 +2477,89 @@ ul {
   .sandbox-playarea-grid {
     grid-template-columns: 1fr;
   }
+}
+
+/* Final dark surface pass for late-defined components. */
+.snapshot-card,
+.table-talk-item,
+.impact-item,
+.sandbox-panel,
+.sandbox-howto,
+.sandbox-setup-player-card,
+.sandbox-player-card,
+.sandbox-permanent-chip,
+.sandbox-seat-card,
+.sandbox-card-image-tile,
+.sandbox-stack-item,
+.sandbox-log-list,
+.sandbox-modal,
+.sandbox-choice-option,
+.simulations-details {
+  border-color: #33465a;
+  background: linear-gradient(145deg, rgba(14, 22, 34, 0.9), rgba(17, 28, 43, 0.84));
+}
+
+.sandbox-setup-feedback,
+.sandbox-replay-warning {
+  border-color: #855840;
+  background: linear-gradient(145deg, rgba(58, 34, 24, 0.9), rgba(43, 29, 24, 0.84));
+  color: #ffd8bf;
+}
+
+.sandbox-stack-item-top,
+.sandbox-permanent-chip-selected,
+.sandbox-zone-chip-selected,
+.sandbox-card-image-tile-selected,
+.sandbox-choice-option-selected,
+.sandbox-log-entry-selected {
+  border-color: #a56b34;
+  background: linear-gradient(145deg, rgba(57, 35, 24, 0.9), rgba(44, 30, 24, 0.84));
+}
+
+.sandbox-log-entry:hover {
+  border-color: #3a4d61;
+  background: #1b2838;
+}
+
+.sandbox-zone-chip,
+.sandbox-btn-muted,
+.info-pill {
+  border-color: #3a4d61;
+  background: #172233;
+  color: #d6e3f1;
+}
+
+.tuning-summary {
+  border-color: #4f6680;
+  background: #1d2c3d;
+  color: #d4e7ff;
+}
+
+.role-bar-track,
+.sim-bar-track {
+  background: #2a3340;
+}
+
+.impact-badge-warn {
+  background: #3d2619;
+  border-color: #86553d;
+  color: #ffd8bf;
+}
+
+.impact-badge-info {
+  background: #1f2a3e;
+  border-color: #4e628f;
+  color: #cedcff;
+}
+
+.decklist-preview-set-chip {
+  border-color: #4d6077;
+  background: #1a293a;
+  color: #d2e5f9;
+}
+
+.detected-card-sellers a {
+  color: #9fd0ff;
+  border-color: #456080;
+  background: #1a2b3e;
 }
