@@ -111,6 +111,15 @@ function formatTix(value: number | null): string {
   return `${value.toFixed(2)} tix`;
 }
 
+function cardKingdomSearchUrl(cardName: string): string | null {
+  const trimmed = cardName.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  return `https://www.cardkingdom.com/catalog/search?search=header&filter[name]=${encodeURIComponent(trimmed)}`;
+}
+
 function toRatio(value: unknown): number {
   return typeof value === "number" && Number.isFinite(value) ? Math.max(0, Math.min(1, value)) : 0;
 }
@@ -845,7 +854,8 @@ export function AnalysisReport({ result, onOpenPrintingPicker }: AnalysisReportP
             const usdFoilPrice = entry.prices?.usdFoil ?? null;
             const usdEtchedPrice = entry.prices?.usdEtched ?? null;
             const tcgplayerLink = entry.sellerLinks?.tcgplayer ?? null;
-            const cardKingdomLink = entry.sellerLinks?.cardKingdom ?? null;
+            const cardName = cardLabel(entry);
+            const cardKingdomLink = entry.sellerLinks?.cardKingdom ?? cardKingdomSearchUrl(cardName);
 
             return (
               <article className="detected-card-tile" key={entry.name.toLowerCase()}>
@@ -856,12 +866,12 @@ export function AnalysisReport({ result, onOpenPrintingPicker }: AnalysisReportP
                   />
                 ) : (
                   <div className="detected-card-image-fallback">
-                    <span>{cardLabel(entry)}</span>
+                    <span>{cardName}</span>
                   </div>
                 )}
                 <div className="detected-card-meta">
                   <p className="detected-card-name">
-                    <CardNameHover name={cardLabel(entry)} />
+                    <CardNameHover name={cardName} />
                   </p>
                   <p className="detected-card-qty">Qty {entry.qty}</p>
                   <div className="detected-card-badges">
