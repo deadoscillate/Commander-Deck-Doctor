@@ -496,17 +496,11 @@ button:disabled {
 
 .commander-hero {
   position: relative;
-  min-height: 240px;
+  min-height: 224px;
   border: 1px solid #243343;
   border-radius: 20px;
-  background-size: cover;
-  background-position: center;
   overflow: hidden;
-  display: grid;
-  grid-template-columns: minmax(132px, 180px) minmax(0, 1fr);
-  gap: 0.95rem;
-  align-items: center;
-  padding: 1rem;
+  padding: 0.95rem;
   box-shadow: var(--shadow-md);
 }
 
@@ -519,23 +513,24 @@ button:disabled {
 }
 
 .commander-hero-art {
-  position: relative;
-  z-index: 1;
-  width: 100%;
-  max-width: 168px;
-  justify-self: center;
-  border-radius: 14px;
+  position: absolute;
+  top: 0.82rem;
+  right: 0.82rem;
+  z-index: 2;
+  width: 128px;
+  border-radius: 12px;
   overflow: hidden;
   border: 1px solid #9db2c61f;
-  box-shadow: 0 14px 28px #00000040;
+  box-shadow: 0 12px 24px #00000044;
 }
 
 .commander-hero-art-image {
   display: block;
   width: 100%;
-  aspect-ratio: 0.72;
+  aspect-ratio: 1.33;
   background-size: cover;
   background-position: center;
+  background-repeat: no-repeat;
 }
 
 .commander-hero-content {
@@ -550,7 +545,7 @@ button:disabled {
   background: #0f171fc2;
   backdrop-filter: blur(6px);
   color: #f6f9fc;
-  max-width: min(100%, 720px);
+  max-width: min(calc(100% - 152px), 760px);
   border: 1px solid #92acc433;
 }
 
@@ -863,19 +858,18 @@ button:disabled {
 
 @media (max-width: 960px) {
   .commander-hero {
-    min-height: 208px;
-    grid-template-columns: 1fr;
-    justify-items: center;
-    gap: 0.7rem;
+    min-height: 196px;
     padding: 0.8rem;
   }
 
   .commander-hero-art {
-    max-width: 138px;
+    width: 104px;
+    top: 0.62rem;
+    right: 0.62rem;
   }
 
   .commander-hero-content {
-    max-width: 100%;
+    max-width: calc(100% - 122px);
     width: 100%;
   }
 
@@ -1192,6 +1186,72 @@ button:disabled {
 
 .detected-cards {
   margin-top: 0.5rem;
+}
+
+.detected-cards-grid {
+  margin-top: 0.55rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(158px, 1fr));
+  gap: 0.62rem;
+}
+
+.detected-card-tile {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: linear-gradient(180deg, #ffffff, #f5f9ff);
+  overflow: hidden;
+  box-shadow: 0 8px 16px #0f17240f;
+}
+
+.detected-card-image {
+  width: 100%;
+  aspect-ratio: 0.72;
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-color: #101923;
+}
+
+.detected-card-image-fallback {
+  width: 100%;
+  aspect-ratio: 0.72;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 0.45rem;
+  background: #e9eef4;
+  color: #33495e;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.detected-card-meta {
+  padding: 0.52rem 0.58rem 0.6rem;
+}
+
+.detected-card-name {
+  margin: 0;
+  font-weight: 700;
+  line-height: 1.22;
+}
+
+.detected-card-qty {
+  margin: 0.24rem 0 0;
+  color: var(--ink-muted);
+  font-size: 0.78rem;
+}
+
+.detected-card-badges {
+  margin-top: 0.34rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.28rem;
+}
+
+.detected-card-badges .gc-badge,
+.detected-card-badges .unknown-badge {
+  margin-left: 0;
 }
 
 .decklist-preview-toggle {
