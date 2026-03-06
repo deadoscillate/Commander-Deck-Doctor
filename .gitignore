@@ -12,3 +12,4 @@ backups/
 .vercel
 data/scryfall/*
 !data/scryfall/oracle-cards.compiled.json
+data/spellbook/*

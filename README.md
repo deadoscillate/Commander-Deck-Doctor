@@ -20,6 +20,7 @@ Commander deck analysis app built with Next.js + TypeScript.
 ```bash
 npm install
 npm run scryfall:update
+npm run spellbook:update
 npm run dev
 ```
 
@@ -51,6 +52,21 @@ Notes:
 
 - Raw Oracle downloads are ignored by git.
 - Engine/tests do not require Scryfall network access at runtime.
+
+## Combo Data (Commander Spellbook Snapshot)
+
+The analyzer reads combos from a local snapshot file:
+
+- `lib/combos.json`
+
+Update pipeline:
+
+```bash
+npm run spellbook:update
+```
+
+This runs download + compile from Commander Spellbook backend API into a local offline snapshot.
+Runtime/tests do not call Commander Spellbook.
 
 ## Pricing And Printing Selection
 

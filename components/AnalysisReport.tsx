@@ -548,7 +548,7 @@ export function AnalysisReport({ result }: AnalysisReportProps) {
   const comboReport = result.comboReport ?? {
     detected: [],
     databaseSize: 0,
-    disclaimer: "Combo detection uses a curated static combo database."
+    disclaimer: "Combo detection uses an offline Commander Spellbook-derived combo snapshot."
   };
   const ruleZero = normalizeRuleZero(result);
   const roleBreakdown = normalizeRoleBreakdown(result);
@@ -984,7 +984,11 @@ export function AnalysisReport({ result }: AnalysisReportProps) {
               <ul>
                 {comboReport.detected.map((combo) => (
                   <li key={combo.comboName}>
-                    <strong>{combo.comboName}</strong>:{" "}
+                    <strong>{combo.comboName}</strong>{" "}
+                    <a href={combo.commanderSpellbookUrl} target="_blank" rel="noreferrer noopener">
+                      [Commander Spellbook]
+                    </a>
+                    :{" "}
                     {combo.cards.map((cardName, index) => (
                       <span key={`${combo.comboName}-${cardName}`}>
                         <CardNameHover name={cardName} />

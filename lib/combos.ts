@@ -1,8 +1,11 @@
 import rawComboDb from "./combos.json";
 
+const COMMANDER_SPELLBOOK_SEARCH_URL = "https://commanderspellbook.com/search/";
+
 export type ComboDefinition = {
   comboName: string;
   cards: string[];
+  commanderSpellbookUrl: string;
 };
 
 export type DetectedCombo = ComboDefinition & {
@@ -18,6 +21,7 @@ export type ComboReport = {
 type RawComboDefinition = {
   combo_name?: unknown;
   cards?: unknown;
+  commander_spellbook_url?: unknown;
 };
 
 function normalizeLookupName(name: string): string {
@@ -26,6 +30,30 @@ function normalizeLookupName(name: string): string {
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
     .replace(/[^a-z0-9]/g, "");
+}
+
+function buildCommanderSpellbookSearchUrl(comboName: string, cards: string[]): string {
+  const query = cards.length > 0 ? cards.join(" ") : comboName;
+  const url = new URL(COMMANDER_SPELLBOOK_SEARCH_URL);
+  url.searchParams.set("q", query);
+  return url.toString();
+}
+
+function normalizeCommanderSpellbookUrl(value: unknown): string | null {
+  if (typeof value !== "string" || !value.trim()) {
+    return null;
+  }
+
+  try {
+    const url = new URL(value.trim());
+    if (url.hostname !== "commanderspellbook.com" && url.hostname !== "www.commanderspellbook.com") {
+      return null;
+    }
+
+    return url.toString();
+  } catch {
+    return null;
+  }
 }
 
 function normalizeComboDb(raw: unknown): ComboDefinition[] {
@@ -52,7 +80,10 @@ function normalizeComboDb(raw: unknown): ComboDefinition[] {
 
     combos.push({
       comboName,
-      cards
+      cards,
+      commanderSpellbookUrl:
+        normalizeCommanderSpellbookUrl(candidate.commander_spellbook_url) ??
+        buildCommanderSpellbookSearchUrl(comboName, cards)
     });
   }
 
@@ -100,6 +131,7 @@ export function detectCombosInDeck(deckCardNames: string[]): ComboReport {
       detected.push({
         comboName: combo.comboName,
         cards: combo.cards,
+        commanderSpellbookUrl: combo.commanderSpellbookUrl,
         matchedCards
       });
     }
@@ -108,7 +140,7 @@ export function detectCombosInDeck(deckCardNames: string[]): ComboReport {
   return {
     detected,
     databaseSize: COMBO_DATABASE.length,
-    disclaimer: "Combo detection uses a curated static combo database."
+    disclaimer: "Combo detection uses an offline Commander Spellbook-derived combo snapshot."
   };
 }
 
