@@ -483,15 +483,22 @@ export async function POST(request: Request) {
         )?.card
       : null;
 
-    const selectedCommanderCard =
-      knownCommander ??
-      (selectedCommanderName
-        ? selectedCommanderOverride?.printingId
-          ? await getCardById(selectedCommanderOverride.printingId)
-          : selectedCommanderOverride?.setCode
-            ? await getCardByNameWithSet(selectedCommanderName, selectedCommanderOverride.setCode)
-            : await getCardByName(selectedCommanderName)
-        : null);
+    let selectedCommanderCard: ScryfallCard | null = knownCommander ?? null;
+    if (selectedCommanderName) {
+      if (selectedCommanderOverride?.printingId) {
+        selectedCommanderCard =
+          (await getCardById(selectedCommanderOverride.printingId)) ??
+          knownCommander ??
+          (await getCardByName(selectedCommanderName));
+      } else if (selectedCommanderOverride?.setCode) {
+        selectedCommanderCard =
+          (await getCardByNameWithSet(selectedCommanderName, selectedCommanderOverride.setCode)) ??
+          knownCommander ??
+          (await getCardByName(selectedCommanderName));
+      } else if (!selectedCommanderCard) {
+        selectedCommanderCard = await getCardByName(selectedCommanderName);
+      }
+    }
 
     const colorIdentityCheck = selectedCommanderCard
       ? buildColorIdentityCheck(

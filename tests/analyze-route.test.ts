@@ -371,4 +371,73 @@ describe("POST /api/analyze", () => {
     expect(getCardByIdMock).toHaveBeenCalledWith("test-printing-id-atraxa");
     expect(body.commander?.selectedArtUrl).toBe("https://img.test/atraxa-secret-lair-art.jpg");
   });
+
+  it("prioritizes commander printing override even when commander exists in known cards", async () => {
+    const getCardByIdMock = vi.fn(async () =>
+      buildCard({
+        name: "Atraxa, Praetors' Voice",
+        type_line: "Legendary Creature - Angel Horror",
+        cmc: 4,
+        mana_cost: "{G}{W}{U}{B}",
+        colors: ["G", "W", "U", "B"],
+        color_identity: ["G", "W", "U", "B"],
+        image_uris: {
+          art_crop: "https://img.test/atraxa-override-art.jpg",
+          normal: "https://img.test/atraxa-override-card.jpg"
+        }
+      })
+    );
+
+    vi.doMock("@/lib/scryfall", () => ({
+      fetchDeckCards: vi.fn(async () => ({
+        knownCards: [
+          {
+            name: "Atraxa, Praetors' Voice",
+            qty: 1,
+            card: buildCard({
+              name: "Atraxa, Praetors' Voice",
+              type_line: "Legendary Creature - Angel Horror",
+              cmc: 4,
+              mana_cost: "{G}{W}{U}{B}",
+              colors: ["G", "W", "U", "B"],
+              color_identity: ["G", "W", "U", "B"],
+              image_uris: {
+                art_crop: "https://img.test/atraxa-default-art.jpg",
+                normal: "https://img.test/atraxa-default-card.jpg"
+              }
+            })
+          }
+        ],
+        unknownCards: []
+      })),
+      getCardById: getCardByIdMock,
+      getCardByName: vi.fn(async () => null),
+      getCardByNameWithSet: vi.fn(async () => null)
+    }));
+
+    const { POST } = await import("@/app/api/analyze/route");
+    const response = await POST(
+      buildRequest({
+        decklist: "Commander\n1 Atraxa, Praetors' Voice\n1 Sol Ring",
+        deckPriceMode: "decklist-set",
+        setOverrides: {
+          "Atraxa, Praetors' Voice": {
+            setCode: "SLD",
+            printingId: "override-printing-id"
+          }
+        }
+      })
+    );
+    const body = (await response.json()) as {
+      commander?: {
+        selectedArtUrl?: string | null;
+        selectedCardImageUrl?: string | null;
+      };
+    };
+
+    expect(response.status).toBe(200);
+    expect(getCardByIdMock).toHaveBeenCalledWith("override-printing-id");
+    expect(body.commander?.selectedArtUrl).toBe("https://img.test/atraxa-override-art.jpg");
+    expect(body.commander?.selectedCardImageUrl).toBe("https://img.test/atraxa-override-card.jpg");
+  });
 });

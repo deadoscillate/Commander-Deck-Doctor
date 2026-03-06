@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { engineClient } from "@/lib/engineClient";
 import type { GoldfishSimulationResult, OpeningHandSimulationResult } from "@/engine";
+import type { OpeningHandSimulationReport } from "@/lib/contracts";
 
 type DeckRow = {
   name: string;
@@ -13,6 +14,7 @@ type DeckRow = {
 type SimulationsSectionProps = {
   deck: DeckRow[];
   commanderName: string | null;
+  initialSummary?: OpeningHandSimulationReport | null;
 };
 
 function percent(value: number): string {
@@ -32,7 +34,7 @@ function createSeed(): string {
   return `sandbox-${Date.now()}`;
 }
 
-export function SimulationsSection({ deck, commanderName }: SimulationsSectionProps) {
+export function SimulationsSection({ deck, commanderName, initialSummary = null }: SimulationsSectionProps) {
   const [runs, setRuns] = useState(100);
   const [advancedSeed, setAdvancedSeed] = useState(false);
   const [seedInput, setSeedInput] = useState("report-sim");
@@ -96,89 +98,125 @@ export function SimulationsSection({ deck, commanderName }: SimulationsSectionPr
   }
 
   return (
-    <section>
-      <details className="simulations-details">
-        <summary>Simulations</summary>
-        <p className="muted">Run deterministic engine sims for opening hand quality and simplified goldfish pacing.</p>
+    <section className="simulations-details">
+      <p className="muted">Run deterministic engine sims for opening hand quality and simplified goldfish pacing.</p>
 
-        <div className="sim-controls">
-          <label htmlFor="sim-runs">Runs</label>
-          <select id="sim-runs" value={runs} onChange={(event) => setRuns(Number(event.target.value))}>
-            <option value={100}>100</option>
-            <option value={1000}>1000</option>
-            <option value={5000}>5000</option>
-          </select>
-          <label className="checkbox" htmlFor="sim-seed-toggle">
-            <input
-              id="sim-seed-toggle"
-              type="checkbox"
-              checked={advancedSeed}
-              onChange={(event) => setAdvancedSeed(event.target.checked)}
-            />
-            Advanced seed
-          </label>
-          {advancedSeed ? (
-            <input
-              type="text"
-              value={seedInput}
-              onChange={(event) => setSeedInput(event.target.value)}
-              placeholder="report-sim"
-            />
-          ) : null}
-          <button type="button" onClick={() => void runSimulations()} disabled={loading}>
-            {loading ? "Running..." : "Run Simulations"}
-          </button>
-        </div>
-
-        {error ? <p className="error">{error}</p> : null}
-
-        {openingResult ? (
+      {!openingResult && initialSummary ? (
+        <>
           <div className="summary-grid sim-grid">
             <div className="summary-card">
               <span>Playable Hands</span>
-              <strong>{percent(openingResult.playableHandsPct)}</strong>
+              <strong>{percent(initialSummary.playablePct)}</strong>
               <div className="sim-bar-track">
-                <div className="sim-bar-fill" style={{ width: barWidth(openingResult.playableHandsPct) }} />
+                <div className="sim-bar-fill" style={{ width: barWidth(initialSummary.playablePct) }} />
               </div>
             </div>
             <div className="summary-card">
               <span>Dead Hands</span>
-              <strong>{percent(openingResult.deadHandsPct)}</strong>
+              <strong>{percent(initialSummary.deadPct)}</strong>
               <div className="sim-bar-track">
-                <div className="sim-bar-fill sim-bar-fill-warn" style={{ width: barWidth(openingResult.deadHandsPct) }} />
+                <div className="sim-bar-fill sim-bar-fill-warn" style={{ width: barWidth(initialSummary.deadPct) }} />
               </div>
             </div>
             <div className="summary-card">
-              <span>Ramp in Opening</span>
-              <strong>{percent(openingResult.rampInOpeningPct)}</strong>
+              <span>Ramp In Opening</span>
+              <strong>{percent(initialSummary.rampInOpeningPct)}</strong>
             </div>
             <div className="summary-card">
-              <span>Avg Lands in Opening</span>
-              <strong>{openingResult.avgLandsInOpening.toFixed(2)}</strong>
+              <span>Avg First Spell Turn</span>
+              <strong>{asTurn(initialSummary.averageFirstSpellTurn)}</strong>
             </div>
-            {goldfishResult ? (
-              <>
-                <div className="summary-card">
-                  <span>Avg First Spell</span>
-                  <strong>{asTurn(goldfishResult.avgFirstSpellTurn)}</strong>
-                </div>
-                <div className="summary-card">
-                  <span>Avg Commander Cast</span>
-                  <strong>{asTurn(goldfishResult.avgCommanderCastTurn)}</strong>
-                </div>
-                <div className="summary-card">
-                  <span>Avg Mana by Turn 3</span>
-                  <strong>{goldfishResult.avgManaByTurn3.toFixed(2)}</strong>
-                </div>
-              </>
-            ) : null}
+            <div className="summary-card">
+              <span>Estimated Commander Cast</span>
+              <strong>{asTurn(initialSummary.estimatedCommanderCastTurn)}</strong>
+            </div>
           </div>
-        ) : null}
+          <p className="muted deck-price-meta">
+            {initialSummary.simulations} simulations | modeled cards: {initialSummary.totalDeckSize} (lands{" "}
+            {initialSummary.cardCounts.lands}, ramp {initialSummary.cardCounts.rampCards}, rocks{" "}
+            {initialSummary.cardCounts.manaRocks}, unknown {initialSummary.unknownCardCount})
+          </p>
+          <p className="muted">{initialSummary.disclaimer}</p>
+        </>
+      ) : null}
 
-        <p className="muted">
-          Simulation coverage currently uses the engine card set/templates. Cards not in the engine registry are ignored.
-        </p>
-      </details>
+      <div className="sim-controls">
+        <label htmlFor="sim-runs">Runs</label>
+        <select id="sim-runs" value={runs} onChange={(event) => setRuns(Number(event.target.value))}>
+          <option value={100}>100</option>
+          <option value={1000}>1000</option>
+          <option value={5000}>5000</option>
+        </select>
+        <label className="checkbox" htmlFor="sim-seed-toggle">
+          <input
+            id="sim-seed-toggle"
+            type="checkbox"
+            checked={advancedSeed}
+            onChange={(event) => setAdvancedSeed(event.target.checked)}
+          />
+          Advanced seed
+        </label>
+        {advancedSeed ? (
+          <input
+            type="text"
+            value={seedInput}
+            onChange={(event) => setSeedInput(event.target.value)}
+            placeholder="report-sim"
+          />
+        ) : null}
+        <button type="button" onClick={() => void runSimulations()} disabled={loading}>
+          {loading ? "Running..." : "Run Simulations"}
+        </button>
+      </div>
+
+      {error ? <p className="error">{error}</p> : null}
+
+      {openingResult ? (
+        <div className="summary-grid sim-grid">
+          <div className="summary-card">
+            <span>Playable Hands</span>
+            <strong>{percent(openingResult.playableHandsPct)}</strong>
+            <div className="sim-bar-track">
+              <div className="sim-bar-fill" style={{ width: barWidth(openingResult.playableHandsPct) }} />
+            </div>
+          </div>
+          <div className="summary-card">
+            <span>Dead Hands</span>
+            <strong>{percent(openingResult.deadHandsPct)}</strong>
+            <div className="sim-bar-track">
+              <div className="sim-bar-fill sim-bar-fill-warn" style={{ width: barWidth(openingResult.deadHandsPct) }} />
+            </div>
+          </div>
+          <div className="summary-card">
+            <span>Ramp in Opening</span>
+            <strong>{percent(openingResult.rampInOpeningPct)}</strong>
+          </div>
+          <div className="summary-card">
+            <span>Avg Lands in Opening</span>
+            <strong>{openingResult.avgLandsInOpening.toFixed(2)}</strong>
+          </div>
+          {goldfishResult ? (
+            <>
+              <div className="summary-card">
+                <span>Avg First Spell</span>
+                <strong>{asTurn(goldfishResult.avgFirstSpellTurn)}</strong>
+              </div>
+              <div className="summary-card">
+                <span>Avg Commander Cast</span>
+                <strong>{asTurn(goldfishResult.avgCommanderCastTurn)}</strong>
+              </div>
+              <div className="summary-card">
+                <span>Avg Mana by Turn 3</span>
+                <strong>{goldfishResult.avgManaByTurn3.toFixed(2)}</strong>
+              </div>
+            </>
+          ) : null}
+        </div>
+      ) : null}
+
+      <p className="muted">
+        Simulation coverage currently uses the engine card set/templates. Cards not in the engine registry are ignored.
+      </p>
     </section>
   );
 }
