@@ -914,8 +914,35 @@ export function AnalysisReport({ result }: AnalysisReportProps) {
 
       <section hidden={activeTab !== "cards"} id="report-panel-cards" role="tabpanel">
         <h2>Detected Cards</h2>
+        <p className="muted">Full preview tile set for resolved deck cards.</p>
+        <div className="detected-cards-grid">
+          {result.parsedDeck.map((entry) => (
+            <article className="detected-card-tile" key={entry.name.toLowerCase()}>
+              {entry.previewImageUrl ? (
+                <div
+                  className="detected-card-image"
+                  style={{ backgroundImage: `url("${entry.previewImageUrl}")` }}
+                />
+              ) : (
+                <div className="detected-card-image-fallback">
+                  <span>{cardLabel(entry)}</span>
+                </div>
+              )}
+              <div className="detected-card-meta">
+                <p className="detected-card-name">
+                  <CardNameHover name={cardLabel(entry)} />
+                </p>
+                <p className="detected-card-qty">Qty {entry.qty}</p>
+                <div className="detected-card-badges">
+                  {entry.isGameChanger ? <span className="gc-badge">{"\u2B50"} Game Changer</span> : null}
+                  {!entry.known ? <span className="unknown-badge">Unknown</span> : null}
+                </div>
+              </div>
+            </article>
+          ))}
+        </div>
         <details>
-          <summary>Show parsed cards ({result.parsedDeck.length})</summary>
+          <summary>Show text list ({result.parsedDeck.length})</summary>
           <ul className="detected-cards">
             {result.parsedDeck.map((entry) => (
               <li key={entry.name.toLowerCase()}>

@@ -33,6 +33,7 @@ export type ParsedDeckCard = {
   name: string;
   qty: number;
   resolvedName: string | null;
+  previewImageUrl: string | null;
   known: boolean;
   isGameChanger: boolean;
   gameChangerName: string | null;
