@@ -9,6 +9,12 @@
   --accent-soft: #ffe0d1;
   --line: #314355;
   --warning: #ff9a7e;
+  --btn-height: 2.5rem;
+  --btn-height-compact: 2.15rem;
+  --btn-font-size: 0.92rem;
+  --btn-font-size-compact: 0.82rem;
+  --btn-padding-x: 1.02rem;
+  --btn-padding-x-compact: 0.78rem;
   --shadow-sm: 0 12px 28px #00000052;
   --shadow-md: 0 18px 46px #00000066;
 }
@@ -245,6 +251,7 @@ input[type="url"] {
 .saved-deck-remove {
   border: 0;
   border-radius: 0;
+  min-height: 0;
   padding: 0;
   background: transparent;
   font: inherit;
@@ -286,7 +293,15 @@ input[type="url"] {
 button {
   border: 0;
   border-radius: 999px;
-  padding: 0.7rem 1.02rem;
+  min-height: var(--btn-height);
+  padding: 0.45rem var(--btn-padding-x);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  white-space: nowrap;
+  line-height: 1.1;
+  font-size: var(--btn-font-size);
   background: linear-gradient(120deg, var(--accent), #d56b36);
   color: white;
   font-weight: 700;
@@ -324,6 +339,7 @@ button:disabled {
   background: transparent;
   border: 0;
   border-radius: 0;
+  min-height: 0;
   padding: 0;
   box-shadow: none;
   color: #8c350f;
@@ -383,13 +399,14 @@ button:disabled {
 }
 
 .report-tab {
-  padding: 0.45rem 0.82rem;
+  min-height: var(--btn-height-compact);
+  padding: 0.32rem var(--btn-padding-x-compact);
   border-radius: 999px;
   border: 1px solid #bfd0df;
   background: #eef5fc;
   color: #2c465f;
   box-shadow: none;
-  font-size: 0.83rem;
+  font-size: var(--btn-font-size-compact);
 }
 
 .report-tab:hover {
@@ -446,8 +463,9 @@ button:disabled {
 }
 
 .export-actions button {
-  padding: 0.5rem 0.85rem;
-  font-size: 0.86rem;
+  min-height: var(--btn-height-compact);
+  padding: 0.36rem var(--btn-padding-x-compact);
+  font-size: var(--btn-font-size-compact);
 }
 
 .error-inline {
@@ -1394,8 +1412,9 @@ button:disabled {
 }
 
 .decklist-preview-printing-controls .btn-tertiary {
-  padding: 0.35rem 0.66rem;
-  font-size: 0.76rem;
+  min-height: var(--btn-height-compact);
+  padding: 0.3rem 0.68rem;
+  font-size: 0.78rem;
 }
 
 .decklist-preview-printing-label {
@@ -2085,8 +2104,9 @@ ul {
 }
 
 .sandbox-inline-actions button {
-  padding: 0.45rem 0.72rem;
-  font-size: 0.82rem;
+  min-height: var(--btn-height-compact);
+  padding: 0.34rem 0.7rem;
+  font-size: var(--btn-font-size-compact);
 }
 
 .sandbox-stack-list {
@@ -2151,6 +2171,7 @@ ul {
   flex-direction: column;
   gap: 0.14rem;
   width: 100%;
+  min-height: 0;
   text-align: left;
   border-radius: 8px;
   border: 1px solid transparent;
@@ -2227,8 +2248,9 @@ ul {
 
 .timeline-buttons button,
 .timeline-autoplay {
-  font-size: 0.83rem;
-  padding: 0.48rem 0.68rem;
+  min-height: var(--btn-height-compact);
+  font-size: var(--btn-font-size-compact);
+  padding: 0.34rem 0.7rem;
 }
 
 .timeline-autoplay {
@@ -2243,8 +2265,9 @@ ul {
 }
 
 .sandbox-step-controls button {
-  padding: 0.45rem 0.72rem;
-  font-size: 0.82rem;
+  min-height: var(--btn-height-compact);
+  padding: 0.34rem 0.7rem;
+  font-size: var(--btn-font-size-compact);
 }
 
 .sandbox-action-groups {
