@@ -496,10 +496,17 @@ button:disabled {
 
 .commander-hero {
   position: relative;
-  min-height: 224px;
+  min-height: 238px;
   border: 1px solid #243343;
   border-radius: 20px;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
   overflow: hidden;
+  display: grid;
+  grid-template-columns: minmax(120px, 170px) minmax(0, 1fr);
+  align-items: center;
+  gap: 0.92rem;
   padding: 0.95rem;
   box-shadow: var(--shadow-md);
 }
@@ -513,11 +520,11 @@ button:disabled {
 }
 
 .commander-hero-art {
-  position: absolute;
-  top: 0.82rem;
-  right: 0.82rem;
+  position: relative;
   z-index: 2;
-  width: 128px;
+  width: 100%;
+  max-width: 162px;
+  justify-self: center;
   border-radius: 12px;
   overflow: hidden;
   border: 1px solid #9db2c61f;
@@ -527,9 +534,9 @@ button:disabled {
 .commander-hero-art-image {
   display: block;
   width: 100%;
-  aspect-ratio: 1.33;
+  aspect-ratio: 0.72;
   background-size: cover;
-  background-position: center;
+  background-position: center top;
   background-repeat: no-repeat;
 }
 
@@ -545,7 +552,7 @@ button:disabled {
   background: #0f171fc2;
   backdrop-filter: blur(6px);
   color: #f6f9fc;
-  max-width: min(calc(100% - 152px), 760px);
+  max-width: min(100%, 760px);
   border: 1px solid #92acc433;
 }
 
@@ -858,18 +865,18 @@ button:disabled {
 
 @media (max-width: 960px) {
   .commander-hero {
-    min-height: 196px;
+    min-height: 202px;
+    grid-template-columns: minmax(92px, 112px) minmax(0, 1fr);
+    gap: 0.62rem;
     padding: 0.8rem;
   }
 
   .commander-hero-art {
-    width: 104px;
-    top: 0.62rem;
-    right: 0.62rem;
+    max-width: 106px;
   }
 
   .commander-hero-content {
-    max-width: calc(100% - 122px);
+    max-width: 100%;
     width: 100%;
   }
 

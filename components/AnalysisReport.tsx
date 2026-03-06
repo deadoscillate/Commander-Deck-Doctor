@@ -221,6 +221,7 @@ function normalizeCommanderInfo(result: AnalyzeResponse): {
   manaCost: string | null;
   cmc: number | null;
   artUrl: string | null;
+  cardImageUrl: string | null;
 } {
   const rawCommander = (result as { commander?: unknown }).commander;
   const commanderRecord =
@@ -241,6 +242,10 @@ function normalizeCommanderInfo(result: AnalyzeResponse): {
     artUrl:
       typeof commanderRecord.selectedArtUrl === "string" && commanderRecord.selectedArtUrl
         ? commanderRecord.selectedArtUrl
+        : null,
+    cardImageUrl:
+      typeof commanderRecord.selectedCardImageUrl === "string" && commanderRecord.selectedCardImageUrl
+        ? commanderRecord.selectedCardImageUrl
         : null
   };
 }
@@ -631,7 +636,8 @@ export function AnalysisReport({ result }: AnalysisReportProps) {
             name: commanderInfo.name,
             colorIdentity: commanderInfo.colorIdentity,
             cmc: commanderInfo.cmc,
-            artUrl: commanderInfo.artUrl
+            artUrl: commanderInfo.artUrl,
+            cardImageUrl: commanderInfo.cardImageUrl
           }}
           archetypeLabel={archetypeLabel}
           bracketLabel={`Bracket ${result.bracketReport.estimatedBracket} - ${result.bracketReport.estimatedLabel}`}
