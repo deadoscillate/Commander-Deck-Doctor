@@ -551,7 +551,7 @@ export function AnalysisReport({ result, onOpenPrintingPicker }: AnalysisReportP
 
     const root = document.documentElement;
     const body = document.body;
-    const pageArtUrl = commanderInfo.cardImageUrl ?? commanderInfo.artUrl;
+    const pageArtUrl = commanderInfo.artUrl ?? commanderInfo.cardImageUrl;
     if (!pageArtUrl) {
       body.classList.remove("has-commander-page-art");
       root.style.removeProperty("--commander-page-art");
@@ -565,7 +565,7 @@ export function AnalysisReport({ result, onOpenPrintingPicker }: AnalysisReportP
       body.classList.remove("has-commander-page-art");
       root.style.removeProperty("--commander-page-art");
     };
-  }, [commanderInfo.cardImageUrl, commanderInfo.artUrl]);
+  }, [commanderInfo.artUrl, commanderInfo.cardImageUrl]);
 
   const archetypeLabel =
     archetypeReport.primary?.archetype && archetypeReport.secondary?.archetype
