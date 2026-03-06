@@ -147,17 +147,9 @@ function getPreferredArtUrl(card: ScryfallCard | null): string | null {
   }
 
   if (card.image_uris?.art_crop) return card.image_uris.art_crop;
-  if (card.image_uris?.border_crop) return card.image_uris.border_crop;
-  if (card.image_uris?.large) return card.image_uris.large;
-  if (card.image_uris?.normal) return card.image_uris.normal;
-  if (card.image_uris?.png) return card.image_uris.png;
 
   const firstFace = card.card_faces[0];
   if (firstFace?.image_uris?.art_crop) return firstFace.image_uris.art_crop;
-  if (firstFace?.image_uris?.border_crop) return firstFace.image_uris.border_crop;
-  if (firstFace?.image_uris?.large) return firstFace.image_uris.large;
-  if (firstFace?.image_uris?.normal) return firstFace.image_uris.normal;
-  if (firstFace?.image_uris?.png) return firstFace.image_uris.png;
 
   return null;
 }
