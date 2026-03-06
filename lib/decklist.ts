@@ -89,32 +89,57 @@ function isStandalonePrintingMarker(line: string): boolean {
   return /^\*[a-z0-9]{1,8}\*$/i.test(line.trim());
 }
 
-function isPrintingMetadataToken(token: string): boolean {
-  return /^([a-z0-9]+(?:[/-][a-z0-9]+)*|\*[a-z0-9]+\*)$/i.test(token);
+function isCollectorNumberToken(token: string): boolean {
+  return /^[a-z0-9]+(?:[/-][a-z0-9]+)*$/i.test(token);
 }
 
-function isPrintingMetadataSuffix(value: string): boolean {
+function parsePrintingMetadataSuffix(value: string): { valid: boolean; collectorNumber?: string } {
   const trimmed = value.trim();
   if (!trimmed) {
-    return true;
+    return { valid: true };
   }
 
-  return trimmed.split(/\s+/).every((token) => isPrintingMetadataToken(token));
+  let collectorNumber: string | undefined;
+  for (const rawToken of trimmed.split(/\s+/)) {
+    const token = rawToken.replace(/[.,;:]+$/g, "").trim();
+    if (!token) {
+      continue;
+    }
+
+    if (isStandalonePrintingMarker(token)) {
+      continue;
+    }
+
+    if (!collectorNumber && isCollectorNumberToken(token)) {
+      collectorNumber = token.toLowerCase();
+      continue;
+    }
+
+    if (isCollectorNumberToken(token)) {
+      continue;
+    }
+
+    return { valid: false };
+  }
+
+  return { valid: true, collectorNumber };
 }
 
 function stripTrailingPrintingMarkers(value: string): string {
   return value.replace(/(?:\s+\*[a-z0-9]{1,8}\*)+$/gi, "").trim();
 }
 
-function extractSetCode(name: string): { cardName: string; setCode?: string } {
-  const bracketMatch = name.match(/^(.*?)\s*\[([a-z0-9]{2,6})\]\s*$/i);
+function extractSetCode(name: string): { cardName: string; setCode?: string; collectorNumber?: string } {
+  const bracketMatch = name.match(/^(.*?)\s*\[([a-z0-9]{2,6})\]\s*(.*)$/i);
   if (bracketMatch) {
     const cardName = bracketMatch[1]?.trim() ?? "";
     const setCode = bracketMatch[2]?.trim().toLowerCase() ?? "";
-    if (cardName && setCode) {
+    const metadata = parsePrintingMetadataSuffix(bracketMatch[3] ?? "");
+    if (cardName && setCode && metadata.valid) {
       return {
         cardName,
-        setCode
+        setCode,
+        collectorNumber: metadata.collectorNumber
       };
     }
   }
@@ -123,11 +148,12 @@ function extractSetCode(name: string): { cardName: string; setCode?: string } {
   if (parenMatch) {
     const cardName = parenMatch[1]?.trim() ?? "";
     const setCode = parenMatch[2]?.trim().toLowerCase() ?? "";
-    const metadataTail = parenMatch[3]?.trim() ?? "";
-    if (cardName && setCode && isPrintingMetadataSuffix(metadataTail)) {
+    const metadata = parsePrintingMetadataSuffix(parenMatch[3] ?? "");
+    if (cardName && setCode && metadata.valid) {
       return {
         cardName,
-        setCode
+        setCode,
+        collectorNumber: metadata.collectorNumber
       };
     }
   }
@@ -137,7 +163,11 @@ function extractSetCode(name: string): { cardName: string; setCode?: string } {
   };
 }
 
-function normalizeParsedName(name: string): { cardName: string; setCode?: string } {
+function normalizeParsedName(name: string): {
+  cardName: string;
+  setCode?: string;
+  collectorNumber?: string;
+} {
   const stripped = stripTrailingPrintingMarkers(name.trim());
   if (!stripped) {
     return {
@@ -164,7 +194,9 @@ function parseQuantityAndName(line: string): ParsedDeckEntry | null {
       return null;
     }
 
-    return parsedName.setCode ? { name, qty, setCode: parsedName.setCode } : { name, qty };
+    return parsedName.setCode
+      ? { name, qty, setCode: parsedName.setCode, collectorNumber: parsedName.collectorNumber }
+      : { name, qty };
   }
 
   // Supports compact prefixes like "1x Sol Ring".
@@ -177,7 +209,9 @@ function parseQuantityAndName(line: string): ParsedDeckEntry | null {
       return null;
     }
 
-    return parsedName.setCode ? { name, qty, setCode: parsedName.setCode } : { name, qty };
+    return parsedName.setCode
+      ? { name, qty, setCode: parsedName.setCode, collectorNumber: parsedName.collectorNumber }
+      : { name, qty };
   }
 
   const parsedName = normalizeParsedName(cleaned);
@@ -189,11 +223,44 @@ function parseQuantityAndName(line: string): ParsedDeckEntry | null {
     return {
       name: parsedName.cardName,
       qty: 1,
-      setCode: parsedName.setCode
+      setCode: parsedName.setCode,
+      collectorNumber: parsedName.collectorNumber
     };
   }
 
   return { name: parsedName.cardName, qty: 1 };
+}
+
+function mergeParsedEntry(existing: ParsedDeckEntry, parsed: ParsedDeckEntry): void {
+  existing.qty += parsed.qty;
+
+  if (existing.setCode && parsed.setCode && existing.setCode !== parsed.setCode) {
+    delete existing.setCode;
+    delete existing.collectorNumber;
+    delete existing.printingId;
+    return;
+  }
+
+  if (!existing.setCode && parsed.setCode) {
+    existing.setCode = parsed.setCode;
+  }
+
+  if (existing.setCode && parsed.setCode && existing.setCode === parsed.setCode) {
+    if (
+      existing.collectorNumber &&
+      parsed.collectorNumber &&
+      existing.collectorNumber !== parsed.collectorNumber
+    ) {
+      delete existing.collectorNumber;
+    } else if (!existing.collectorNumber && parsed.collectorNumber) {
+      existing.collectorNumber = parsed.collectorNumber;
+    }
+    return;
+  }
+
+  if (!existing.setCode) {
+    delete existing.collectorNumber;
+  }
 }
 
 /**
@@ -231,12 +298,7 @@ export function parseDecklistWithCommander(input: string): DecklistParseResult {
       const key = inlineCommander.name.toLowerCase();
       const existing = merged.get(key);
       if (existing) {
-        existing.qty += inlineCommander.qty;
-        if (existing.setCode && inlineCommander.setCode && existing.setCode !== inlineCommander.setCode) {
-          delete existing.setCode;
-        } else if (!existing.setCode && inlineCommander.setCode) {
-          existing.setCode = inlineCommander.setCode;
-        }
+        mergeParsedEntry(existing, inlineCommander);
       } else {
         merged.set(key, inlineCommander);
       }
@@ -261,12 +323,7 @@ export function parseDecklistWithCommander(input: string): DecklistParseResult {
     const key = parsed.name.toLowerCase();
     const existing = merged.get(key);
     if (existing) {
-      existing.qty += parsed.qty;
-      if (existing.setCode && parsed.setCode && existing.setCode !== parsed.setCode) {
-        delete existing.setCode;
-      } else if (!existing.setCode && parsed.setCode) {
-        existing.setCode = parsed.setCode;
-      }
+      mergeParsedEntry(existing, parsed);
       continue;
     }
 

@@ -76,13 +76,23 @@ Otawara, Soaring City (NEO) 271
 
     expect(entries).toEqual(
       expect.arrayContaining([
-        { name: "Evolving Wilds", qty: 1, setCode: "plst" },
-        { name: "Forest", qty: 1, setCode: "one" },
-        { name: "Negate", qty: 1, setCode: "bbd" },
-        { name: "Otawara, Soaring City", qty: 1, setCode: "neo" }
+        { name: "Evolving Wilds", qty: 1, setCode: "plst", collectorNumber: "c18-245" },
+        { name: "Forest", qty: 1, setCode: "one", collectorNumber: "369" },
+        { name: "Negate", qty: 1, setCode: "bbd", collectorNumber: "123" },
+        { name: "Otawara, Soaring City", qty: 1, setCode: "neo", collectorNumber: "271" }
       ])
     );
     expect(entries.find((entry) => entry.name === "*F*")).toBeUndefined();
+  });
+
+  it("drops ambiguous collector numbers when duplicate names share set but conflict", () => {
+    const entries = parseDecklist(`
+1 Sol Ring (CMM) 217
+1 Sol Ring (CMM) 218
+    `);
+
+    expect(entries).toEqual(expect.arrayContaining([{ name: "Sol Ring", qty: 2, setCode: "cmm" }]));
+    expect(entries.find((entry) => entry.name === "Sol Ring")?.collectorNumber).toBeUndefined();
   });
 
   it("drops ambiguous set tags when duplicate names use conflicting sets", () => {

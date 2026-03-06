@@ -121,6 +121,35 @@ async function fetchCardById(printingId: string): Promise<ScryfallCard | null> {
   }
 }
 
+async function fetchCardBySetAndCollector(
+  setCode: string,
+  collectorNumber: string
+): Promise<ScryfallCard | null> {
+  try {
+    const response = await fetch(
+      `https://api.scryfall.com/cards/${encodeURIComponent(setCode)}/${encodeURIComponent(collectorNumber)}`,
+      {
+        method: "GET",
+        headers: SCRYFALL_HEADERS,
+        cache: "no-store"
+      }
+    );
+
+    if (!response.ok) {
+      return null;
+    }
+
+    const data = (await response.json()) as ScryfallApiCard;
+    if (data.object === "error" || !data.name) {
+      return null;
+    }
+
+    return normalizeScryfallCard(data);
+  } catch {
+    return null;
+  }
+}
+
 export async function getCardByName(name: string): Promise<ScryfallCard | null> {
   const key = name.toLowerCase().trim();
   const cached = cardCache.get(key);
@@ -184,6 +213,27 @@ export async function getCardByNameWithSet(name: string, setCode: string): Promi
   return pending;
 }
 
+async function getCardBySetAndCollector(
+  setCode: string,
+  collectorNumber: string
+): Promise<ScryfallCard | null> {
+  const normalizedSet = setCode.trim().toLowerCase();
+  const normalizedCollector = collectorNumber.trim().toLowerCase();
+  if (!normalizedSet || !normalizedCollector) {
+    return null;
+  }
+
+  const key = `set:${normalizedSet}|collector:${normalizedCollector}`;
+  const cached = cardCache.get(key);
+  if (cached) {
+    return cached;
+  }
+
+  const pending = fetchCardBySetAndCollector(normalizedSet, normalizedCollector);
+  cardCache.set(key, pending);
+  return pending;
+}
+
 async function mapWithConcurrency<T, R>(
   items: T[],
   concurrency: number,
@@ -222,12 +272,20 @@ export async function fetchDeckCards(
   const mode = options?.deckPriceMode ?? "oracle-default";
   const lookedUp = await mapWithConcurrency(parsedDeck, Math.max(1, concurrency), async (entry) => {
     const setCode = typeof entry.setCode === "string" && entry.setCode.trim() ? entry.setCode : null;
+    const collectorNumber =
+      typeof entry.collectorNumber === "string" && entry.collectorNumber.trim()
+        ? entry.collectorNumber
+        : null;
     const printingId =
       typeof entry.printingId === "string" && entry.printingId.trim() ? entry.printingId : null;
     let card: ScryfallCard | null = null;
 
     if (mode === "decklist-set" && printingId) {
       card = await getCardById(printingId);
+    }
+
+    if (mode === "decklist-set" && setCode && collectorNumber) {
+      card = card ?? (await getCardBySetAndCollector(setCode, collectorNumber));
     }
 
     if (mode === "decklist-set" && setCode) {
@@ -253,6 +311,9 @@ export async function fetchDeckCards(
     knownCards.push({
       name: row.entry.name,
       qty: row.entry.qty,
+      setCode: row.entry.setCode,
+      collectorNumber: row.entry.collectorNumber,
+      printingId: row.entry.printingId,
       card: row.card
     });
   }

@@ -47,6 +47,7 @@ type RawScryfallCard = {
 
 type CardPreviewRequestOptions = {
   setCode?: string | null;
+  collectorNumber?: string | null;
   printingId?: string | null;
 };
 
@@ -89,6 +90,39 @@ async function fetchNamed(
 
   try {
     const response = await fetch(endpoint.toString(), {
+      method: "GET",
+      headers: { Accept: "application/json" },
+      cache: "no-store"
+    });
+
+    if (!response.ok) {
+      return null;
+    }
+
+    const payload = (await response.json()) as RawScryfallCard;
+    if (payload.object === "error") {
+      return null;
+    }
+
+    return payload;
+  } catch {
+    return null;
+  }
+}
+
+async function fetchBySetAndCollector(
+  setCode: string,
+  collectorNumber: string
+): Promise<RawScryfallCard | null> {
+  const normalizedSetCode = setCode.trim().toLowerCase();
+  const normalizedCollectorNumber = collectorNumber.trim().toLowerCase();
+  if (!normalizedSetCode || !normalizedCollectorNumber) {
+    return null;
+  }
+
+  const endpoint = `https://api.scryfall.com/cards/${encodeURIComponent(normalizedSetCode)}/${encodeURIComponent(normalizedCollectorNumber)}`;
+  try {
+    const response = await fetch(endpoint, {
       method: "GET",
       headers: { Accept: "application/json" },
       cache: "no-store"
@@ -160,6 +194,7 @@ export async function getCardPreview(
 
   const lookup = {
     setCode: options?.setCode ?? null,
+    collectorNumber: options?.collectorNumber ?? null,
     printingId: options?.printingId ?? null
   };
   const cached = getCachedPreview(trimmed, lookup);
@@ -179,6 +214,17 @@ export async function getCardPreview(
       const normalizedPrinting = exactPrinting ? normalizePreview(exactPrinting) : null;
       setCachedPreview(trimmed, normalizedPrinting, lookup);
       return normalizedPrinting;
+    }
+
+    const setCode = options?.setCode?.trim() ?? "";
+    const collectorNumber = options?.collectorNumber?.trim() ?? "";
+    if (setCode && collectorNumber) {
+      const exactByCollector = await fetchBySetAndCollector(setCode, collectorNumber);
+      const normalizedByCollector = exactByCollector ? normalizePreview(exactByCollector) : null;
+      if (normalizedByCollector) {
+        setCachedPreview(trimmed, normalizedByCollector, lookup);
+        return normalizedByCollector;
+      }
     }
 
     const exact = await fetchNamed("exact", trimmed, lookup);

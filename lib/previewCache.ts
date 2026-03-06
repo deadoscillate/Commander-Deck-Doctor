@@ -39,17 +39,18 @@ function normalizeKeyPart(value: string | null | undefined): string {
 
 export function buildPreviewKey(
   name: string,
-  options?: { setCode?: string | null; printingId?: string | null }
+  options?: { setCode?: string | null; collectorNumber?: string | null; printingId?: string | null }
 ): string {
   const normalizedName = normalizePreviewName(name);
   const setCode = normalizeKeyPart(options?.setCode);
+  const collectorNumber = normalizeKeyPart(options?.collectorNumber);
   const printingId = normalizeKeyPart(options?.printingId);
-  return `${normalizedName}|set:${setCode}|id:${printingId}`;
+  return `${normalizedName}|set:${setCode}|cn:${collectorNumber}|id:${printingId}`;
 }
 
 export function getCachedPreview(
   name: string,
-  options?: { setCode?: string | null; printingId?: string | null }
+  options?: { setCode?: string | null; collectorNumber?: string | null; printingId?: string | null }
 ): CardPreviewData | null | undefined {
   return previewCache.get(buildPreviewKey(name, options));
 }
@@ -57,14 +58,14 @@ export function getCachedPreview(
 export function setCachedPreview(
   name: string,
   preview: CardPreviewData | null,
-  options?: { setCode?: string | null; printingId?: string | null }
+  options?: { setCode?: string | null; collectorNumber?: string | null; printingId?: string | null }
 ): void {
   previewCache.set(buildPreviewKey(name, options), preview);
 }
 
 export function getInflightPreview(
   name: string,
-  options?: { setCode?: string | null; printingId?: string | null }
+  options?: { setCode?: string | null; collectorNumber?: string | null; printingId?: string | null }
 ): Promise<CardPreviewData | null> | undefined {
   return inflightPreviewRequests.get(buildPreviewKey(name, options));
 }
@@ -72,14 +73,14 @@ export function getInflightPreview(
 export function setInflightPreview(
   name: string,
   request: Promise<CardPreviewData | null>,
-  options?: { setCode?: string | null; printingId?: string | null }
+  options?: { setCode?: string | null; collectorNumber?: string | null; printingId?: string | null }
 ): void {
   inflightPreviewRequests.set(buildPreviewKey(name, options), request);
 }
 
 export function clearInflightPreview(
   name: string,
-  options?: { setCode?: string | null; printingId?: string | null }
+  options?: { setCode?: string | null; collectorNumber?: string | null; printingId?: string | null }
 ): void {
   inflightPreviewRequests.delete(buildPreviewKey(name, options));
 }
