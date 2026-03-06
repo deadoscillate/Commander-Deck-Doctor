@@ -40,13 +40,26 @@ function looksLikeSplitCard(left: string, right: string): boolean {
   return token.test(left) && token.test(right) && /^[A-Z]/.test(right.trim());
 }
 
+function looksLikeCollectorHashSuffix(line: string, hashIndex: number): boolean {
+  if (hashIndex < 0 || hashIndex >= line.length) {
+    return false;
+  }
+
+  if (hashIndex > 0 && !/\s/.test(line[hashIndex - 1] ?? "")) {
+    return false;
+  }
+
+  const suffix = line.slice(hashIndex + 1);
+  return /^\s*\d+[a-z0-9]*(?:[/-][a-z0-9]+)*(?:[★☆])?(?:\s+\*[a-z0-9]{1,8}\*)?\s*$/i.test(suffix);
+}
+
 function stripComment(line: string): string {
   const hashIdx = line.indexOf("#");
   const slashIdx = line.indexOf("//");
 
   let cutAt = -1;
 
-  if (hashIdx >= 0) {
+  if (hashIdx >= 0 && !looksLikeCollectorHashSuffix(line, hashIdx)) {
     cutAt = hashIdx;
   }
 
@@ -93,6 +106,14 @@ function isCollectorNumberToken(token: string): boolean {
   return /^[a-z0-9]+(?:[/-][a-z0-9]+)*$/i.test(token);
 }
 
+function normalizePrintingMetadataToken(rawToken: string): string {
+  return rawToken
+    .replace(/[.,;:]+$/g, "")
+    .replace(/^[#]+/, "")
+    .replace(/[★☆]/g, "")
+    .trim();
+}
+
 function parsePrintingMetadataSuffix(value: string): { valid: boolean; collectorNumber?: string } {
   const trimmed = value.trim();
   if (!trimmed) {
@@ -101,7 +122,7 @@ function parsePrintingMetadataSuffix(value: string): { valid: boolean; collector
 
   let collectorNumber: string | undefined;
   for (const rawToken of trimmed.split(/\s+/)) {
-    const token = rawToken.replace(/[.,;:]+$/g, "").trim();
+    const token = normalizePrintingMetadataToken(rawToken);
     if (!token) {
       continue;
     }

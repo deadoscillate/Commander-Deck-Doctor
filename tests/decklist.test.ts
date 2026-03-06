@@ -107,6 +107,22 @@ Otawara, Soaring City (NEO) 271
     );
   });
 
+  it("parses collector suffixes with star glyphs and hash prefixes", () => {
+    const entries = parseDecklist(`
+1 Chaos Theory (SLD) 741★
+1 Shock (7ED) 219★
+1 Sol Ring (SLD) #1494★
+    `);
+
+    expect(entries).toEqual(
+      expect.arrayContaining([
+        { name: "Chaos Theory", qty: 1, setCode: "sld", collectorNumber: "741" },
+        { name: "Shock", qty: 1, setCode: "7ed", collectorNumber: "219" },
+        { name: "Sol Ring", qty: 1, setCode: "sld", collectorNumber: "1494" }
+      ])
+    );
+  });
+
   it("drops ambiguous set tags when duplicate names use conflicting sets", () => {
     const entries = parseDecklist(`
 1 Sol Ring [CMM]

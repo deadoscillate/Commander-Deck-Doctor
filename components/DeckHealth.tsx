@@ -6,8 +6,10 @@ type DeckHealthProps = {
 };
 
 export function DeckHealth({ report }: DeckHealthProps) {
-  const warnMeta = getStatusMeta("LOW");
   const okMeta = getStatusMeta("OK");
+  const warningStatusByMessage = new Map(
+    report.rows.filter((row) => row.status !== "OK").map((row) => [row.diagnostic, row.status] as const)
+  );
 
   return (
     <section>
@@ -16,14 +18,19 @@ export function DeckHealth({ report }: DeckHealthProps) {
 
       {report.warnings.length > 0 ? (
         <ul className="health-list health-list-warn">
-          {report.warnings.map((item) => (
-            <li key={`warn-${item}`}>
-              <span className={`status-badge ${warnMeta.className}`}>
-                {warnMeta.icon} {warnMeta.label}
-              </span>
-              <span>{item}</span>
-            </li>
-          ))}
+          {report.warnings.map((item) => {
+            const status = warningStatusByMessage.get(item) ?? "LOW";
+            const statusMeta = getStatusMeta(status === "HIGH" ? "HIGH" : "LOW");
+
+            return (
+              <li key={`warn-${item}`}>
+                <span className={`status-badge ${statusMeta.className}`}>
+                  {statusMeta.icon} {statusMeta.label}
+                </span>
+                <span>{item}</span>
+              </li>
+            );
+          })}
         </ul>
       ) : (
         <p className="muted">No major warnings detected.</p>
