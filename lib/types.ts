@@ -12,8 +12,12 @@ export type ParsedDeckEntry = {
  * Minimal Scryfall fields needed by this MVP analyzer.
  */
 export type ScryfallImageUris = {
+  small?: string;
   normal?: string;
+  large?: string;
+  png?: string;
   art_crop?: string;
+  border_crop?: string;
 };
 
 export type ScryfallCardFace = {

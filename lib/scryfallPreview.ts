@@ -11,7 +11,11 @@ type RawScryfallFace = {
   mana_cost?: string;
   type_line?: string;
   image_uris?: {
+    small?: string;
     normal?: string;
+    large?: string;
+    png?: string;
+    border_crop?: string;
   };
 };
 
@@ -26,7 +30,11 @@ type RawScryfallCard = {
   mana_cost?: string;
   type_line?: string;
   image_uris?: {
+    small?: string;
     normal?: string;
+    large?: string;
+    png?: string;
+    border_crop?: string;
   };
   card_faces?: RawScryfallFace[];
   prices?: {
@@ -107,7 +115,16 @@ function normalizePreview(payload: RawScryfallCard): CardPreviewData | null {
   }
 
   const firstFace = payload.card_faces?.[0];
-  const imageUrl = payload.image_uris?.normal ?? firstFace?.image_uris?.normal ?? null;
+  const imageUrl =
+    payload.image_uris?.large ??
+    payload.image_uris?.normal ??
+    payload.image_uris?.png ??
+    payload.image_uris?.border_crop ??
+    firstFace?.image_uris?.large ??
+    firstFace?.image_uris?.normal ??
+    firstFace?.image_uris?.png ??
+    firstFace?.image_uris?.border_crop ??
+    null;
   const manaCost = payload.mana_cost ?? firstFace?.mana_cost ?? null;
   const typeLine = payload.type_line ?? firstFace?.type_line ?? null;
 

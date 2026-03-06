@@ -56,7 +56,7 @@ export function CardLink({ name, setCode, printingId, className }: CardLinkProps
       }
 
       const rect = anchor.getBoundingClientRect();
-      const previewWidth = 244;
+      const previewWidth = 286;
       const gap = 8;
       const viewportPadding = 8;
       let left = rect.right + gap;
