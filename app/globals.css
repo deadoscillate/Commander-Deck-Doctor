@@ -1,15 +1,16 @@
 :root {
-  --bg-top: #f4f7fb;
-  --bg-bottom: #dce7f2;
-  --ink: #121d2b;
-  --ink-muted: #4f6074;
-  --panel: #ffffffd9;
+  --bg-top: #0a1119;
+  --bg-bottom: #060b12;
+  --commander-page-art: none;
+  --ink: #e6edf5;
+  --ink-muted: #9aabbe;
+  --panel: #101925d6;
   --accent: #ce4f2a;
   --accent-soft: #ffe0d1;
-  --line: #cfd8e2;
-  --warning: #8d2f14;
-  --shadow-sm: 0 8px 24px #0f17240d;
-  --shadow-md: 0 16px 38px #0f17241a;
+  --line: #314355;
+  --warning: #ff9a7e;
+  --shadow-sm: 0 12px 28px #00000052;
+  --shadow-md: 0 18px 46px #00000066;
 }
 
 * {
@@ -34,12 +35,44 @@ body {
   padding: 0;
   min-height: 100%;
   line-height: 1.5;
+  color-scheme: dark;
   font-family: "Space Grotesk", "Avenir Next", "Trebuchet MS", sans-serif;
   color: var(--ink);
   background:
-    radial-gradient(circle at 9% 8%, #fff8e7 0%, transparent 30%),
-    radial-gradient(circle at 92% 18%, #deecff 0%, transparent 38%),
+    radial-gradient(circle at 9% 8%, #2230417d 0%, transparent 34%),
+    radial-gradient(circle at 92% 18%, #1f2a3978 0%, transparent 40%),
     linear-gradient(180deg, var(--bg-top), var(--bg-bottom));
+}
+
+body.has-commander-page-art {
+  background:
+    radial-gradient(circle at 9% 8%, rgba(255, 248, 231, 0.2) 0%, transparent 34%),
+    radial-gradient(circle at 92% 18%, rgba(222, 236, 255, 0.22) 0%, transparent 40%),
+    linear-gradient(180deg, rgba(8, 12, 19, 0.82), rgba(8, 12, 19, 0.9)),
+    var(--commander-page-art);
+  background-repeat: no-repeat, no-repeat, no-repeat, no-repeat;
+  background-size: cover, cover, cover, cover;
+  background-position: center, center, center, center;
+  background-attachment: fixed, fixed, fixed, fixed;
+}
+
+body.has-commander-page-art .hero,
+body.has-commander-page-art .panel,
+body.has-commander-page-art .results > section,
+body.has-commander-page-art .results-commander-picker,
+body.has-commander-page-art .tuning-controls,
+body.has-commander-page-art .simulations-details {
+  background: linear-gradient(140deg, rgba(9, 15, 24, 0.78), rgba(14, 23, 36, 0.68)) !important;
+  border-color: rgba(113, 141, 171, 0.48);
+  backdrop-filter: blur(12px) saturate(1.06);
+}
+
+body.has-commander-page-art .summary-card,
+body.has-commander-page-art .technical-group,
+body.has-commander-page-art .decklist-preview,
+body.has-commander-page-art .printing-modal {
+  background: linear-gradient(150deg, rgba(12, 20, 31, 0.82), rgba(17, 28, 43, 0.74)) !important;
+  border-color: rgba(113, 141, 171, 0.52);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1528,6 +1561,133 @@ button:disabled {
 
 .muted {
   color: var(--ink-muted);
+}
+
+/* Native dark baseline, approximating the Dark Reader look without extension logic. */
+.hero {
+  border-color: #3a4a5f;
+  background: linear-gradient(130deg, rgba(15, 23, 35, 0.9) 0%, rgba(17, 27, 42, 0.84) 100%);
+}
+
+.panel,
+.results > section,
+.results-commander-picker,
+.tuning-controls,
+.simulations-details,
+.technical-group,
+.summary-card,
+.suggestion-card,
+.decklist-preview,
+.printing-modal,
+.card-hover-preview {
+  border-color: #33465a;
+  background: linear-gradient(145deg, rgba(14, 22, 34, 0.9), rgba(17, 28, 43, 0.84));
+}
+
+textarea,
+input,
+select {
+  border-color: #34495d;
+  background: #0e1724;
+  color: var(--ink);
+}
+
+textarea::placeholder,
+input::placeholder {
+  color: #7f91a6;
+}
+
+textarea:focus,
+input:focus,
+select:focus {
+  border-color: #5b82a9;
+  box-shadow: 0 0 0 3px #6b9ec53b;
+  background: #111d2d;
+}
+
+.btn-tertiary {
+  background: #1a2736;
+  border-color: #3b4e63;
+  color: #d7e4f1;
+}
+
+.inline-action,
+.share-link,
+.inline-link {
+  color: #8fc1ff;
+}
+
+.import-toast {
+  border-color: #2f6a44;
+  background: #173023;
+  color: #b9f5ce;
+}
+
+.report-tab {
+  border-color: #3a4f65;
+  background: #172333;
+  color: #c9d9ea;
+}
+
+.report-tab:hover {
+  background: #213247;
+}
+
+.report-tab-active {
+  border-color: #5a7fa3;
+  background: linear-gradient(120deg, #234763, #2e6e97);
+  color: #eaf6ff;
+}
+
+.results > section.player-snapshot {
+  background: linear-gradient(180deg, rgba(40, 33, 23, 0.86), rgba(22, 21, 20, 0.84));
+  border-color: #5f5243;
+}
+
+.curve-bar-wrap {
+  background: #2a3340;
+}
+
+.chip,
+.status-chip,
+.mana-fallback {
+  border-color: #3a4d61;
+  background: #172233;
+  color: #d6e3f1;
+}
+
+.status-badge-low {
+  background: #3d2619;
+  border-color: #86553d;
+  color: #ffd8bf;
+}
+
+.status-badge-med {
+  background: #202a35;
+  border-color: #4c5f73;
+  color: #c0d1e3;
+}
+
+.status-badge-ok {
+  background: #1d3526;
+  border-color: #3d6b4d;
+  color: #bceecb;
+}
+
+.status-badge-high {
+  background: #1f2a3e;
+  border-color: #4e628f;
+  color: #cedcff;
+}
+
+.detected-card-tile {
+  border-color: #34475d;
+  background: linear-gradient(180deg, #111b28, #0d1622);
+}
+
+.detected-card-image-fallback {
+  background: #162335;
+  color: #d6e4f3;
 }
 
 ul {

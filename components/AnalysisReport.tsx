@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Checks } from "@/components/Checks";
 import { CardNameHover } from "@/components/CardNameHover";
 import { ColorIdentityIcons } from "@/components/ColorIdentityIcons";
@@ -522,6 +522,28 @@ export function AnalysisReport({ result, onOpenPrintingPicker }: AnalysisReportP
   }));
   const [activeTab, setActiveTab] = useState<ReportTabKey>("overview");
 
+  useEffect(() => {
+    if (typeof document === "undefined") {
+      return;
+    }
+
+    const root = document.documentElement;
+    const body = document.body;
+    if (!commanderInfo.artUrl) {
+      body.classList.remove("has-commander-page-art");
+      root.style.removeProperty("--commander-page-art");
+      return;
+    }
+
+    root.style.setProperty("--commander-page-art", `url("${commanderInfo.artUrl}")`);
+    body.classList.add("has-commander-page-art");
+
+    return () => {
+      body.classList.remove("has-commander-page-art");
+      root.style.removeProperty("--commander-page-art");
+    };
+  }, [commanderInfo.artUrl]);
+
   const archetypeLabel =
     archetypeReport.primary?.archetype && archetypeReport.secondary?.archetype
       ? `${archetypeReport.primary.archetype} / ${archetypeReport.secondary.archetype}`
@@ -836,7 +858,11 @@ export function AnalysisReport({ result, onOpenPrintingPicker }: AnalysisReportP
         <DeckHealth report={result.deckHealth} />
       </div>
       <div hidden={activeTab !== "simulations"} id="report-panel-simulations" role="tabpanel">
-        <SimulationsSection deck={simulationDeck} commanderName={commanderInfo.name} />
+        <SimulationsSection
+          deck={simulationDeck}
+          commanderName={commanderInfo.name}
+          initialSummary={result.openingHandSimulation ?? null}
+        />
       </div>
       <div hidden={activeTab !== "composition"}>
         <ImprovementSuggestions suggestions={result.improvementSuggestions} />
