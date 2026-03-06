@@ -484,6 +484,7 @@ type AnalysisReportProps = {
 };
 
 type ReportTabKey = "overview" | "composition" | "validation" | "simulations" | "cards" | "advanced";
+type ComboViewKey = "live" | "conditional" | "potential";
 
 const REPORT_TABS: Array<{ key: ReportTabKey; label: string }> = [
   { key: "overview", label: "Overview" },
@@ -492,6 +493,12 @@ const REPORT_TABS: Array<{ key: ReportTabKey; label: string }> = [
   { key: "simulations", label: "Simulations" },
   { key: "cards", label: "Cards" },
   { key: "advanced", label: "Advanced" }
+];
+
+const COMBO_VIEW_TABS: Array<{ key: ComboViewKey; label: string }> = [
+  { key: "live", label: "Live Combos" },
+  { key: "conditional", label: "Conditional" },
+  { key: "potential", label: "Potential" }
 ];
 
 /**
@@ -523,7 +530,7 @@ export function AnalysisReport({ result, onOpenPrintingPicker }: AnalysisReportP
     qty: entry.qty,
     resolvedName: entry.resolvedName
   }));
-  const comboImageByName = new Map<string, string>();
+  const previewImageByName = new Map<string, string>();
   for (const entry of result.parsedDeck) {
     if (!entry.previewImageUrl) {
       continue;
@@ -532,17 +539,18 @@ export function AnalysisReport({ result, onOpenPrintingPicker }: AnalysisReportP
     const lookupKeys = [entry.name, entry.resolvedName ?? ""];
     for (const lookupKey of lookupKeys) {
       const normalized = normalizeComboText(lookupKey);
-      if (!normalized || comboImageByName.has(normalized)) {
+      if (!normalized || previewImageByName.has(normalized)) {
         continue;
       }
 
-      comboImageByName.set(normalized, entry.previewImageUrl);
+      previewImageByName.set(normalized, entry.previewImageUrl);
     }
   }
 
-  const getComboCardImage = (cardName: string): string | null =>
-    comboImageByName.get(normalizeComboText(cardName)) ?? null;
+  const getCardPreviewImage = (cardName: string): string | null =>
+    previewImageByName.get(normalizeComboText(cardName)) ?? null;
   const [activeTab, setActiveTab] = useState<ReportTabKey>("overview");
+  const [activeComboView, setActiveComboView] = useState<ComboViewKey>("live");
 
   useEffect(() => {
     if (typeof document === "undefined") {
@@ -566,6 +574,39 @@ export function AnalysisReport({ result, onOpenPrintingPicker }: AnalysisReportP
       root.style.removeProperty("--commander-page-art");
     };
   }, [commanderInfo.artUrl, commanderInfo.cardImageUrl]);
+
+  useEffect(() => {
+    const hasLive = comboReport.detected.length > 0;
+    const hasConditional = comboReport.conditional.length > 0;
+    const hasPotential = comboReport.potential.length > 0;
+    const currentHasItems =
+      (activeComboView === "live" && hasLive) ||
+      (activeComboView === "conditional" && hasConditional) ||
+      (activeComboView === "potential" && hasPotential);
+
+    if (currentHasItems) {
+      return;
+    }
+
+    if (hasLive) {
+      setActiveComboView("live");
+      return;
+    }
+
+    if (hasConditional) {
+      setActiveComboView("conditional");
+      return;
+    }
+
+    if (hasPotential) {
+      setActiveComboView("potential");
+    }
+  }, [
+    activeComboView,
+    comboReport.detected.length,
+    comboReport.conditional.length,
+    comboReport.potential.length
+  ]);
 
   const archetypeLabel =
     archetypeReport.primary?.archetype && archetypeReport.secondary?.archetype
@@ -813,7 +854,11 @@ export function AnalysisReport({ result, onOpenPrintingPicker }: AnalysisReportP
         <p className="muted">
           Role tags use the shared rules engine classifier (behavior templates + structured oracle patterns).
         </p>
-        <RoleBars roles={result.roles} roleBreakdown={roleBreakdown} />
+        <RoleBars
+          roles={result.roles}
+          roleBreakdown={roleBreakdown}
+          getCardPreviewImage={getCardPreviewImage}
+        />
         {tutorSummary ? (
           <div className="technical-group">
             <h3>Tutor Classification</h3>
@@ -891,7 +936,10 @@ export function AnalysisReport({ result, onOpenPrintingPicker }: AnalysisReportP
         />
       </div>
       <div hidden={activeTab !== "composition"}>
-        <ImprovementSuggestions suggestions={result.improvementSuggestions} />
+        <ImprovementSuggestions
+          suggestions={result.improvementSuggestions}
+          getCardPreviewImage={getCardPreviewImage}
+        />
       </div>
 
       <section hidden={activeTab !== "cards"} id="report-panel-cards" role="tabpanel">
@@ -988,32 +1036,74 @@ export function AnalysisReport({ result, onOpenPrintingPicker }: AnalysisReportP
 
         <div className="technical-group">
           <h3>Combo Detection</h3>
-          {comboReport.detected.length === 0 ? (
-            <p className="muted">No known combos detected from the current combo database.</p>
-          ) : (
-            <ul>
-              {comboReport.detected.map((combo) => (
-                <li key={`${combo.comboName}-${combo.commanderSpellbookUrl}`}>
-                  <strong>{combo.comboName}</strong>{" "}
-                  <a href={combo.commanderSpellbookUrl} target="_blank" rel="noreferrer noopener">
-                    [Commander Spellbook]
-                  </a>
-                  <div className="combo-card-strip">
-                    {combo.cards.map((cardName, index) => (
-                      <ComboCardTile
-                        key={`${combo.comboName}-${combo.commanderSpellbookUrl}-${cardName}-${index}`}
-                        name={cardName}
-                        imageUrl={getComboCardImage(cardName)}
-                      />
-                    ))}
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-          {comboReport.conditional.length > 0 ? (
-            <>
-              <p className="muted">Conditional combos (cards present, setup still required):</p>
+          <div className="combo-view-tabs" role="tablist" aria-label="Combo detection categories">
+            {COMBO_VIEW_TABS.map((viewTab) => {
+              const count =
+                viewTab.key === "live"
+                  ? comboReport.detected.length
+                  : viewTab.key === "conditional"
+                    ? comboReport.conditional.length
+                    : comboReport.potential.length;
+              const isActive = activeComboView === viewTab.key;
+
+              return (
+                <button
+                  key={viewTab.key}
+                  id={`combo-view-tab-${viewTab.key}`}
+                  type="button"
+                  role="tab"
+                  aria-selected={isActive}
+                  aria-controls={`combo-view-panel-${viewTab.key}`}
+                  className={`combo-view-tab${isActive ? " combo-view-tab-active" : ""}`}
+                  onClick={() => setActiveComboView(viewTab.key)}
+                >
+                  <span>{viewTab.label}</span>
+                  <span className="combo-view-tab-count">{count}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          <div
+            hidden={activeComboView !== "live"}
+            role="tabpanel"
+            id="combo-view-panel-live"
+            aria-labelledby="combo-view-tab-live"
+          >
+            {comboReport.detected.length === 0 ? (
+              <p className="muted">No live combos detected from the current combo database.</p>
+            ) : (
+              <ul>
+                {comboReport.detected.map((combo) => (
+                  <li key={`${combo.comboName}-${combo.commanderSpellbookUrl}`}>
+                    <strong>{combo.comboName}</strong>{" "}
+                    <a href={combo.commanderSpellbookUrl} target="_blank" rel="noreferrer noopener">
+                      [Commander Spellbook]
+                    </a>
+                    <div className="combo-card-strip">
+                      {combo.cards.map((cardName, index) => (
+                        <ComboCardTile
+                          key={`${combo.comboName}-${combo.commanderSpellbookUrl}-${cardName}-${index}`}
+                          name={cardName}
+                          imageUrl={getCardPreviewImage(cardName)}
+                        />
+                      ))}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+          <div
+            hidden={activeComboView !== "conditional"}
+            role="tabpanel"
+            id="combo-view-panel-conditional"
+            aria-labelledby="combo-view-tab-conditional"
+          >
+            {comboReport.conditional.length === 0 ? (
+              <p className="muted">No conditional combos currently detected.</p>
+            ) : (
               <ul>
                 {comboReport.conditional.map((combo) => (
                   <li key={`conditional-${combo.comboName}-${combo.commanderSpellbookUrl}`}>
@@ -1026,7 +1116,7 @@ export function AnalysisReport({ result, onOpenPrintingPicker }: AnalysisReportP
                         <ComboCardTile
                           key={`conditional-${combo.comboName}-${combo.commanderSpellbookUrl}-${cardName}-${index}`}
                           name={cardName}
-                          imageUrl={getComboCardImage(cardName)}
+                          imageUrl={getCardPreviewImage(cardName)}
                         />
                       ))}
                     </div>
@@ -1036,11 +1126,18 @@ export function AnalysisReport({ result, onOpenPrintingPicker }: AnalysisReportP
                   </li>
                 ))}
               </ul>
-            </>
-          ) : null}
-          {comboReport.potential.length > 0 ? (
-            <>
-              <p className="muted">Potential combos (near misses):</p>
+            )}
+          </div>
+
+          <div
+            hidden={activeComboView !== "potential"}
+            role="tabpanel"
+            id="combo-view-panel-potential"
+            aria-labelledby="combo-view-tab-potential"
+          >
+            {comboReport.potential.length === 0 ? (
+              <p className="muted">No potential combos found for current near-miss thresholds.</p>
+            ) : (
               <ul>
                 {comboReport.potential.map((combo) => {
                   const missingNames = new Set(combo.missingCards.map((cardName) => normalizeComboText(cardName)));
@@ -1059,7 +1156,7 @@ export function AnalysisReport({ result, onOpenPrintingPicker }: AnalysisReportP
                           <ComboCardTile
                             key={`potential-${combo.comboName}-${combo.commanderSpellbookUrl}-${cardName}-${index}`}
                             name={cardName}
-                            imageUrl={getComboCardImage(cardName)}
+                            imageUrl={getCardPreviewImage(cardName)}
                             missing={missingNames.has(normalizeComboText(cardName))}
                           />
                         ))}
@@ -1071,8 +1168,8 @@ export function AnalysisReport({ result, onOpenPrintingPicker }: AnalysisReportP
                   );
                 })}
               </ul>
-            </>
-          ) : null}
+            )}
+          </div>
           <p className="muted">
             Live combos: {comboReport.detected.length} | Conditional combos: {comboReport.conditional.length} |
             Potential shown: {comboReport.potential.length} / {comboReport.databaseSize} tracked.

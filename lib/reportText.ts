@@ -371,12 +371,16 @@ export function buildPlaintextReport(result: AnalyzeResponse): string {
     ...(
       result.improvementSuggestions.items.length > 0
         ? result.improvementSuggestions.items.flatMap((item) => [
-            `- Suggested ${item.label} (Current ${item.currentCount}, Recommended ${item.recommendedRange}):`,
+            `- Suggested ${item.direction === "CUT" ? "cuts" : "adds"} for ${item.label} (Current ${item.currentCount}, Recommended ${item.recommendedRange}):`,
             ...(item.suggestions.length > 0
               ? item.suggestions.map((name) => `  - ${name}`)
-              : ["  - No matching suggestions for this color identity"])
+              : [
+                  item.direction === "CUT"
+                    ? "  - No clear cut candidates found for this role"
+                    : "  - No matching additions for this color identity"
+                ])
           ])
-        : ["- No LOW role suggestions right now."]
+        : ["- No add/cut role suggestions right now."]
     )
   ];
 

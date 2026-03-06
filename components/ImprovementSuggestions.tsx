@@ -1,11 +1,12 @@
-import { CardNameHover } from "@/components/CardNameHover";
+import { ComboCardTile } from "@/components/ComboCardTile";
 import type { ImprovementSuggestions as ImprovementSuggestionsType } from "@/lib/contracts";
 
 type ImprovementSuggestionsProps = {
   suggestions: ImprovementSuggestionsType;
+  getCardPreviewImage?: (cardName: string) => string | null;
 };
 
-export function ImprovementSuggestions({ suggestions }: ImprovementSuggestionsProps) {
+export function ImprovementSuggestions({ suggestions, getCardPreviewImage }: ImprovementSuggestionsProps) {
   return (
     <section>
       <h2>Deck Improvement Suggestions</h2>
@@ -16,25 +17,33 @@ export function ImprovementSuggestions({ suggestions }: ImprovementSuggestionsPr
       </p>
 
       {suggestions.items.length === 0 ? (
-        <p className="muted">No LOW role suggestions right now.</p>
+        <p className="muted">No add/cut role suggestions right now.</p>
       ) : (
         <div className="suggestion-groups">
           {suggestions.items.map((item) => (
             <div className="suggestion-card" key={item.key}>
-              <h3>Suggested {item.label}</h3>
+              <h3>
+                {item.direction === "CUT" ? "Suggested Cuts" : "Suggested Adds"}: {item.label}
+              </h3>
               <p className="muted">
                 Current: {item.currentCount} | Recommended: {item.recommendedRange}
               </p>
               {item.suggestions.length > 0 ? (
-                <ul>
+                <div className="suggestion-card-grid">
                   {item.suggestions.map((name) => (
-                    <li key={`${item.key}-${name}`}>
-                      <CardNameHover name={name} />
-                    </li>
+                    <ComboCardTile
+                      key={`${item.key}-${name}`}
+                      name={name}
+                      imageUrl={getCardPreviewImage?.(name) ?? null}
+                    />
                   ))}
-                </ul>
+                </div>
               ) : (
-                <p className="muted">No matching suggestions for this color identity.</p>
+                <p className="muted">
+                  {item.direction === "CUT"
+                    ? "No clear cut candidates found for this role."
+                    : "No matching additions for this color identity."}
+                </p>
               )}
             </div>
           ))}

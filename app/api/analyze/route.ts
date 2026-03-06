@@ -751,10 +751,28 @@ export async function POST(request: Request) {
     const ruleZero = computePlayerHeuristics({
       deckCards: knownCards,
       averageManaValue: roundedSummary.averageManaValue,
+      landCount: roundedSummary.types.land,
+      rampCount: roles.ramp,
       drawCount: roles.draw,
       tutorCount: roles.tutors,
       comboDetectedCount: comboReport.detected.length,
-      commanderCard: selectedCommanderCard
+      commanderCard: selectedCommanderCard,
+      openingHand:
+        openingSimulation.type === "OPENING_HAND"
+          ? {
+              playableHandsPct: openingSimulation.playableHandsPct,
+              deadHandsPct: openingSimulation.deadHandsPct,
+              rampInOpeningPct: openingSimulation.rampInOpeningPct
+            }
+          : null,
+      goldfish:
+        goldfishSimulation.type === "GOLDFISH"
+          ? {
+              avgFirstSpellTurn: goldfishSimulation.avgFirstSpellTurn,
+              avgCommanderCastTurn: goldfishSimulation.avgCommanderCastTurn,
+              avgManaByTurn3: goldfishSimulation.avgManaByTurn3
+            }
+          : null
     });
 
     const suggestionColorIdentity =
@@ -765,7 +783,8 @@ export async function POST(request: Request) {
     const improvementSuggestions = {
       colorIdentity: suggestionColorIdentity,
       items: buildRoleSuggestions({
-        lowRoles: deckHealth.rows,
+        roleRows: deckHealth.rows,
+        roleBreakdown,
         deckColorIdentity: suggestionColorIdentity,
         existingCardNames: parsedDeckView.flatMap((entry) =>
           entry.resolvedName ? [entry.name, entry.resolvedName] : [entry.name]

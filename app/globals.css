@@ -1037,6 +1037,10 @@ button:disabled {
   color: var(--warning);
 }
 
+.health-list-warn li.health-warn-high {
+  color: #8fc1ff;
+}
+
 .health-icon {
   line-height: 1.2;
 }
@@ -1128,6 +1132,60 @@ button:disabled {
 
 .role-tagged-cards li {
   margin-bottom: 0.12rem;
+}
+
+.role-tagged-grid {
+  margin-top: 0.45rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(118px, 1fr));
+  gap: 0.46rem;
+}
+
+.role-tagged-card {
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  overflow: hidden;
+  background: linear-gradient(180deg, #ffffff, #f4f8fd);
+}
+
+.role-tagged-card-image {
+  width: 100%;
+  aspect-ratio: 0.72;
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-color: #101923;
+}
+
+.role-tagged-card-image-fallback {
+  width: 100%;
+  aspect-ratio: 0.72;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 0.42rem;
+  background: #e8eef4;
+  color: #33495e;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.role-tagged-card-meta {
+  padding: 0.32rem 0.42rem 0.42rem;
+}
+
+.role-tagged-card-name {
+  margin: 0;
+  font-size: 0.78rem;
+  line-height: 1.2;
+  font-weight: 700;
+}
+
+.role-tagged-card-qty {
+  margin: 0.2rem 0 0;
+  font-size: 0.73rem;
+  color: var(--ink-muted);
 }
 
 .role-tagged-empty {
@@ -1361,6 +1419,51 @@ button:disabled {
   min-height: var(--btn-height-compact);
   padding: 0.3rem 0.68rem;
   font-size: var(--btn-font-size-compact);
+}
+
+.combo-view-tabs {
+  margin-top: 0.42rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.38rem;
+}
+
+.combo-view-tab {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ink);
+  min-height: 1.9rem;
+  padding: 0.2rem 0.62rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.42rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.combo-view-tab:hover {
+  background: #edf3fb;
+}
+
+.combo-view-tab-active {
+  border-color: #5a7fa3;
+  background: linear-gradient(120deg, #234763, #2e6e97);
+  color: #eaf6ff;
+}
+
+.combo-view-tab-count {
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  min-width: 1.25rem;
+  height: 1.2rem;
+  padding: 0 0.34rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+  line-height: 1;
 }
 
 .combo-card-strip {
@@ -1638,6 +1741,13 @@ button:disabled {
   font-size: 0.95rem;
 }
 
+.suggestion-card-grid {
+  margin-top: 0.45rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(112px, 1fr));
+  gap: 0.45rem;
+}
+
 .explanation {
   font-weight: 600;
 }
@@ -1814,6 +1924,16 @@ select:focus {
 .combo-card-tile {
   border-color: #34475d;
   background: linear-gradient(180deg, #111b28, #0d1622);
+}
+
+.combo-view-tab {
+  border-color: #3a4f65;
+  background: #172333;
+  color: #c9d9ea;
+}
+
+.combo-view-tab:hover {
+  background: #213247;
 }
 
 .combo-card-image-fallback {
@@ -2622,6 +2742,16 @@ ul {
 .role-bar-track,
 .sim-bar-track {
   background: #2a3340;
+}
+
+.role-tagged-card {
+  border-color: #34475d;
+  background: linear-gradient(180deg, #111b28, #0d1622);
+}
+
+.role-tagged-card-image-fallback {
+  background: #162335;
+  color: #d6e4f3;
 }
 
 .impact-badge-warn {

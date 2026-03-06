@@ -180,6 +180,7 @@ export type RoleSuggestion = {
   label: string;
   currentCount: number;
   recommendedRange: string;
+  direction: "ADD" | "CUT";
   suggestions: string[];
 };
 

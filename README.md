@@ -14,6 +14,7 @@ Commander deck analysis app built with Next.js + TypeScript.
   - bracket heuristics, archetype signals, combo signals, Rule 0 snapshot (including true tutor cards in table-talk flags)
   - deterministic simulation summaries
 - Supports set-aware pricing, per-card seller links, and per-card printing selection.
+- Shows card preview tiles across key report sections (detected cards, core composition tagged cards, combo detection, and suggestion cards).
 
 ## Quick Start
 
@@ -85,6 +86,14 @@ Runtime/tests do not call Commander Spellbook.
 - The `Simulations` tab uses a single interactive simulation panel.
 - Run counts: `100`, `1000`, `5000`.
 - Optional seed toggle for reproducible runs.
+- Rule 0 speed/consistency heuristics consume simulation outputs (opening-hand and goldfish signals) plus deck composition features.
+
+## Suggestions And Combo Views
+
+- Deck Improvement Suggestions include `Suggested Adds` for `LOW` role statuses.
+- Deck Improvement Suggestions include `Suggested Cuts` for `HIGH` role statuses (based on role-tagged cards in your list).
+- Combo Detection includes internal tabs: `Live Combos`, `Conditional`, and `Potential`.
+- Combo lists and suggestions use card preview tiles for faster review.
 
 ## Deployment Notes
 
@@ -107,6 +116,7 @@ Recommended flow:
 - `POST /api/analyze`
 - `POST /api/import-url`
 - `POST /api/share-report`
+- `POST /api/simulate`
 - `GET /api/card-printings`
 
 ## Current Scope
@@ -117,7 +127,8 @@ Recommended flow:
 
 ## Near-Term Roadmap
 
-1. Continue analyzer role/category accuracy hardening with more fixtures and overrides.
-1. Expand deterministic engine behavior coverage for cards driving analysis signals.
+1. Continue role/category accuracy hardening with broader fixture coverage and edge-case card overrides.
+1. Add richer cut-ranking heuristics (curve pressure, redundancy, and protected staples by archetype/strategy).
+1. Expand deterministic engine behavior coverage for cards most used in analyzer signals and simulations.
 1. Improve smoke checks and release reliability for preview -> prod flow.
-1. Keep Scryfall compiled data and classifier artifacts refreshed.
+1. Keep Scryfall compiled data and Spellbook combo snapshots refreshed.

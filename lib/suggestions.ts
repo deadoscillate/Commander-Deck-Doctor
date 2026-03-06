@@ -1,4 +1,5 @@
 import type { CountKey } from "./thresholds";
+import type { RoleBreakdown } from "./contracts";
 import { classifyCardRoles, type RoleFlags } from "@/engine/cards/roleClassifier";
 
 type SuggestionRoleKey = Exclude<CountKey, "lands">;
@@ -40,17 +41,19 @@ export type RoleSuggestions = {
   label: string;
   currentCount: number;
   recommendedRange: string;
+  direction: "ADD" | "CUT";
   suggestions: string[];
 };
 
 type BuildRoleSuggestionsInput = {
-  lowRoles: Array<{
+  roleRows: Array<{
     key: CountKey;
     label: string;
     value: number;
     recommendedText: string;
     status: "LOW" | "OK" | "HIGH";
   }>;
+  roleBreakdown?: RoleBreakdown;
   deckColorIdentity: string[];
   existingCardNames: string[];
   cardDatabase?: SuggestionCardDatabase;
@@ -222,6 +225,30 @@ const ROLE_PREFERRED_ORDER: Record<SuggestionRoleKey, string[]> = {
 };
 
 const ROLE_KEYS: SuggestionRoleKey[] = ["ramp", "draw", "removal", "wipes", "protection", "finishers"];
+
+const PROTECTED_CUT_CARDS = new Set(
+  [
+    "sol ring",
+    "mana crypt",
+    "arcane signet",
+    "smothering tithe",
+    "rhystic study",
+    "mystic remora",
+    "esper sentinel",
+    "swords to plowshares",
+    "path to exile",
+    "cyclonic rift",
+    "teferi's protection",
+    "heroic intervention",
+    "force of will",
+    "fierce guardianship",
+    "deflecting swat",
+    "toxic deluge",
+    "wrath of god",
+    "damnation",
+    "blasphemous act"
+  ].map((name) => normalizeCardName(name))
+);
 
 const indexedCardCache = new WeakMap<SuggestionCardDatabase, IndexedCard[]>();
 
@@ -444,15 +471,109 @@ function dynamicCandidatesForRole(
   return candidates.slice(0, limit).map((card) => card.name);
 }
 
+function cutScoreForRole(
+  roleKey: SuggestionRoleKey,
+  qty: number,
+  card: SuggestionCardDefinition | null
+): number {
+  const name = card?.name ?? "";
+  const normalizedName = normalizeCardName(name);
+  const mv = Number.isFinite(card?.mv) ? (card?.mv ?? 0) : 0;
+  const lowerTypeLine = card?.typeLine?.toLowerCase() ?? "";
+  const lowerText = card?.oracleText?.toLowerCase() ?? "";
+
+  let score = mv * 2.4 + Math.max(0, qty - 1) * 6;
+
+  if (roleKey === "ramp") {
+    if (mv >= 4) score += 8;
+    if (/search your library/.test(lowerText)) score += 3;
+    if (/\{t\}:\s*add\s+\{/.test(lowerText) && mv >= 3) score += 3;
+    if (mv <= 2) score -= 10;
+  } else if (roleKey === "draw") {
+    if (mv >= 5) score += 8;
+    if (lowerTypeLine.includes("sorcery")) score += 3;
+    if (/draw\s+\d+\s+cards?/.test(lowerText) && mv >= 4) score += 4;
+    if (mv <= 2) score -= 5;
+  } else if (roleKey === "removal") {
+    if (mv >= 4) score += 7;
+    if (lowerTypeLine.includes("sorcery")) score += 4;
+    if (/destroy target|exile target/.test(lowerText) && mv >= 4) score += 4;
+    if (lowerTypeLine.includes("instant") && mv <= 2) score -= 6;
+  } else if (roleKey === "wipes") {
+    if (mv >= 6) score += 8;
+    if (mv <= 4) score -= 5;
+  } else if (roleKey === "protection") {
+    if (mv >= 4) score += 8;
+    if (lowerTypeLine.includes("instant") && mv <= 2) score -= 7;
+  } else if (roleKey === "finishers") {
+    if (mv >= 8) score += 8;
+    if (mv <= 4) score -= 4;
+  }
+
+  if (PROTECTED_CUT_CARDS.has(normalizedName)) {
+    score -= 20;
+  }
+
+  return score;
+}
+
+function cutCandidatesForRole(
+  roleKey: SuggestionRoleKey,
+  roleBreakdown: RoleBreakdown | undefined,
+  limit: number,
+  cardDatabase?: SuggestionCardDatabase
+): string[] {
+  const rows = roleBreakdown?.[roleKey] ?? [];
+  if (!rows.length) {
+    return [];
+  }
+
+  const ranked = rows
+    .map((row) => ({
+      name: row.name,
+      qty: row.qty,
+      score: cutScoreForRole(roleKey, row.qty, cardDatabase?.getCardByName(row.name) ?? null)
+    }))
+    .sort((a, b) => {
+      if (b.score !== a.score) {
+        return b.score - a.score;
+      }
+
+      if (b.qty !== a.qty) {
+        return b.qty - a.qty;
+      }
+
+      return a.name.localeCompare(b.name);
+    });
+
+  const picked: string[] = [];
+  const seen = new Set<string>();
+  for (const row of ranked) {
+    const normalized = normalizeCardName(row.name);
+    if (!normalized || seen.has(normalized)) {
+      continue;
+    }
+
+    seen.add(normalized);
+    picked.push(row.name);
+    if (picked.length >= limit) {
+      break;
+    }
+  }
+
+  return picked;
+}
+
 /**
- * Returns role suggestions for LOW role buckets.
+ * Returns role suggestions for LOW and HIGH role buckets.
  * Strategy:
- * - Prefer curated staples.
- * - Backfill with dynamic engine-classified Commander-legal cards from the local card DB.
- * - Always remove cards already present in the deck.
+ * - LOW: suggest additions using curated staples, then dynamic engine-classified backfill.
+ * - HIGH: suggest cuts from currently tagged role cards, prioritizing lower-impact trims first.
+ * - Always avoid suggesting additions for cards already present in the deck.
  */
 export function buildRoleSuggestions({
-  lowRoles,
+  roleRows,
+  roleBreakdown,
   deckColorIdentity,
   existingCardNames,
   cardDatabase,
@@ -463,25 +584,33 @@ export function buildRoleSuggestions({
   const existing = new Set(existingCardNames.map((name) => normalizeCardName(name)));
   const output: RoleSuggestions[] = [];
 
-  for (const role of lowRoles) {
-    if (role.status !== "LOW" || role.key === "lands") {
+  for (const role of roleRows) {
+    if (role.key === "lands" || role.status === "OK") {
       continue;
     }
 
     const roleKey = role.key as SuggestionRoleKey;
-    const picked = preferredCandidatesForRole(roleKey, deckColors, existing, normalizedLimit, cardDatabase);
-    const taken = new Set(picked.map((name) => normalizeCardName(name)));
+    let picked: string[] = [];
+    let direction: "ADD" | "CUT" = "ADD";
 
-    if (picked.length < normalizedLimit) {
-      const backfill = dynamicCandidatesForRole(
-        roleKey,
-        deckColors,
-        existing,
-        taken,
-        normalizedLimit - picked.length,
-        cardDatabase
-      );
-      picked.push(...backfill);
+    if (role.status === "LOW") {
+      picked = preferredCandidatesForRole(roleKey, deckColors, existing, normalizedLimit, cardDatabase);
+      const taken = new Set(picked.map((name) => normalizeCardName(name)));
+
+      if (picked.length < normalizedLimit) {
+        const backfill = dynamicCandidatesForRole(
+          roleKey,
+          deckColors,
+          existing,
+          taken,
+          normalizedLimit - picked.length,
+          cardDatabase
+        );
+        picked.push(...backfill);
+      }
+    } else {
+      direction = "CUT";
+      picked = cutCandidatesForRole(roleKey, roleBreakdown, normalizedLimit, cardDatabase);
     }
 
     output.push({
@@ -489,6 +618,7 @@ export function buildRoleSuggestions({
       label: role.label,
       currentCount: role.value,
       recommendedRange: role.recommendedText,
+      direction,
       suggestions: picked
     });
   }

@@ -23,7 +23,10 @@ export function DeckHealth({ report }: DeckHealthProps) {
             const statusMeta = getStatusMeta(status === "HIGH" ? "HIGH" : "LOW");
 
             return (
-              <li key={`warn-${item}`}>
+              <li
+                key={`warn-${item}`}
+                className={status === "HIGH" ? "health-warn-high" : "health-warn-low"}
+              >
                 <span className={`status-badge ${statusMeta.className}`}>
                   {statusMeta.icon} {statusMeta.label}
                 </span>

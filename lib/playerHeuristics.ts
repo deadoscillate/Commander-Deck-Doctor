@@ -5,10 +5,22 @@ import type { DeckCard, ScryfallCard } from "./types";
 type ComputePlayerHeuristicsInput = {
   deckCards: DeckCard[];
   averageManaValue: number;
+  landCount: number;
+  rampCount: number;
   drawCount: number;
   tutorCount: number;
   comboDetectedCount: number;
   commanderCard: ScryfallCard | null;
+  openingHand?: {
+    playableHandsPct: number;
+    deadHandsPct: number;
+    rampInOpeningPct: number;
+  } | null;
+  goldfish?: {
+    avgFirstSpellTurn: number | null;
+    avgCommanderCastTurn: number | null;
+    avgManaByTurn3: number;
+  } | null;
 };
 
 type NamedDetection = {
@@ -121,6 +133,18 @@ function normalizeLookupName(name: string): string {
 
 function pluralize(count: number, noun: string): string {
   return `${count} ${noun}${count === 1 ? "" : "s"}`;
+}
+
+function clamp(value: number, min: number, max: number): number {
+  if (value < min) {
+    return min;
+  }
+
+  if (value > max) {
+    return max;
+  }
+
+  return value;
 }
 
 function matchesAny(text: string, patterns: RegExp[]): boolean {
@@ -299,32 +323,72 @@ function computeWinStyle(
 
 function computeSpeedBand(input: {
   fastManaCount: number;
+  rampCount: number;
+  landCount: number;
   tutorCount: number;
   extraTurnsCount: number;
   averageManaValue: number;
   comboDetectedCount: number;
+  openingPlayableHandsPct?: number | null;
+  goldfishFirstSpellTurn?: number | null;
+  goldfishCommanderCastTurn?: number | null;
 }): RuleZeroReport["speedBand"] {
-  const { fastManaCount, tutorCount, extraTurnsCount, averageManaValue, comboDetectedCount } = input;
+  const {
+    fastManaCount,
+    rampCount,
+    landCount,
+    tutorCount,
+    extraTurnsCount,
+    averageManaValue,
+    comboDetectedCount,
+    openingPlayableHandsPct,
+    goldfishFirstSpellTurn,
+    goldfishCommanderCastTurn
+  } = input;
 
   let score = 0;
-  score += Math.min(fastManaCount, 8) * 1.3;
-  score += Math.min(tutorCount, 10) * 1.1;
-  score += Math.min(extraTurnsCount, 5) * 0.7;
-  score += Math.min(comboDetectedCount, 4) * 2.2;
+  score += Math.min(fastManaCount, 8) * 1.35;
+  score += Math.min(rampCount, 18) * 0.55;
+  score += Math.min(tutorCount, 10) * 1.05;
+  score += Math.min(comboDetectedCount, 4) * 2.35;
+  score += Math.min(extraTurnsCount, 4) * 0.45;
 
-  if (averageManaValue <= 2.3) score += 4.5;
-  else if (averageManaValue <= 2.8) score += 3.2;
-  else if (averageManaValue <= 3.2) score += 2.2;
-  else if (averageManaValue <= 3.6) score += 1;
-  else if (averageManaValue > 4) score -= 1.8;
+  if (averageManaValue <= 2.2) score += 5.2;
+  else if (averageManaValue <= 2.7) score += 3.6;
+  else if (averageManaValue <= 3.1) score += 2.2;
+  else if (averageManaValue <= 3.6) score += 0.9;
+  else if (averageManaValue > 4.2) score -= 2.8;
 
-  const estimatedTurn = Math.max(3.5, Math.min(11.5, 10.8 - score * 0.55));
+  if (landCount < 33) {
+    score -= 2.4;
+  } else if (landCount > 40) {
+    score -= 1.2;
+  }
+
+  if (typeof openingPlayableHandsPct === "number" && Number.isFinite(openingPlayableHandsPct)) {
+    score += clamp((openingPlayableHandsPct - 55) / 14, -2.4, 2.8);
+  }
+
+  if (typeof goldfishFirstSpellTurn === "number" && Number.isFinite(goldfishFirstSpellTurn)) {
+    score += clamp((4.2 - goldfishFirstSpellTurn) * 1.25, -2, 3);
+  }
+
+  if (typeof goldfishCommanderCastTurn === "number" && Number.isFinite(goldfishCommanderCastTurn)) {
+    score += clamp((5.3 - goldfishCommanderCastTurn) * 0.85, -1.6, 1.8);
+  }
+
+  const estimatedTurn = clamp(10.9 - score * 0.5, 3.2, 11.5);
 
   if (estimatedTurn <= 4.4) {
     return {
       value: "VERY_FAST",
       turnBand: "<=4",
-      explanation: `Fast mana ${fastManaCount}, tutors ${tutorCount}, combos ${comboDetectedCount}, and avg MV ${averageManaValue.toFixed(2)} suggest a roughly turn-4 or faster goldfish.`
+      explanation:
+        `Fast signals are dense: fast mana ${fastManaCount}, ramp ${rampCount}, tutors ${tutorCount}, ` +
+        `combos ${comboDetectedCount}, avg MV ${averageManaValue.toFixed(2)}.` +
+        (typeof goldfishFirstSpellTurn === "number"
+          ? ` Goldfish first spell averages turn ${goldfishFirstSpellTurn.toFixed(2)}.`
+          : "")
     };
   }
 
@@ -332,7 +396,9 @@ function computeSpeedBand(input: {
     return {
       value: "FAST",
       turnBand: "5-6",
-      explanation: `Fast mana ${fastManaCount}, tutors ${tutorCount}, extra turns ${extraTurnsCount}, and avg MV ${averageManaValue.toFixed(2)} project a turn-5 to turn-6 goldfish.`
+      explanation:
+        `Acceleration is above baseline: fast mana ${fastManaCount}, ramp ${rampCount}, tutors ${tutorCount}, ` +
+        `extra turns ${extraTurnsCount}, avg MV ${averageManaValue.toFixed(2)}.`
     };
   }
 
@@ -340,14 +406,18 @@ function computeSpeedBand(input: {
     return {
       value: "MID",
       turnBand: "7-9",
-      explanation: `Moderate acceleration (fast mana ${fastManaCount}, tutors ${tutorCount}) with avg MV ${averageManaValue.toFixed(2)} projects a turn-7 to turn-9 goldfish.`
+      explanation:
+        `Moderate acceleration profile (fast mana ${fastManaCount}, ramp ${rampCount}, tutors ${tutorCount}) ` +
+        `with avg MV ${averageManaValue.toFixed(2)} projects a mid-speed goldfish.`
     };
   }
 
   return {
     value: "SLOW",
     turnBand: "10+",
-    explanation: `Low acceleration (fast mana ${fastManaCount}, tutors ${tutorCount}) and avg MV ${averageManaValue.toFixed(2)} point toward turn-10+ goldfish pacing.`
+    explanation:
+      `Acceleration is light (fast mana ${fastManaCount}, ramp ${rampCount}, tutors ${tutorCount}) ` +
+      `with avg MV ${averageManaValue.toFixed(2)} and land count ${landCount}, indicating slower pacing.`
   };
 }
 
@@ -355,40 +425,104 @@ function computeConsistency(input: {
   drawCount: number;
   tutorCount: number;
   fastManaCount: number;
+  rampCount: number;
+  landCount: number;
   averageManaValue: number;
   commanderEngine: boolean;
+  openingPlayableHandsPct?: number | null;
+  openingDeadHandsPct?: number | null;
+  openingRampInOpeningPct?: number | null;
+  goldfishFirstSpellTurn?: number | null;
 }): RuleZeroReport["consistency"] {
-  const { drawCount, tutorCount, fastManaCount, averageManaValue, commanderEngine } = input;
+  const {
+    drawCount,
+    tutorCount,
+    fastManaCount,
+    rampCount,
+    landCount,
+    averageManaValue,
+    commanderEngine,
+    openingPlayableHandsPct,
+    openingDeadHandsPct,
+    openingRampInOpeningPct,
+    goldfishFirstSpellTurn
+  } = input;
 
-  const drawComponent = Math.min(drawCount, 18) * 2;
-  const tutorComponent = Math.min(tutorCount, 10) * 3;
-  const fastManaComponent = Math.min(fastManaCount, 8) * 2;
+  const drawComponent = Math.min(drawCount, 18) * 1.2;
+  const tutorComponent = Math.min(tutorCount, 10) * 1.8;
+  const fastManaComponent = Math.min(fastManaCount, 8) * 1.2;
+  const rampComponent = Math.min(rampCount, 18) * 0.9;
   const curveComponent =
     averageManaValue <= 2.5
-      ? 16
+      ? 8
       : averageManaValue <= 3
-        ? 12
+        ? 6
         : averageManaValue <= 3.4
-          ? 8
+          ? 4
           : averageManaValue <= 3.8
-            ? 4
+            ? 2
             : averageManaValue <= 4.2
               ? 0
               : -8;
-  const commanderComponent = commanderEngine ? 10 : 0;
+  const landComponent =
+    landCount >= 33 && landCount <= 40
+      ? 6
+      : landCount >= 31 && landCount <= 42
+        ? 3
+        : -5;
+  const commanderComponent = commanderEngine ? 6 : 0;
+  const playableComponent =
+    typeof openingPlayableHandsPct === "number" && Number.isFinite(openingPlayableHandsPct)
+      ? clamp((openingPlayableHandsPct - 55) * 0.22, -5, 10)
+      : 0;
+  const deadHandComponent =
+    typeof openingDeadHandsPct === "number" && Number.isFinite(openingDeadHandsPct)
+      ? clamp(-openingDeadHandsPct * 0.28, -14, 0)
+      : 0;
+  const openingRampComponent =
+    typeof openingRampInOpeningPct === "number" && Number.isFinite(openingRampInOpeningPct)
+      ? clamp(openingRampInOpeningPct * 0.12, 0, 10)
+      : 0;
+  const firstSpellComponent =
+    typeof goldfishFirstSpellTurn === "number" && Number.isFinite(goldfishFirstSpellTurn)
+      ? clamp((3.8 - goldfishFirstSpellTurn) * 1.1, -6, 4)
+      : 0;
 
   const score = Math.max(
     0,
-    Math.min(100, Math.round(12 + drawComponent + tutorComponent + fastManaComponent + curveComponent + commanderComponent))
+    Math.min(
+      100,
+      Math.round(
+        10 +
+          drawComponent +
+          tutorComponent +
+          fastManaComponent +
+          rampComponent +
+          curveComponent +
+          landComponent +
+          commanderComponent +
+          playableComponent +
+          deadHandComponent +
+          openingRampComponent +
+          firstSpellComponent
+      )
+    )
   );
 
-  const bucket = score >= 72 ? "HIGH" : score >= 45 ? "MED" : "LOW";
+  const bucket = score >= 72 ? "HIGH" : score >= 48 ? "MED" : "LOW";
 
   return {
     score,
     bucket,
     commanderEngine,
-    explanation: `Draw ${drawCount}, tutors ${tutorCount}, fast mana ${fastManaCount}, avg MV ${averageManaValue.toFixed(2)}, commander engine ${commanderEngine ? "on" : "off"} -> consistency ${bucket} (${score}).`
+    explanation:
+      `Draw ${drawCount}, ramp ${rampCount}, tutors ${tutorCount}, fast mana ${fastManaCount}, ` +
+      `lands ${landCount}, avg MV ${averageManaValue.toFixed(2)}, commander engine ${commanderEngine ? "on" : "off"}` +
+      (typeof openingPlayableHandsPct === "number"
+        ? `, playable hands ${openingPlayableHandsPct.toFixed(1)}%`
+        : "") +
+      (typeof openingDeadHandsPct === "number" ? `, dead hands ${openingDeadHandsPct.toFixed(1)}%` : "") +
+      ` -> consistency ${bucket} (${score}).`
   };
 }
 
@@ -398,17 +532,37 @@ function buildTableImpactFlags(input: {
   staxPieces: NamedDetection;
   freeInteraction: NamedDetection;
   fastMana: NamedDetection;
+  tutorCount: number;
+  comboDetectedCount: number;
 }): RuleZeroReport["tableImpact"] {
-  const { extraTurns, massLandDenial, staxPieces, freeInteraction, fastMana } = input;
+  const {
+    extraTurns,
+    massLandDenial,
+    staxPieces,
+    freeInteraction,
+    fastMana,
+    tutorCount,
+    comboDetectedCount
+  } = input;
 
   const flags: RuleZeroTableImpactFlag[] = [];
+  const lockPressure = massLandDenial.count > 0 || staxPieces.count >= 3;
+  const turboPressure =
+    fastMana.count >= 4 ||
+    (fastMana.count >= 3 && tutorCount >= 6) ||
+    (fastMana.count >= 2 && comboDetectedCount >= 2);
+  const protectedComboShell =
+    freeInteraction.count >= 4 || (freeInteraction.count >= 3 && comboDetectedCount >= 2);
 
   if (extraTurns.count > 0) {
     flags.push({
       kind: "extraTurns",
       severity: extraTurns.count >= 2 ? "WARN" : "INFO",
       count: extraTurns.count,
-      message: `${pluralize(extraTurns.count, "extra-turn spell")} detected.`,
+      message:
+        extraTurns.count >= 2
+          ? `${pluralize(extraTurns.count, "extra-turn spell")} detected; repeated turn loops can dominate table pacing.`
+          : `${pluralize(extraTurns.count, "extra-turn spell")} detected.`,
       cards: toCardNameList(extraTurns.cards)
     });
   }
@@ -418,7 +572,7 @@ function buildTableImpactFlags(input: {
       kind: "massLandDenial",
       severity: "WARN",
       count: massLandDenial.count,
-      message: `Mass land denial detected (${massLandDenial.count}).`,
+      message: `Mass land denial detected (${massLandDenial.count}); this usually requires explicit Rule 0 alignment.`,
       cards: toCardNameList(massLandDenial.cards)
     });
   }
@@ -426,9 +580,12 @@ function buildTableImpactFlags(input: {
   if (staxPieces.count > 0) {
     flags.push({
       kind: "staxPieces",
-      severity: staxPieces.count >= 2 ? "WARN" : "INFO",
+      severity: staxPieces.count >= 3 || lockPressure ? "WARN" : "INFO",
       count: staxPieces.count,
-      message: `${pluralize(staxPieces.count, "stax piece")} detected.`,
+      message:
+        staxPieces.count >= 3 || lockPressure
+          ? `${pluralize(staxPieces.count, "stax piece")} with lock pressure detected.`
+          : `${pluralize(staxPieces.count, "stax piece")} detected.`,
       cards: toCardNameList(staxPieces.cards)
     });
   }
@@ -436,9 +593,12 @@ function buildTableImpactFlags(input: {
   if (freeInteraction.count > 0) {
     flags.push({
       kind: "freeInteraction",
-      severity: freeInteraction.count >= 3 ? "WARN" : "INFO",
+      severity: protectedComboShell ? "WARN" : "INFO",
       count: freeInteraction.count,
-      message: `Free interaction package detected (${freeInteraction.count}).`,
+      message:
+        protectedComboShell
+          ? `Free interaction package (${freeInteraction.count}) plus combo velocity may compress interaction windows.`
+          : `Free interaction package detected (${freeInteraction.count}).`,
       cards: toCardNameList(freeInteraction.cards)
     });
   }
@@ -446,9 +606,12 @@ function buildTableImpactFlags(input: {
   if (fastMana.count > 0) {
     flags.push({
       kind: "fastMana",
-      severity: fastMana.count >= 3 ? "WARN" : "INFO",
+      severity: turboPressure ? "WARN" : "INFO",
       count: fastMana.count,
-      message: `Fast mana detected (${fastMana.count}).`,
+      message:
+        turboPressure
+          ? `Fast mana package (${fastMana.count}) with tutor/combo pressure suggests explosive starts.`
+          : `Fast mana detected (${fastMana.count}).`,
       cards: toCardNameList(fastMana.cards)
     });
   }
@@ -478,10 +641,14 @@ function buildTableImpactFlags(input: {
 export function computePlayerHeuristics({
   deckCards,
   averageManaValue,
+  landCount,
+  rampCount,
   drawCount,
   tutorCount,
   comboDetectedCount,
-  commanderCard
+  commanderCard,
+  openingHand,
+  goldfish
 }: ComputePlayerHeuristicsInput): RuleZeroReport {
   const extraTurns = (() => {
     const { count, cards } = computeExtraTurns(deckCards);
@@ -503,24 +670,37 @@ export function computePlayerHeuristics({
   );
   const speedBand = computeSpeedBand({
     fastManaCount: fastMana.count,
+    rampCount,
+    landCount,
     tutorCount,
     extraTurnsCount: extraTurns.count,
     averageManaValue,
-    comboDetectedCount
+    comboDetectedCount,
+    openingPlayableHandsPct: openingHand?.playableHandsPct ?? null,
+    goldfishFirstSpellTurn: goldfish?.avgFirstSpellTurn ?? null,
+    goldfishCommanderCastTurn: goldfish?.avgCommanderCastTurn ?? null
   });
   const consistency = computeConsistency({
     drawCount,
     tutorCount,
     fastManaCount: fastMana.count,
+    rampCount,
+    landCount,
     averageManaValue,
-    commanderEngine
+    commanderEngine,
+    openingPlayableHandsPct: openingHand?.playableHandsPct ?? null,
+    openingDeadHandsPct: openingHand?.deadHandsPct ?? null,
+    openingRampInOpeningPct: openingHand?.rampInOpeningPct ?? null,
+    goldfishFirstSpellTurn: goldfish?.avgFirstSpellTurn ?? null
   });
   const tableImpact = buildTableImpactFlags({
     extraTurns,
     massLandDenial,
     staxPieces,
     freeInteraction,
-    fastMana
+    fastMana,
+    tutorCount,
+    comboDetectedCount
   });
 
   return {

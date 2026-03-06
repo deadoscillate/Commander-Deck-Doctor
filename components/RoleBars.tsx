@@ -7,6 +7,7 @@ import type { RoleCounts } from "@/lib/types";
 type RoleBarsProps = {
   roles: RoleCounts;
   roleBreakdown?: RoleBreakdown;
+  getCardPreviewImage?: (cardName: string) => string | null;
 };
 
 type RoleConfig = {
@@ -91,7 +92,7 @@ function statusFor(value: number, min: number, max: number): "LOW" | "OK" | "HIG
   return "OK";
 }
 
-export function RoleBars({ roles, roleBreakdown }: RoleBarsProps) {
+export function RoleBars({ roles, roleBreakdown, getCardPreviewImage }: RoleBarsProps) {
   return (
     <div className="role-bars">
       {ROLE_CONFIG.map((config) => {
@@ -127,13 +128,31 @@ export function RoleBars({ roles, roleBreakdown }: RoleBarsProps) {
             {taggedCards.length > 0 ? (
               <details className="role-tagged-cards">
                 <summary>Tagged cards ({taggedCards.length})</summary>
-                <ul>
-                  {taggedCards.map((card) => (
-                    <li key={`${config.key}-${card.name}`}>
-                      {card.qty} <CardNameHover name={card.name} />
-                    </li>
-                  ))}
-                </ul>
+                <div className="role-tagged-grid">
+                  {taggedCards.map((card) => {
+                    const imageUrl = getCardPreviewImage?.(card.name) ?? null;
+                    return (
+                      <article className="role-tagged-card" key={`${config.key}-${card.name}`}>
+                        {imageUrl ? (
+                          <div
+                            className="role-tagged-card-image"
+                            style={{ backgroundImage: `url("${imageUrl}")` }}
+                          />
+                        ) : (
+                          <div className="role-tagged-card-image-fallback">
+                            <span>{card.name}</span>
+                          </div>
+                        )}
+                        <div className="role-tagged-card-meta">
+                          <p className="role-tagged-card-name">
+                            <CardNameHover name={card.name} />
+                          </p>
+                          <p className="role-tagged-card-qty">Qty {card.qty}</p>
+                        </div>
+                      </article>
+                    );
+                  })}
+                </div>
               </details>
             ) : (
               <p className="role-tagged-empty muted">No cards tagged in this category.</p>
