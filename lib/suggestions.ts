@@ -459,16 +459,20 @@ function dynamicCandidatesForRole(
     .filter((card) => isColorAllowed(card.colorIdentity, deckColors))
     .filter((card) => !existing.has(card.normalizedName))
     .filter((card) => !taken.has(card.normalizedName))
+    .map((card) => ({
+      card,
+      score: roleScore(roleKey, card)
+    }))
     .sort((a, b) => {
-      const scoreDiff = roleScore(roleKey, b) - roleScore(roleKey, a);
+      const scoreDiff = b.score - a.score;
       if (scoreDiff !== 0) {
         return scoreDiff;
       }
 
-      return a.name.localeCompare(b.name);
+      return a.card.name.localeCompare(b.card.name);
     });
 
-  return candidates.slice(0, limit).map((card) => card.name);
+  return candidates.slice(0, limit).map((entry) => entry.card.name);
 }
 
 function cutScoreForRole(

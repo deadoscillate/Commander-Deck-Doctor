@@ -151,6 +151,51 @@ describe("analysis role tagging - all core roles", () => {
     expect(roles.ramp).toBe(2);
     expect(breakdown.ramp.map((row) => row.name)).toEqual(["Arcane Signet", "Cultivate"]);
   });
+
+  it("does not count nonbasic mana lands as ramp even with behavior hints", () => {
+    const cards: DeckCard[] = [
+      {
+        name: "Ancient Tomb",
+        qty: 1,
+        card: buildCard({
+          name: "Ancient Tomb",
+          type_line: "Land",
+          cmc: 0,
+          mana_cost: "",
+          oracle_text: "{T}: Add {C}{C}. Ancient Tomb deals 2 damage to you."
+        })
+      },
+      {
+        name: "Arcane Signet",
+        qty: 1,
+        card: buildCard({
+          name: "Arcane Signet",
+          type_line: "Artifact",
+          cmc: 2,
+          mana_cost: "{2}",
+          oracle_text: "{T}: Add one mana of any color in your commander's color identity."
+        })
+      }
+    ];
+
+    const behaviorIdByCardName = (cardName: string) => {
+      if (cardName === "Ancient Tomb") {
+        return "TAP_ADD_C2";
+      }
+
+      if (cardName === "Arcane Signet") {
+        return "TAP_ADD_ANY";
+      }
+
+      return null;
+    };
+
+    const roles = computeRoleCounts(cards, { behaviorIdByCardName });
+    const breakdown = computeRoleBreakdown(cards, { behaviorIdByCardName });
+
+    expect(roles.ramp).toBe(1);
+    expect(breakdown.ramp.map((row) => row.name)).toEqual(["Arcane Signet"]);
+  });
 });
 
 describe("analysis tutor classification", () => {

@@ -29,6 +29,15 @@ const ANALYZE_REQUEST_MAX_BYTES = 500_000;
 const ANALYZE_DECKLIST_MAX_CHARS = 50_000;
 const ANALYZE_CACHE_TTL_MS = 2 * 60 * 1000;
 const ANALYZE_CACHE_MAX_ENTRIES = 120;
+const DEFAULT_ANALYZE_SIMULATION_RUNS = 400;
+const ANALYZE_SIMULATION_RUNS = (() => {
+  const parsed = Number(process.env.ANALYZE_SIMULATION_RUNS ?? "");
+  if (!Number.isFinite(parsed)) {
+    return DEFAULT_ANALYZE_SIMULATION_RUNS;
+  }
+
+  return Math.max(100, Math.floor(parsed));
+})();
 const ANALYZE_RATE_LIMIT = {
   scope: "analyze" as const,
   limit: 45,
@@ -696,14 +705,14 @@ export async function POST(request: Request) {
     const openingSimulation = analyzer.simulate({
       type: "OPENING_HAND",
       deck: simulationDeck,
-      runs: 1000,
+      runs: ANALYZE_SIMULATION_RUNS,
       seed: simulationSeed,
       commander: simulationCommander
     });
     const goldfishSimulation = analyzer.simulate({
       type: "GOLDFISH",
       deck: simulationDeck,
-      runs: 1000,
+      runs: ANALYZE_SIMULATION_RUNS,
       seed: simulationSeed,
       commander: simulationCommander
     });

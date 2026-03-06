@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Checks } from "@/components/Checks";
 import { CardNameHover } from "@/components/CardNameHover";
 import { ColorIdentityIcons } from "@/components/ColorIdentityIcons";
@@ -483,16 +483,15 @@ type AnalysisReportProps = {
   onOpenPrintingPicker?: (cardName: string) => void;
 };
 
-type ReportTabKey = "overview" | "composition" | "validation" | "simulations" | "cards" | "advanced";
+type ReportTabKey = "overview" | "composition" | "simulations" | "cards" | "advanced";
 type ComboViewKey = "live" | "conditional" | "potential";
 
 const REPORT_TABS: Array<{ key: ReportTabKey; label: string }> = [
   { key: "overview", label: "Overview" },
   { key: "composition", label: "Composition" },
-  { key: "validation", label: "Validation" },
   { key: "simulations", label: "Simulations" },
   { key: "cards", label: "Cards" },
-  { key: "advanced", label: "Advanced" }
+  { key: "advanced", label: "Combos" }
 ];
 
 const COMBO_VIEW_TABS: Array<{ key: ComboViewKey; label: string }> = [
@@ -551,6 +550,7 @@ export function AnalysisReport({ result, onOpenPrintingPicker }: AnalysisReportP
     previewImageByName.get(normalizeComboText(cardName)) ?? null;
   const [activeTab, setActiveTab] = useState<ReportTabKey>("overview");
   const [activeComboView, setActiveComboView] = useState<ComboViewKey>("live");
+  const lastComboCountsRef = useRef<string>("");
 
   useEffect(() => {
     if (typeof document === "undefined") {
@@ -576,6 +576,13 @@ export function AnalysisReport({ result, onOpenPrintingPicker }: AnalysisReportP
   }, [commanderInfo.artUrl, commanderInfo.cardImageUrl]);
 
   useEffect(() => {
+    const countsKey = `${comboReport.detected.length}|${comboReport.conditional.length}|${comboReport.potential.length}`;
+    if (countsKey === lastComboCountsRef.current) {
+      return;
+    }
+
+    lastComboCountsRef.current = countsKey;
+
     const hasLive = comboReport.detected.length > 0;
     const hasConditional = comboReport.conditional.length > 0;
     const hasPotential = comboReport.potential.length > 0;
@@ -694,6 +701,10 @@ export function AnalysisReport({ result, onOpenPrintingPicker }: AnalysisReportP
         />
       ) : null}
 
+      <section id="report-panel-validation">
+        <Checks checks={result.checks} rulesEngine={result.rulesEngine} />
+      </section>
+
       <section className="report-tabs-shell">
         <div className="report-tabs" role="tablist" aria-label="Analysis report sections">
           {REPORT_TABS.map((tab) => {
@@ -716,140 +727,176 @@ export function AnalysisReport({ result, onOpenPrintingPicker }: AnalysisReportP
         </div>
       </section>
 
-      <section className="player-snapshot" hidden={activeTab !== "overview"} id="report-panel-overview" role="tabpanel">
-        <h2>Player Snapshot</h2>
-        <ul>
-          <li>
-            Primary win: <strong>{labelForWinStyle(ruleZero.winStyle.primary)}</strong>
-            {ruleZero.winStyle.secondary ? (
-              <span> (backup: {labelForWinStyle(ruleZero.winStyle.secondary)})</span>
-            ) : null}
-          </li>
-          <li>
-            Estimated speed:{" "}
-            <strong>
-              {labelForSpeedBand(ruleZero.speedBand.value)} ({ruleZero.speedBand.turnBand})
-            </strong>
-          </li>
-          <li>
-            Consistency:{" "}
-            <strong>
-              {ruleZero.consistency.bucket} ({ruleZero.consistency.score})
-            </strong>
-          </li>
-        </ul>
-        <div className="snapshot-badges">
-          <span className={`status-badge ${getStatusMeta(speedStatus).className}`}>
-            {getStatusMeta(speedStatus).icon} Speed {getStatusMeta(speedStatus).label}
-          </span>
-          <span className={`status-badge ${getStatusMeta(consistencyStatus).className}`}>
-            {getStatusMeta(consistencyStatus).icon} Consistency {getStatusMeta(consistencyStatus).label}
-          </span>
-          <span className={`status-badge ${getStatusMeta(impactStatus).className}`}>
-            {getStatusMeta(impactStatus).icon} Table Impact {getStatusMeta(impactStatus).label}
-          </span>
-        </div>
-        <p className="snapshot-note">{ruleZero.speedBand.explanation}</p>
-      </section>
+      {activeTab === "overview" ? (
+        <>
+          <section className="player-snapshot" id="report-panel-overview" role="tabpanel">
+            <h2>Player Snapshot</h2>
+            <ul>
+              <li>
+                Primary win: <strong>{labelForWinStyle(ruleZero.winStyle.primary)}</strong>
+                {ruleZero.winStyle.secondary ? (
+                  <span> (backup: {labelForWinStyle(ruleZero.winStyle.secondary)})</span>
+                ) : null}
+              </li>
+              <li>
+                Estimated speed:{" "}
+                <strong>
+                  {labelForSpeedBand(ruleZero.speedBand.value)} ({ruleZero.speedBand.turnBand})
+                </strong>
+              </li>
+              <li>
+                Consistency:{" "}
+                <strong>
+                  {ruleZero.consistency.bucket} ({ruleZero.consistency.score})
+                </strong>
+              </li>
+            </ul>
+            <div className="snapshot-badges">
+              <span className={`status-badge ${getStatusMeta(speedStatus).className}`}>
+                {getStatusMeta(speedStatus).icon} Speed {getStatusMeta(speedStatus).label}
+              </span>
+              <span className={`status-badge ${getStatusMeta(consistencyStatus).className}`}>
+                {getStatusMeta(consistencyStatus).icon} Consistency {getStatusMeta(consistencyStatus).label}
+              </span>
+              <span className={`status-badge ${getStatusMeta(impactStatus).className}`}>
+                {getStatusMeta(impactStatus).icon} Table Impact {getStatusMeta(impactStatus).label}
+              </span>
+            </div>
+            <p className="snapshot-note">{ruleZero.speedBand.explanation}</p>
+            <div className="technical-group">
+              <h3>Commander Bracket Detail</h3>
+              <p>
+                Estimated bracket:{" "}
+                <strong>
+                  {result.bracketReport.estimatedBracket} ({result.bracketReport.estimatedLabel})
+                </strong>
+              </p>
+              <p className="muted">{result.bracketReport.explanation}</p>
+              {result.bracketReport.gameChangersFound.length > 0 ? (
+                <ul>
+                  {result.bracketReport.gameChangersFound.map((card) => (
+                    <li key={card.name}>
+                      <CardNameHover name={card.name} />
+                      {card.qty > 1 ? ` x${card.qty}` : ""}{" "}
+                      <span className="gc-badge">{"\u2B50"} Game Changer</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+              {result.bracketReport.warnings.length > 0 ? (
+                <ul className="warnings">
+                  {result.bracketReport.warnings.map((warning) => (
+                    <li key={warning}>{warning}</li>
+                  ))}
+                </ul>
+              ) : null}
+              <p className="muted">{result.bracketReport.disclaimer}</p>
+            </div>
+          </section>
 
-      <section hidden={activeTab !== "overview"}>
-        <h2>Table Talk Flags</h2>
-        <p className="table-talk-intro muted">
-          Rule 0 Snapshot is a quick read of table pressure signals: fast mana, true tutors, free interaction,
-          extra turns, and lock pressure.
-        </p>
+          <section>
+            <h2>Table Talk Flags</h2>
+            <p className="table-talk-intro muted">
+              Rule 0 Snapshot is a quick read of table pressure signals: fast mana, true tutors, free interaction,
+              extra turns, and lock pressure.
+            </p>
 
-        {tableTalkRows.length === 0 ? (
-          <p className="muted">No major table talk flags detected from current signal set.</p>
-        ) : (
-          <div className="table-talk-grid">
-            {tableTalkRows.map((row) => {
-              const status = row.severity === "WARN" ? "LOW" : "MED";
-              const statusMeta = getStatusMeta(status);
+            {tableTalkRows.length === 0 ? (
+              <p className="muted">No major table talk flags detected from current signal set.</p>
+            ) : (
+              <div className="table-talk-grid">
+                {tableTalkRows.map((row) => {
+                  const status = row.severity === "WARN" ? "LOW" : "MED";
+                  const statusMeta = getStatusMeta(status);
 
-              return (
-                <div className="table-talk-item" key={row.key}>
-                  <div className="table-talk-head">
-                    <span className="table-talk-icon">{row.icon}</span>
-                    <strong>{row.label}</strong>
-                    <span className={`status-badge ${statusMeta.className}`}>
-                      {statusMeta.icon} {statusMeta.label}
-                    </span>
-                  </div>
-                  <p className="muted">
-                    {row.message} {row.count > 0 ? `(x${row.count})` : ""}
-                  </p>
+                  return (
+                    <div className="table-talk-item" key={row.key}>
+                      <div className="table-talk-head">
+                        <span className="table-talk-icon">{row.icon}</span>
+                        <strong>{row.label}</strong>
+                        <span className={`status-badge ${statusMeta.className}`}>
+                          {statusMeta.icon} {statusMeta.label}
+                        </span>
+                      </div>
+                      <p className="muted">
+                        {row.message} {row.count > 0 ? `(x${row.count})` : ""}
+                      </p>
                   {row.cards.length > 0 ? (
-                    <ul className="table-talk-cards">
-                      {row.cards.map((cardName) => (
-                        <li key={`${row.key}-${cardName}`}>
-                          <CardNameHover name={cardName} />
-                        </li>
+                    <div className="combo-card-strip table-talk-card-strip">
+                      {row.cards.map((cardName, index) => (
+                        <ComboCardTile
+                          key={`${row.key}-${cardName}-${index}`}
+                          name={cardName}
+                          imageUrl={getCardPreviewImage(cardName)}
+                        />
                       ))}
-                    </ul>
+                    </div>
                   ) : null}
                 </div>
               );
             })}
-          </div>
-        )}
-      </section>
+              </div>
+            )}
+          </section>
 
-      <section hidden={activeTab !== "overview"}>
-        <h2>Deck Basics</h2>
-        <div className="summary-grid">
-          <div className="summary-card">
-            <span>Deck Size</span>
-            <strong>{result.summary.deckSize}</strong>
-          </div>
-          <div className="summary-card">
-            <span>Unique Cards</span>
-            <strong>{result.summary.uniqueCards}</strong>
-          </div>
-          <div className="summary-card">
-            <span>Avg Mana Value</span>
-            <strong>{result.summary.averageManaValue.toFixed(2)}</strong>
-          </div>
-          <div className="summary-card">
-            <span>Colors</span>
-            <strong className="summary-color-icons">
-              <ColorIdentityIcons identity={result.summary.colors} size={18} />
-            </strong>
-          </div>
-          <div className="summary-card">
-            <span>Deck Price (USD)</span>
-            <strong>{deckPrice ? formatUsd(deckPrice.totals.usd) : "N/A"}</strong>
-          </div>
-        </div>
-        {deckPrice ? (
-          <p className="muted deck-price-meta">
-            Foil {formatUsd(deckPrice.totals.usdFoil)} | Etched {formatUsd(deckPrice.totals.usdEtched)} |
-            MTGO {formatTix(deckPrice.totals.tix)} | USD coverage{" "}
-            {Math.round(deckPrice.coverage.usd * 100)}% ({deckPrice.pricedCardQty.usd}/{deckPrice.totalKnownCardQty}
-            {" "}cards priced) | Mode{" "}
-            {deckPrice.pricingMode === "decklist-set" ? "Decklist [SET] tags" : "Oracle default"}
-            {deckPrice.pricingMode === "decklist-set"
-              ? ` | Set matches ${deckPrice.setMatchedCardQty}/${deckPrice.setTaggedCardQty} tagged cards`
-              : ""}
-          </p>
-        ) : null}
-        {commanderInfo.name ? (
-          <p>
-            Commander:{" "}
-            <strong>
-              <CardNameHover name={commanderInfo.name} />
-            </strong>{" "}
-            <ManaCost manaCost={commanderInfo.manaCost} size={16} className="commander-inline-mana" />
-          </p>
-        ) : (
-          <p className="muted">
-            No commander selected yet. If no Commander section is present in your list, select one in the input
-            panel.
-          </p>
-        )}
-      </section>
+          <section>
+            <h2>Deck Basics</h2>
+            <div className="summary-grid">
+              <div className="summary-card">
+                <span>Deck Size</span>
+                <strong>{result.summary.deckSize}</strong>
+              </div>
+              <div className="summary-card">
+                <span>Unique Cards</span>
+                <strong>{result.summary.uniqueCards}</strong>
+              </div>
+              <div className="summary-card">
+                <span>Avg Mana Value</span>
+                <strong>{result.summary.averageManaValue.toFixed(2)}</strong>
+              </div>
+              <div className="summary-card">
+                <span>Colors</span>
+                <strong className="summary-color-icons">
+                  <ColorIdentityIcons identity={result.summary.colors} size={18} />
+                </strong>
+              </div>
+              <div className="summary-card">
+                <span>Deck Price (USD)</span>
+                <strong>{deckPrice ? formatUsd(deckPrice.totals.usd) : "N/A"}</strong>
+              </div>
+            </div>
+            {deckPrice ? (
+              <p className="muted deck-price-meta">
+                Foil {formatUsd(deckPrice.totals.usdFoil)} | Etched {formatUsd(deckPrice.totals.usdEtched)} |
+                MTGO {formatTix(deckPrice.totals.tix)} | USD coverage{" "}
+                {Math.round(deckPrice.coverage.usd * 100)}% ({deckPrice.pricedCardQty.usd}/{deckPrice.totalKnownCardQty}
+                {" "}cards priced) | Mode{" "}
+                {deckPrice.pricingMode === "decklist-set" ? "Decklist [SET] tags" : "Oracle default"}
+                {deckPrice.pricingMode === "decklist-set"
+                  ? ` | Set matches ${deckPrice.setMatchedCardQty}/${deckPrice.setTaggedCardQty} tagged cards`
+                  : ""}
+              </p>
+            ) : null}
+            {commanderInfo.name ? (
+              <p>
+                Commander:{" "}
+                <strong>
+                  <CardNameHover name={commanderInfo.name} />
+                </strong>{" "}
+                <ManaCost manaCost={commanderInfo.manaCost} size={16} className="commander-inline-mana" />
+              </p>
+            ) : (
+              <p className="muted">
+                No commander selected yet. If no Commander section is present in your list, select one in the input
+                panel.
+              </p>
+            )}
+          </section>
+        </>
+      ) : null}
 
-      <section hidden={activeTab !== "composition"} id="report-panel-composition" role="tabpanel">
+      {activeTab === "composition" ? (
+        <section id="report-panel-composition" role="tabpanel">
         <h2>Core Composition</h2>
         <p className="muted">
           Role tags use the shared rules engine classifier (behavior templates + structured oracle patterns).
@@ -917,32 +964,31 @@ export function AnalysisReport({ result, onOpenPrintingPicker }: AnalysisReportP
             ))}
           </div>
         </div>
-      </section>
+        </section>
+      ) : null}
 
-      <div hidden={activeTab !== "validation"} id="report-panel-validation" role="tabpanel">
-        <Checks checks={result.checks} rulesEngine={result.rulesEngine} />
-      </div>
-      <div hidden={activeTab !== "composition"}>
-        <RecommendedCounts rows={result.deckHealth.rows} />
-      </div>
-      <div hidden={activeTab !== "composition"}>
-        <DeckHealth report={result.deckHealth} />
-      </div>
-      <div hidden={activeTab !== "simulations"} id="report-panel-simulations" role="tabpanel">
-        <SimulationsSection
-          deck={simulationDeck}
-          commanderName={commanderInfo.name}
-          initialSummary={result.openingHandSimulation ?? null}
-        />
-      </div>
-      <div hidden={activeTab !== "composition"}>
-        <ImprovementSuggestions
-          suggestions={result.improvementSuggestions}
-          getCardPreviewImage={getCardPreviewImage}
-        />
-      </div>
+      {activeTab === "composition" ? (
+        <>
+          <RecommendedCounts rows={result.deckHealth.rows} />
+          <DeckHealth report={result.deckHealth} />
+          <ImprovementSuggestions
+            suggestions={result.improvementSuggestions}
+            getCardPreviewImage={getCardPreviewImage}
+          />
+        </>
+      ) : null}
+      {activeTab === "simulations" ? (
+        <div id="report-panel-simulations" role="tabpanel">
+          <SimulationsSection
+            deck={simulationDeck}
+            commanderName={commanderInfo.name}
+            initialSummary={result.openingHandSimulation ?? null}
+          />
+        </div>
+      ) : null}
 
-      <section hidden={activeTab !== "cards"} id="report-panel-cards" role="tabpanel">
+      {activeTab === "cards" ? (
+        <section id="report-panel-cards" role="tabpanel">
         <h2>Detected Cards</h2>
         <p className="muted">
           Full preview tile set for resolved deck cards. TCGplayer numbers come from Scryfall price fields;
@@ -1019,23 +1065,13 @@ export function AnalysisReport({ result, onOpenPrintingPicker }: AnalysisReportP
             );
           })}
         </div>
-      </section>
+        </section>
+      ) : null}
 
-      <section hidden={activeTab !== "advanced"} id="report-panel-advanced" role="tabpanel">
-        <h2>Advanced Analysis Details</h2>
-        <div className="technical-group">
-          <h3>Archetype Signals</h3>
-          <p>
-            Primary: <strong>{archetypeReport.primary?.archetype ?? "Not enough signal detected"}</strong>
-          </p>
-          <p>
-            Secondary: <strong>{archetypeReport.secondary?.archetype ?? "Not enough signal detected"}</strong>
-          </p>
-          <p className="muted">{archetypeReport.disclaimer}</p>
-        </div>
-
-        <div className="technical-group">
-          <h3>Combo Detection</h3>
+      {activeTab === "advanced" ? (
+        <section id="report-panel-advanced" role="tabpanel">
+          <h2>Combo Detection</h2>
+          <div className="technical-group">
           <div className="combo-view-tabs" role="tablist" aria-label="Combo detection categories">
             {COMBO_VIEW_TABS.map((viewTab) => {
               const count =
@@ -1175,38 +1211,9 @@ export function AnalysisReport({ result, onOpenPrintingPicker }: AnalysisReportP
             Potential shown: {comboReport.potential.length} / {comboReport.databaseSize} tracked.
           </p>
           <p className="muted">{comboReport.disclaimer}</p>
-        </div>
-
-        <div className="technical-group">
-          <h3>Commander Bracket Detail</h3>
-          <p>
-            Estimated bracket:{" "}
-            <strong>
-              {result.bracketReport.estimatedBracket} ({result.bracketReport.estimatedLabel})
-            </strong>
-          </p>
-          <p className="muted">{result.bracketReport.explanation}</p>
-          {result.bracketReport.gameChangersFound.length > 0 ? (
-            <ul>
-              {result.bracketReport.gameChangersFound.map((card) => (
-                <li key={card.name}>
-                  <CardNameHover name={card.name} />
-                  {card.qty > 1 ? ` x${card.qty}` : ""}{" "}
-                  <span className="gc-badge">{"\u2B50"} Game Changer</span>
-                </li>
-              ))}
-            </ul>
-          ) : null}
-          {result.bracketReport.warnings.length > 0 ? (
-            <ul className="warnings">
-              {result.bracketReport.warnings.map((warning) => (
-                <li key={warning}>{warning}</li>
-              ))}
-            </ul>
-          ) : null}
-          <p className="muted">{result.bracketReport.disclaimer}</p>
-        </div>
-      </section>
+          </div>
+        </section>
+      ) : null}
     </div>
   );
 }

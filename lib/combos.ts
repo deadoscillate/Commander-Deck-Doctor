@@ -57,6 +57,10 @@ type RawComboDefinition = {
   commander_spellbook_url?: unknown;
 };
 
+type NormalizedComboDefinition = ComboDefinition & {
+  normalizedCards: string[];
+};
+
 function normalizeLookupName(name: string): string {
   return name
     .normalize("NFKD")
@@ -89,12 +93,12 @@ function normalizeCommanderSpellbookUrl(value: unknown): string | null {
   }
 }
 
-function normalizeComboDb(raw: unknown): ComboDefinition[] {
+function normalizeComboDb(raw: unknown): NormalizedComboDefinition[] {
   if (!Array.isArray(raw)) {
     return [];
   }
 
-  const combos: ComboDefinition[] = [];
+  const combos: NormalizedComboDefinition[] = [];
 
   for (const item of raw) {
     if (!item || typeof item !== "object") {
@@ -120,6 +124,7 @@ function normalizeComboDb(raw: unknown): ComboDefinition[] {
     combos.push({
       comboName,
       cards,
+      normalizedCards: cards.map((card) => normalizeLookupName(card)),
       requires,
       isConditional: Boolean(candidate.conditional) || requires.length > 0,
       commanderSpellbookUrl:
@@ -216,8 +221,9 @@ export function detectCombosInDeck(deckCardNames: string[], options: DetectCombo
     const matchedCards: string[] = [];
     const missingCards: string[] = [];
 
-    for (const comboCard of combo.cards) {
-      const normalizedComboCard = normalizeLookupName(comboCard);
+    for (let i = 0; i < combo.cards.length; i += 1) {
+      const comboCard = combo.cards[i];
+      const normalizedComboCard = combo.normalizedCards[i] ?? normalizeLookupName(comboCard);
       const matchedDeckCard = availableByNormalizedName.get(normalizedComboCard);
       if (!matchedDeckCard) {
         missingCards.push(comboCard);

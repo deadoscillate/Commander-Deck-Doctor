@@ -165,12 +165,7 @@ function isRamp(typeLine: string, text: string): boolean {
   const landCard = hasType(typeLine, "land");
 
   if (landCard) {
-    return matchesAny(text, [
-      /\{t\}:\s*add\s+\{[wubrgc]\}\{[wubrgc]\}/,
-      /\badd two mana\b/,
-      /\badd an additional\b[\s\S]{0,20}\bmana\b/,
-      /\bwhenever you tap\b[\s\S]{0,60}\bfor mana, add\b/
-    ]);
+    return false;
   }
 
   return matchesAny(text, [
@@ -299,6 +294,11 @@ export function classifyCardRoles(input: RoleClassifierCardInput): RoleFlags {
       cardName: input.cardName
     })
   );
+
+  // Role policy: lands never count toward ramp slots. Land count is tracked separately.
+  if (hasType(typeLine, "land")) {
+    flags.ramp = false;
+  }
 
   return flags;
 }
