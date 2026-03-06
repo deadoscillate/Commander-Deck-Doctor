@@ -55,7 +55,8 @@ body {
 }
 
 .hero {
-  max-width: 1200px;
+  max-width: none;
+  width: 100%;
   margin: 0 auto 1rem;
   padding: 1.15rem 1.25rem;
   border: 1px solid #d6e0eb;
@@ -87,9 +88,10 @@ body {
 
 .panel-grid {
   display: grid;
-  grid-template-columns: minmax(280px, 460px) minmax(320px, 1fr);
+  grid-template-columns: minmax(320px, 520px) minmax(0, 1fr);
   gap: 1.05rem;
-  max-width: 1200px;
+  max-width: none;
+  width: 100%;
   margin: 0 auto;
 }
 
@@ -331,6 +333,41 @@ button:disabled {
   background: #ffffffdf;
   margin-bottom: 1.05rem;
   box-shadow: var(--shadow-sm);
+}
+
+.report-tabs-shell {
+  margin-bottom: 0.3rem;
+  padding: 0.4rem 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.report-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.report-tab {
+  padding: 0.45rem 0.82rem;
+  border-radius: 999px;
+  border: 1px solid #bfd0df;
+  background: #eef5fc;
+  color: #2c465f;
+  box-shadow: none;
+  font-size: 0.83rem;
+}
+
+.report-tab:hover {
+  background: #e6f0fb;
+}
+
+.report-tab-active {
+  border-color: #9bb4ca;
+  background: linear-gradient(120deg, #203344, #315873);
+  color: #f2f8ff;
+  box-shadow: 0 8px 16px #1021341f;
 }
 
 .results > section.player-snapshot {
@@ -1309,7 +1346,8 @@ button:disabled {
 }
 
 .app-footer-inner {
-  max-width: 1200px;
+  max-width: none;
+  width: 100%;
   margin: 0 auto;
   border-top: 1px solid var(--line);
   padding-top: 0.9rem;
