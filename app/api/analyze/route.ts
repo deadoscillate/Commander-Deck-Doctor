@@ -201,6 +201,19 @@ function parsePriceNumber(value: string | null | undefined): number | null {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+function buildCardKingdomSearchUrl(cardName: string | null | undefined): string | null {
+  if (typeof cardName !== "string") {
+    return null;
+  }
+
+  const trimmed = cardName.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  return `https://www.cardkingdom.com/catalog/search?search=header&filter[name]=${encodeURIComponent(trimmed)}`;
+}
+
 function stableSimulationSeed(
   parsedDeck: Array<{ name: string; qty: number; resolvedName: string | null }>,
   commanderName: string | null
@@ -415,7 +428,9 @@ export async function POST(request: Request) {
         },
         sellerLinks: {
           tcgplayer: resolvedCard?.purchase_uris?.tcgplayer ?? null,
-          cardKingdom: resolvedCard?.purchase_uris?.cardkingdom ?? null
+          cardKingdom:
+            resolvedCard?.purchase_uris?.cardkingdom ??
+            buildCardKingdomSearchUrl(resolvedCard?.name ?? resolvedName ?? entry.name)
         },
         known: Boolean(resolvedName),
         isGameChanger: Boolean(matchedGameChanger),
