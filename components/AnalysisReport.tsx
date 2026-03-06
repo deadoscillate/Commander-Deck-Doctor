@@ -1,4 +1,7 @@
-﻿import { Checks } from "@/components/Checks";
+﻿"use client";
+
+import { useState } from "react";
+import { Checks } from "@/components/Checks";
 import { CardNameHover } from "@/components/CardNameHover";
 import { ColorIdentityIcons } from "@/components/ColorIdentityIcons";
 import { CommanderHeroHeader } from "@/components/CommanderHeroHeader";
@@ -515,6 +518,16 @@ type AnalysisReportProps = {
   result: AnalyzeResponse;
 };
 
+type ReportTabKey = "overview" | "composition" | "validation" | "simulations" | "cards";
+
+const REPORT_TABS: Array<{ key: ReportTabKey; label: string }> = [
+  { key: "overview", label: "Overview" },
+  { key: "composition", label: "Composition" },
+  { key: "validation", label: "Validation" },
+  { key: "simulations", label: "Simulations" },
+  { key: "cards", label: "Cards" }
+];
+
 /**
  * Read-only report renderer shared by the main analysis page and /report/[hash].
  */
@@ -543,6 +556,7 @@ export function AnalysisReport({ result }: AnalysisReportProps) {
     qty: entry.qty,
     resolvedName: entry.resolvedName
   }));
+  const [activeTab, setActiveTab] = useState<ReportTabKey>("overview");
 
   const archetypeLabel =
     archetypeReport.primary?.archetype && archetypeReport.secondary?.archetype
@@ -624,7 +638,29 @@ export function AnalysisReport({ result }: AnalysisReportProps) {
         />
       ) : null}
 
-      <section className="player-snapshot">
+      <section className="report-tabs-shell">
+        <div className="report-tabs" role="tablist" aria-label="Analysis report sections">
+          {REPORT_TABS.map((tab) => {
+            const isActive = activeTab === tab.key;
+            return (
+              <button
+                key={tab.key}
+                id={`report-tab-${tab.key}`}
+                type="button"
+                role="tab"
+                aria-selected={isActive}
+                aria-controls={`report-panel-${tab.key}`}
+                className={`report-tab${isActive ? " report-tab-active" : ""}`}
+                onClick={() => setActiveTab(tab.key)}
+              >
+                {tab.label}
+              </button>
+            );
+          })}
+        </div>
+      </section>
+
+      <section className="player-snapshot" hidden={activeTab !== "overview"} id="report-panel-overview" role="tabpanel">
         <h2>Player Snapshot</h2>
         <ul>
           <li>
@@ -660,7 +696,7 @@ export function AnalysisReport({ result }: AnalysisReportProps) {
         <p className="snapshot-note">{ruleZero.speedBand.explanation}</p>
       </section>
 
-      <section>
+      <section hidden={activeTab !== "overview"}>
         <h2>Table Talk Flags</h2>
         <p className="table-talk-intro muted">
           Rule 0 Snapshot is a quick read of how this deck may feel at the table.
@@ -705,7 +741,7 @@ export function AnalysisReport({ result }: AnalysisReportProps) {
         )}
       </section>
 
-      <section>
+      <section hidden={activeTab !== "overview"}>
         <h2>Deck Basics</h2>
         <div className="summary-grid">
           <div className="summary-card">
@@ -760,7 +796,7 @@ export function AnalysisReport({ result }: AnalysisReportProps) {
         )}
       </section>
 
-      <section>
+      <section hidden={activeTab !== "composition"} id="report-panel-composition" role="tabpanel">
         <h2>Core Composition</h2>
         <p className="muted">
           Role tags use the shared rules engine classifier (behavior templates + structured oracle patterns).
@@ -826,11 +862,17 @@ export function AnalysisReport({ result }: AnalysisReportProps) {
         </div>
       </section>
 
-      <Checks checks={result.checks} rulesEngine={result.rulesEngine} />
-      <RecommendedCounts rows={result.deckHealth.rows} />
-      <DeckHealth report={result.deckHealth} />
+      <div hidden={activeTab !== "validation"} id="report-panel-validation" role="tabpanel">
+        <Checks checks={result.checks} rulesEngine={result.rulesEngine} />
+      </div>
+      <div hidden={activeTab !== "composition"}>
+        <RecommendedCounts rows={result.deckHealth.rows} />
+      </div>
+      <div hidden={activeTab !== "composition"}>
+        <DeckHealth report={result.deckHealth} />
+      </div>
       {openingHandSimulation ? (
-        <section>
+        <section hidden={activeTab !== "simulations"}>
           <h2>Opening Hand Simulation</h2>
           <div className="summary-grid">
             <div className="summary-card">
@@ -863,10 +905,14 @@ export function AnalysisReport({ result }: AnalysisReportProps) {
           <p className="muted">{openingHandSimulation.disclaimer}</p>
         </section>
       ) : null}
-      <SimulationsSection deck={simulationDeck} commanderName={commanderInfo.name} />
-      <ImprovementSuggestions suggestions={result.improvementSuggestions} />
+      <div hidden={activeTab !== "simulations"} id="report-panel-simulations" role="tabpanel">
+        <SimulationsSection deck={simulationDeck} commanderName={commanderInfo.name} />
+      </div>
+      <div hidden={activeTab !== "composition"}>
+        <ImprovementSuggestions suggestions={result.improvementSuggestions} />
+      </div>
 
-      <section>
+      <section hidden={activeTab !== "cards"} id="report-panel-cards" role="tabpanel">
         <h2>Detected Cards</h2>
         <details>
           <summary>Show parsed cards ({result.parsedDeck.length})</summary>
@@ -882,7 +928,7 @@ export function AnalysisReport({ result }: AnalysisReportProps) {
         </details>
       </section>
 
-      <section>
+      <section hidden={activeTab !== "validation"}>
         <details className="technical-details">
           <summary>Show advanced analysis details</summary>
 
@@ -955,4 +1001,5 @@ export function AnalysisReport({ result }: AnalysisReportProps) {
     </div>
   );
 }
+
 
