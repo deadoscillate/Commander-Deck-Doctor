@@ -10,5 +10,7 @@ describe("combo detection", () => {
     const url = new URL(combo?.commanderSpellbookUrl ?? "");
     expect(url.origin).toBe("https://commanderspellbook.com");
     expect(url.pathname === "/search/" || url.pathname.startsWith("/combo/")).toBe(true);
+    expect(Array.isArray(report.conditional)).toBe(true);
+    expect(Array.isArray(report.potential)).toBe(true);
   });
 });

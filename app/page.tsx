@@ -2,7 +2,6 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import { AnalysisReport } from "@/components/AnalysisReport";
-import { CardLink } from "@/components/CardLink";
 import { ExportButtons } from "@/components/ExportButtons";
 import type { AnalyzeResponse, DeckPriceMode } from "@/lib/contracts";
 import { parseDecklist, parseDecklistWithCommander } from "@/lib/decklist";
@@ -233,7 +232,6 @@ export default function Page() {
   const [userCedhFlag, setUserCedhFlag] = useState(false);
   const [userHighPowerNoGCFlag, setUserHighPowerNoGCFlag] = useState(false);
   const [savedDecks, setSavedDecks] = useState<SavedDeck[]>([]);
-  const [previewMode, setPreviewMode] = useState(false);
   const [saveError, setSaveError] = useState("");
   const [saveInfo, setSaveInfo] = useState("");
   const [result, setResult] = useState<AnalyzeResponse | null>(null);
@@ -407,8 +405,6 @@ export default function Page() {
     }
   }, [result]);
 
-  const parsedRows = parseDecklist(decklist);
-  const previewRows = previewMode ? parsedRows : [];
   const tuningSummary = targetBracket && expectedWinTurn
     ? `Target: Bracket ${targetBracket} | Win/Lock: ${expectedWinTurn}`
     : null;
@@ -440,12 +436,6 @@ export default function Page() {
       return deckCardKeys.has(previous.cardKey) ? previous : null;
     });
   }, [decklist]);
-
-  useEffect(() => {
-    if (!previewMode) {
-      setActivePrintingPicker(null);
-    }
-  }, [previewMode]);
 
   async function ensurePrintingsLoaded(cardName: string) {
     const cardKey = normalizeCardKey(cardName);
@@ -602,9 +592,6 @@ export default function Page() {
             Try a sample deck
           </button>
         </div>
-        <p>
-          Supports Moxfield and Archidekt imports, or paste your decklist directly below.
-        </p>
       </div>
 
       <section className="panel-grid">
@@ -681,79 +668,14 @@ export default function Page() {
             One card per line; quantities allowed. Optional print-aware tags: <code>1 Sol Ring [CMM]</code> or{" "}
             <code>1 Sol Ring (CMM) 217</code>.
           </p>
-          <label className="checkbox decklist-preview-toggle decklist-preview-header">
-            <input
-              type="checkbox"
-              checked={previewMode}
-              onChange={(event) => setPreviewMode(event.target.checked)}
-            />
-            Preview mode (hover/tap card names for preview)
-          </label>
-
-          {previewMode ? (
-            <div className="decklist-preview">
-              {previewRows.length === 0 ? (
-                <p className="muted">No valid deck lines to preview yet.</p>
-              ) : (
-                <ul>
-                  {previewRows.map((entry) => {
-                    const cardKey = normalizeCardKey(entry.name);
-                    const override = printingOverrides[cardKey];
-                    const loading = Boolean(printingLoadByCard[cardKey]);
-                    const errorMessage = printingErrorByCard[cardKey] ?? "";
-                    const activeSetCode = override?.setCode ?? entry.setCode ?? null;
-                    const activeCollectorNumber = entry.collectorNumber ?? null;
-
-                    return (
-                      <li key={`${entry.name}-${entry.qty}`}>
-                        <div className="decklist-preview-row">
-                          <span>
-                            {entry.qty}{" "}
-                            <CardLink
-                              name={entry.name}
-                              setCode={activeSetCode}
-                              collectorNumber={activeCollectorNumber}
-                              printingId={override?.printingId ?? null}
-                            />
-                            {activeSetCode ? (
-                              <span className="decklist-preview-set-chip">[{activeSetCode.toUpperCase()}]</span>
-                            ) : null}
-                          </span>
-                          <span className="decklist-preview-printing-controls">
-                            <button
-                              type="button"
-                              className="btn-tertiary"
-                              onClick={() => openPrintingPicker(entry.name)}
-                              disabled={loading}
-                            >
-                              {loading ? "Loading..." : override ? "Edit Printing" : "Printings"}
-                            </button>
-                          </span>
-                        </div>
-                        {override?.label ? (
-                          <p className="muted decklist-preview-printing-label">{override.label}</p>
-                        ) : null}
-                        {errorMessage ? <p className="error">{errorMessage}</p> : null}
-                      </li>
-                    );
-                  })}
-                </ul>
-              )}
-            </div>
-          ) : null}
-
-          {!previewMode ? (
-            <textarea
-              id="decklist"
-              value={decklist}
-              onChange={(event) => setDecklist(event.target.value)}
-              placeholder={`Example: 1 Sol Ring\nOne card per line; quantities allowed.`}
-              rows={16}
-              required
-            />
-          ) : (
-            <p className="muted">Preview mode is on. Disable it to edit the raw decklist text.</p>
-          )}
+          <textarea
+            id="decklist"
+            value={decklist}
+            onChange={(event) => setDecklist(event.target.value)}
+            placeholder={`Example: 1 Sol Ring\nOne card per line; quantities allowed.`}
+            rows={16}
+            required
+          />
 
           <section className="tuning-controls">
             <div className="tuning-header">
@@ -889,7 +811,7 @@ export default function Page() {
               Run analysis to see summary, checks, deck health, and bracket report.
             </p>
           ) : (
-            <AnalysisReport result={result} />
+            <AnalysisReport result={result} onOpenPrintingPicker={openPrintingPicker} />
           )}
         </div>
       </section>
@@ -913,7 +835,7 @@ export default function Page() {
               <strong>{activePrintingCardName}</strong>
             </p>
             <p className="muted">
-              Selection updates preview art and set-aware pricing lookup for this card.
+              Selection updates card art and set-aware pricing lookup for this card.
             </p>
 
             {activePrintingLoading ? <p className="muted">Loading printings...</p> : null}

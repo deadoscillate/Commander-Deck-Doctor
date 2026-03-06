@@ -407,6 +407,16 @@ export async function POST(request: Request) {
         qty: entry.qty,
         resolvedName,
         previewImageUrl: getPreferredCardPreviewUrl(resolvedCard),
+        prices: {
+          usd: parsePriceNumber(resolvedCard?.prices?.usd),
+          usdFoil: parsePriceNumber(resolvedCard?.prices?.usd_foil),
+          usdEtched: parsePriceNumber(resolvedCard?.prices?.usd_etched),
+          tix: parsePriceNumber(resolvedCard?.prices?.tix)
+        },
+        sellerLinks: {
+          tcgplayer: resolvedCard?.purchase_uris?.tcgplayer ?? null,
+          cardKingdom: resolvedCard?.purchase_uris?.cardkingdom ?? null
+        },
         known: Boolean(resolvedName),
         isGameChanger: Boolean(matchedGameChanger),
         gameChangerName: matchedGameChanger
@@ -524,10 +534,26 @@ export async function POST(request: Request) {
       requestedSetCodeByCardName
     });
     const archetypeReport = computeDeckArchetypes(knownCards, inputDeckSize);
+    const comboMetadataLookup = (cardName: string) => {
+      const card = engineCardByName(cardName);
+      if (!card) {
+        return null;
+      }
+
+      return {
+        legalities: card.legalities,
+        colorIdentity: card.colorIdentity
+      };
+    };
     const comboReport = detectCombosInDeck(
       parsedDeckView.flatMap((entry) =>
         entry.resolvedName ? [entry.name, entry.resolvedName] : [entry.name]
-      )
+      ),
+      {
+        commanderColorIdentity: selectedCommanderCard?.color_identity ?? [],
+        maxPotentialResults: 15,
+        cardMetadataLookup: comboMetadataLookup
+      }
     );
     const simulationDeck = parsedDeckView.map((entry) => ({
       name: entry.resolvedName ?? entry.name,

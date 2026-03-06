@@ -34,6 +34,16 @@ export type ParsedDeckCard = {
   qty: number;
   resolvedName: string | null;
   previewImageUrl: string | null;
+  prices: {
+    usd: number | null;
+    usdFoil: number | null;
+    usdEtched: number | null;
+    tix: number | null;
+  };
+  sellerLinks: {
+    tcgplayer: string | null;
+    cardKingdom: string | null;
+  };
   known: boolean;
   isGameChanger: boolean;
   gameChangerName: string | null;
