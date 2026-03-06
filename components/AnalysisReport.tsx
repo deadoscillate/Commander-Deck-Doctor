@@ -791,7 +791,6 @@ export function AnalysisReport({ result }: AnalysisReportProps) {
             <strong>
               <CardNameHover name={commanderInfo.name} />
             </strong>{" "}
-            <ColorIdentityIcons identity={commanderInfo.colorIdentity} size={17} className="commander-inline-icons" />
             <ManaCost manaCost={commanderInfo.manaCost} size={16} className="commander-inline-mana" />
           </p>
         ) : (
