@@ -85,31 +85,72 @@ function parseInlineCommander(line: string): ParsedDeckEntry | null {
   return parseQuantityAndName(match[1].trim());
 }
 
-function extractSetCode(name: string): { cardName: string; setCode?: string } {
-  const match = name.match(/^(.*?)\s*\[([a-z0-9]{2,6})\]\s*$/i);
-  if (!match) {
-    return {
-      cardName: name
-    };
+function isStandalonePrintingMarker(line: string): boolean {
+  return /^\*[a-z0-9]{1,8}\*$/i.test(line.trim());
+}
+
+function isPrintingMetadataToken(token: string): boolean {
+  return /^([a-z0-9]+(?:[/-][a-z0-9]+)*|\*[a-z0-9]+\*)$/i.test(token);
+}
+
+function isPrintingMetadataSuffix(value: string): boolean {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return true;
   }
 
-  const cardName = match[1]?.trim() ?? "";
-  const setCode = match[2]?.trim().toLowerCase() ?? "";
-  if (!cardName || !setCode) {
-    return {
-      cardName: name
-    };
+  return trimmed.split(/\s+/).every((token) => isPrintingMetadataToken(token));
+}
+
+function stripTrailingPrintingMarkers(value: string): string {
+  return value.replace(/(?:\s+\*[a-z0-9]{1,8}\*)+$/gi, "").trim();
+}
+
+function extractSetCode(name: string): { cardName: string; setCode?: string } {
+  const bracketMatch = name.match(/^(.*?)\s*\[([a-z0-9]{2,6})\]\s*$/i);
+  if (bracketMatch) {
+    const cardName = bracketMatch[1]?.trim() ?? "";
+    const setCode = bracketMatch[2]?.trim().toLowerCase() ?? "";
+    if (cardName && setCode) {
+      return {
+        cardName,
+        setCode
+      };
+    }
+  }
+
+  const parenMatch = name.match(/^(.*?)\s+\(([a-z0-9]{2,6})\)\s*(.*)$/i);
+  if (parenMatch) {
+    const cardName = parenMatch[1]?.trim() ?? "";
+    const setCode = parenMatch[2]?.trim().toLowerCase() ?? "";
+    const metadataTail = parenMatch[3]?.trim() ?? "";
+    if (cardName && setCode && isPrintingMetadataSuffix(metadataTail)) {
+      return {
+        cardName,
+        setCode
+      };
+    }
   }
 
   return {
-    cardName,
-    setCode
+    cardName: name
   };
 }
 
+function normalizeParsedName(name: string): { cardName: string; setCode?: string } {
+  const stripped = stripTrailingPrintingMarkers(name.trim());
+  if (!stripped) {
+    return {
+      cardName: ""
+    };
+  }
+
+  return extractSetCode(stripped);
+}
+
 function parseQuantityAndName(line: string): ParsedDeckEntry | null {
-  const cleaned = line.replace(/^[-*]\s*/, "").trim();
-  if (!cleaned || isHeadingLine(cleaned)) {
+  const cleaned = line.replace(/^[-*]\s+/, "").trim();
+  if (!cleaned || isHeadingLine(cleaned) || isStandalonePrintingMarker(cleaned)) {
     return null;
   }
 
@@ -117,7 +158,7 @@ function parseQuantityAndName(line: string): ParsedDeckEntry | null {
   const qtyMatch = cleaned.match(/^(\d+)\s*x?\s+(.+)$/i);
   if (qtyMatch) {
     const qty = Number(qtyMatch[1]);
-    const parsedName = extractSetCode(qtyMatch[2].trim());
+    const parsedName = normalizeParsedName(qtyMatch[2]);
     const name = parsedName.cardName;
     if (!name || Number.isNaN(qty) || qty <= 0) {
       return null;
@@ -130,7 +171,7 @@ function parseQuantityAndName(line: string): ParsedDeckEntry | null {
   const compactQtyMatch = cleaned.match(/^(\d+)x\s*(.+)$/i);
   if (compactQtyMatch) {
     const qty = Number(compactQtyMatch[1]);
-    const parsedName = extractSetCode(compactQtyMatch[2].trim());
+    const parsedName = normalizeParsedName(compactQtyMatch[2]);
     const name = parsedName.cardName;
     if (!name || Number.isNaN(qty) || qty <= 0) {
       return null;
@@ -139,7 +180,11 @@ function parseQuantityAndName(line: string): ParsedDeckEntry | null {
     return parsedName.setCode ? { name, qty, setCode: parsedName.setCode } : { name, qty };
   }
 
-  const parsedName = extractSetCode(cleaned);
+  const parsedName = normalizeParsedName(cleaned);
+  if (!parsedName.cardName) {
+    return null;
+  }
+
   if (parsedName.setCode) {
     return {
       name: parsedName.cardName,
@@ -148,7 +193,7 @@ function parseQuantityAndName(line: string): ParsedDeckEntry | null {
     };
   }
 
-  return { name: cleaned, qty: 1 };
+  return { name: parsedName.cardName, qty: 1 };
 }
 
 /**
