@@ -111,7 +111,7 @@ function parsePrintingMetadataSuffix(value: string): { valid: boolean; collector
     }
 
     if (!collectorNumber && isCollectorNumberToken(token)) {
-      collectorNumber = token.toLowerCase();
+      collectorNumber = token;
       continue;
     }
 
@@ -246,10 +246,14 @@ function mergeParsedEntry(existing: ParsedDeckEntry, parsed: ParsedDeckEntry): v
   }
 
   if (existing.setCode && parsed.setCode && existing.setCode === parsed.setCode) {
+    const sameCollector =
+      existing.collectorNumber &&
+      parsed.collectorNumber &&
+      existing.collectorNumber.toLowerCase() === parsed.collectorNumber.toLowerCase();
     if (
       existing.collectorNumber &&
       parsed.collectorNumber &&
-      existing.collectorNumber !== parsed.collectorNumber
+      !sameCollector
     ) {
       delete existing.collectorNumber;
     } else if (!existing.collectorNumber && parsed.collectorNumber) {

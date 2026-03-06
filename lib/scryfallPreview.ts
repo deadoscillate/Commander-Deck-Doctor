@@ -115,32 +115,40 @@ async function fetchBySetAndCollector(
   collectorNumber: string
 ): Promise<RawScryfallCard | null> {
   const normalizedSetCode = setCode.trim().toLowerCase();
-  const normalizedCollectorNumber = collectorNumber.trim().toLowerCase();
+  const normalizedCollectorNumber = collectorNumber.trim();
   if (!normalizedSetCode || !normalizedCollectorNumber) {
     return null;
   }
 
-  const endpoint = `https://api.scryfall.com/cards/${encodeURIComponent(normalizedSetCode)}/${encodeURIComponent(normalizedCollectorNumber)}`;
-  try {
-    const response = await fetch(endpoint, {
-      method: "GET",
-      headers: { Accept: "application/json" },
-      cache: "no-store"
-    });
+  const candidates = [
+    ...new Set([normalizedCollectorNumber, normalizedCollectorNumber.toUpperCase(), normalizedCollectorNumber.toLowerCase()])
+  ];
 
-    if (!response.ok) {
-      return null;
+  for (const candidate of candidates) {
+    const endpoint = `https://api.scryfall.com/cards/${encodeURIComponent(normalizedSetCode)}/${encodeURIComponent(candidate)}`;
+    try {
+      const response = await fetch(endpoint, {
+        method: "GET",
+        headers: { Accept: "application/json" },
+        cache: "no-store"
+      });
+
+      if (!response.ok) {
+        continue;
+      }
+
+      const payload = (await response.json()) as RawScryfallCard;
+      if (payload.object === "error") {
+        continue;
+      }
+
+      return payload;
+    } catch {
+      continue;
     }
-
-    const payload = (await response.json()) as RawScryfallCard;
-    if (payload.object === "error") {
-      return null;
-    }
-
-    return payload;
-  } catch {
-    return null;
   }
+
+  return null;
 }
 
 function normalizePreview(payload: RawScryfallCard): CardPreviewData | null {
