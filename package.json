@@ -15,6 +15,9 @@
     "scryfall:categorize": "tsx scripts/scryfall-cross-reference-categories.ts",
     "scryfall:review": "npm run scryfall:categorize",
     "scryfall:update": "npm run scryfall:download && npm run scryfall:compile",
+    "spellbook:download": "node scripts/spellbook-download-variants.mjs",
+    "spellbook:compile": "node scripts/spellbook-compile-variants.mjs",
+    "spellbook:update": "npm run spellbook:download && npm run spellbook:compile",
     "backup:reports": "node scripts/export-shared-reports.mjs",
     "restore:reports": "node scripts/import-shared-reports.mjs"
   },

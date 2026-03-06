@@ -62,7 +62,7 @@ export function buildPlaintextReport(result: AnalyzeResponse): string {
   const comboReport = result.comboReport ?? {
     detected: [],
     databaseSize: 0,
-    disclaimer: "Combo detection uses a curated static combo database."
+    disclaimer: "Combo detection uses an offline Commander Spellbook-derived combo snapshot."
   };
   const fallbackRuleZero = {
     winStyle: {
@@ -267,7 +267,10 @@ export function buildPlaintextReport(result: AnalyzeResponse): string {
   const comboLines = [
     "Combo Detection",
     ...(comboReport.detected.length > 0
-      ? comboReport.detected.map((combo) => `- ${combo.comboName}: ${combo.cards.join(" + ")}`)
+      ? comboReport.detected.map(
+          (combo) =>
+            `- ${combo.comboName}: ${combo.cards.join(" + ")} (${combo.commanderSpellbookUrl})`
+        )
       : ["- No known combos detected."]),
     `- Combos detected: ${comboReport.detected.length} / ${comboReport.databaseSize} tracked`
   ];
