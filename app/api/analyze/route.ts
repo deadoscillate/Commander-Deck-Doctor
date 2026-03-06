@@ -663,10 +663,11 @@ export async function POST(request: Request) {
         existingCardNames: parsedDeckView.flatMap((entry) =>
           entry.resolvedName ? [entry.name, entry.resolvedName] : [entry.name]
         ),
-        limit: 5
+        cardDatabase: analyzer.cardDatabase,
+        limit: 7
       }),
       disclaimer:
-        "Suggestions are role-focused and filtered by commander color identity. Existing deck cards are excluded."
+        "Suggestions prioritize staple options, then backfill from Commander-legal engine-classified cards in your color identity. Existing deck cards are excluded."
     };
 
     const userCedhFlag = Boolean(payload.userCedhFlag);
@@ -729,6 +730,19 @@ export async function POST(request: Request) {
               : null,
           selectedArtUrl: getPreferredArtUrl(selectedCommanderCard),
           selectedCardImageUrl: getPreferredCardPreviewUrl(selectedCommanderCard),
+          selectedSetCode:
+            typeof selectedCommanderCard?.set === "string" && selectedCommanderCard.set
+              ? selectedCommanderCard.set
+              : selectedCommanderOverride?.setCode ?? null,
+          selectedCollectorNumber:
+            typeof selectedCommanderCard?.collector_number === "string" &&
+            selectedCommanderCard.collector_number
+              ? selectedCommanderCard.collector_number
+              : null,
+          selectedPrintingId:
+            typeof selectedCommanderCard?.id === "string" && selectedCommanderCard.id
+              ? selectedCommanderCard.id
+              : selectedCommanderOverride?.printingId ?? null,
           source: commanderSource,
           options: commanderOptions,
           needsManualSelection: !commanderFromSection && !selectedCommanderName && commanderOptions.length > 0

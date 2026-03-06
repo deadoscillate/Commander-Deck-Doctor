@@ -28,6 +28,7 @@ type ScryfallApiCard = {
   id?: string;
   oracle_id?: string;
   set?: string;
+  collector_number?: string;
   name: string;
   type_line?: string;
   cmc?: number;
@@ -52,6 +53,8 @@ function normalizeScryfallCard(data: ScryfallApiCard): ScryfallCard {
     id: data.id,
     oracle_id: data.oracle_id,
     set: typeof data.set === "string" ? data.set.toLowerCase() : undefined,
+    collector_number:
+      typeof data.collector_number === "string" ? data.collector_number : undefined,
     name: data.name,
     type_line: data.type_line ?? "",
     cmc: typeof data.cmc === "number" ? data.cmc : 0,

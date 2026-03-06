@@ -45,6 +45,7 @@ export type ScryfallCard = {
   id?: string;
   oracle_id?: string;
   set?: string;
+  collector_number?: string;
   name: string;
   type_line: string;
   cmc: number;

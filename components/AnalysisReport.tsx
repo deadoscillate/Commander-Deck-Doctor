@@ -232,6 +232,9 @@ function normalizeCommanderInfo(result: AnalyzeResponse): {
   cmc: number | null;
   artUrl: string | null;
   cardImageUrl: string | null;
+  setCode: string | null;
+  collectorNumber: string | null;
+  printingId: string | null;
 } {
   const rawCommander = (result as { commander?: unknown }).commander;
   const commanderRecord =
@@ -256,6 +259,18 @@ function normalizeCommanderInfo(result: AnalyzeResponse): {
     cardImageUrl:
       typeof commanderRecord.selectedCardImageUrl === "string" && commanderRecord.selectedCardImageUrl
         ? commanderRecord.selectedCardImageUrl
+        : null,
+    setCode:
+      typeof commanderRecord.selectedSetCode === "string" && commanderRecord.selectedSetCode
+        ? commanderRecord.selectedSetCode
+        : null,
+    collectorNumber:
+      typeof commanderRecord.selectedCollectorNumber === "string" && commanderRecord.selectedCollectorNumber
+        ? commanderRecord.selectedCollectorNumber
+        : null,
+    printingId:
+      typeof commanderRecord.selectedPrintingId === "string" && commanderRecord.selectedPrintingId
+        ? commanderRecord.selectedPrintingId
         : null
   };
 }
@@ -620,7 +635,10 @@ export function AnalysisReport({ result, onOpenPrintingPicker }: AnalysisReportP
             colorIdentity: commanderInfo.colorIdentity,
             cmc: commanderInfo.cmc,
             artUrl: commanderInfo.artUrl,
-            cardImageUrl: commanderInfo.cardImageUrl
+            cardImageUrl: commanderInfo.cardImageUrl,
+            setCode: commanderInfo.setCode,
+            collectorNumber: commanderInfo.collectorNumber,
+            printingId: commanderInfo.printingId
           }}
           archetypeLabel={archetypeLabel}
           bracketLabel={`Bracket ${result.bracketReport.estimatedBracket} - ${result.bracketReport.estimatedLabel}`}

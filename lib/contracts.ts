@@ -167,6 +167,9 @@ export type CommanderInfo = {
   selectedCmc: number | null;
   selectedArtUrl: string | null;
   selectedCardImageUrl: string | null;
+  selectedSetCode: string | null;
+  selectedCollectorNumber: string | null;
+  selectedPrintingId: string | null;
   source: "section" | "manual" | "none";
   options: CommanderChoice[];
   needsManualSelection: boolean;

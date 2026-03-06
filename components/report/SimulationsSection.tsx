@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { engineClient } from "@/lib/engineClient";
 import type { GoldfishSimulationResult, OpeningHandSimulationResult } from "@/engine";
 import type { OpeningHandSimulationReport } from "@/lib/contracts";
 
@@ -15,6 +14,22 @@ type SimulationsSectionProps = {
   deck: DeckRow[];
   commanderName: string | null;
   initialSummary?: OpeningHandSimulationReport | null;
+};
+
+type SimulationsApiSuccess = {
+  opening: OpeningHandSimulationResult;
+  goldfish: GoldfishSimulationResult;
+  seed: string;
+  runs: number;
+  modeledCardQty: number;
+  totalDeckSize: number;
+  unknownCardQty: number;
+  unknownCards: string[];
+  warning: string | null;
+};
+
+type SimulationsApiError = {
+  error?: string;
 };
 
 function percent(value: number): string {
@@ -40,6 +55,7 @@ export function SimulationsSection({ deck, commanderName, initialSummary = null 
   const [seedInput, setSeedInput] = useState("report-sim");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
   const [openingResult, setOpeningResult] = useState<OpeningHandSimulationResult | null>(null);
   const [goldfishResult, setGoldfishResult] = useState<GoldfishSimulationResult | null>(null);
 
@@ -57,6 +73,7 @@ export function SimulationsSection({ deck, commanderName, initialSummary = null 
   async function runSimulations() {
     setLoading(true);
     setError("");
+    setNotice("");
 
     try {
       if (deckPayload.length === 0) {
@@ -67,31 +84,52 @@ export function SimulationsSection({ deck, commanderName, initialSummary = null 
       }
 
       const seed = advancedSeed ? seedInput.trim() || "report-sim" : createSeed();
-      const opening = engineClient.simulate({
-        type: "OPENING_HAND",
-        deck: deckPayload,
-        runs,
-        seed,
-        commander: commanderName
+      const response = await fetch("/api/simulate", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          deck: deckPayload,
+          commanderName,
+          runs,
+          seed
+        })
       });
 
-      const goldfish = engineClient.simulate({
-        type: "GOLDFISH",
-        deck: deckPayload,
-        runs,
-        seed,
-        commander: commanderName
-      });
+      const payload = (await response.json()) as SimulationsApiSuccess | SimulationsApiError;
+      if (!response.ok) {
+        setError("error" in payload && payload.error ? payload.error : "Could not run simulations.");
+        setOpeningResult(null);
+        setGoldfishResult(null);
+        return;
+      }
 
-      if (opening.type !== "OPENING_HAND" || goldfish.type !== "GOLDFISH") {
+      if (
+        !("opening" in payload) ||
+        !("goldfish" in payload) ||
+        payload.opening?.type !== "OPENING_HAND" ||
+        payload.goldfish?.type !== "GOLDFISH"
+      ) {
         setError("Unexpected simulation response.");
         setOpeningResult(null);
         setGoldfishResult(null);
         return;
       }
 
-      setOpeningResult(opening);
-      setGoldfishResult(goldfish);
+      setOpeningResult(payload.opening);
+      setGoldfishResult(payload.goldfish);
+
+      const modeledSummary = `Modeled cards: ${payload.modeledCardQty}/${payload.totalDeckSize}`;
+      if (payload.warning) {
+        setNotice(`${modeledSummary}. ${payload.warning}`);
+      } else {
+        setNotice(modeledSummary);
+      }
+    } catch {
+      setError("Could not run simulations right now. Please retry.");
+      setOpeningResult(null);
+      setGoldfishResult(null);
     } finally {
       setLoading(false);
     }
@@ -170,6 +208,7 @@ export function SimulationsSection({ deck, commanderName, initialSummary = null 
       </div>
 
       {error ? <p className="error">{error}</p> : null}
+      {notice ? <p className="muted">{notice}</p> : null}
 
       {openingResult ? (
         <div className="summary-grid sim-grid">

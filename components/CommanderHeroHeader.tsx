@@ -8,6 +8,9 @@ type CommanderHeroHeaderProps = {
     cmc?: number | null;
     artUrl?: string | null;
     cardImageUrl?: string | null;
+    setCode?: string | null;
+    collectorNumber?: string | null;
+    printingId?: string | null;
   };
   archetypeLabel?: string | null;
   bracketLabel?: string | null;
@@ -49,7 +52,12 @@ export function CommanderHeroHeader({
       <div className="commander-hero-content">
         <p className="commander-hero-kicker">Commander</p>
         <h2 className="commander-hero-title">
-          <CardNameHover name={commander.name} />
+          <CardNameHover
+            name={commander.name}
+            setCode={commander.setCode ?? null}
+            collectorNumber={commander.collectorNumber ?? null}
+            printingId={commander.printingId ?? null}
+          />
         </h2>
         {archetypeLabel ? <p className="commander-hero-archetype">{archetypeLabel}</p> : null}
         <div className="commander-hero-meta">

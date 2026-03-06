@@ -364,12 +364,14 @@ describe("POST /api/analyze", () => {
     const body = (await response.json()) as {
       commander?: {
         selectedArtUrl?: string | null;
+        selectedPrintingId?: string | null;
       };
     };
 
     expect(response.status).toBe(200);
     expect(getCardByIdMock).toHaveBeenCalledWith("test-printing-id-atraxa");
     expect(body.commander?.selectedArtUrl).toBe("https://img.test/atraxa-secret-lair-art.jpg");
+    expect(body.commander?.selectedPrintingId).toBe("test-printing-id-atraxa");
   });
 
   it("prioritizes commander printing override even when commander exists in known cards", async () => {
@@ -432,6 +434,7 @@ describe("POST /api/analyze", () => {
       commander?: {
         selectedArtUrl?: string | null;
         selectedCardImageUrl?: string | null;
+        selectedPrintingId?: string | null;
       };
     };
 
@@ -439,5 +442,6 @@ describe("POST /api/analyze", () => {
     expect(getCardByIdMock).toHaveBeenCalledWith("override-printing-id");
     expect(body.commander?.selectedArtUrl).toBe("https://img.test/atraxa-override-art.jpg");
     expect(body.commander?.selectedCardImageUrl).toBe("https://img.test/atraxa-override-card.jpg");
+    expect(body.commander?.selectedPrintingId).toBe("override-printing-id");
   });
 });

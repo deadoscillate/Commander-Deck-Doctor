@@ -1356,8 +1356,11 @@ button:disabled {
 
 .detected-card-printings-btn {
   margin-top: 0.38rem;
-  width: 100%;
+  width: auto;
   justify-content: center;
+  min-height: var(--btn-height-compact);
+  padding: 0.3rem 0.68rem;
+  font-size: var(--btn-font-size-compact);
 }
 
 .decklist-preview-toggle {
