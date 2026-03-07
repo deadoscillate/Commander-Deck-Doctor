@@ -66,7 +66,10 @@ describe("scryfall set-batch lookup", () => {
       if (url.includes("/cards/collection")) {
         const body = JSON.parse(String(init?.body)) as {
           identifiers: Array<
-            { id: string } | { set: string; collector_number: string } | { name: string; set: string }
+            | { id: string }
+            | { set: string; collector_number: string }
+            | { name: string; set: string }
+            | { name: string }
           >;
         };
         const collectorByName = new Map<string, string>([
@@ -84,9 +87,10 @@ describe("scryfall set-batch lookup", () => {
           object: "list",
           data: body.identifiers.map((identifier) => {
             if ("name" in identifier) {
+              const setCode = "set" in identifier ? identifier.set : "c20";
               return toCard(
                 identifier.name,
-                identifier.set,
+                setCode,
                 collectorByName.get(identifier.name) ?? "1"
               );
             }
@@ -160,5 +164,94 @@ describe("scryfall set-batch lookup", () => {
     expect(
       fetchMock.mock.calls.filter((call) => String(call[0]).includes("/cards/named")).length
     ).toBeGreaterThanOrEqual(2);
+  });
+
+  it("uses collection name batch in oracle-default mode before named fallback", async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === "string" ? input : input.toString();
+      if (url.includes("/cards/collection")) {
+        const body = JSON.parse(String(init?.body)) as {
+          identifiers: Array<{ name: string }>;
+        };
+        return jsonResponse({
+          object: "list",
+          data: body.identifiers.map((identifier) => toCard(identifier.name, "clb", "1"))
+        });
+      }
+
+      if (url.includes("/cards/named")) {
+        return jsonResponse({ object: "error", code: "unexpected_named_lookup" }, 500);
+      }
+
+      return jsonResponse({ object: "error", code: "not_found" }, 404);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { fetchDeckCards } = await import("@/lib/scryfall");
+    const parsedDeck = [
+      { name: "Arcane Signet", qty: 1 },
+      { name: "Mind Stone", qty: 1 },
+      { name: "Pearl Medallion", qty: 1 }
+    ];
+
+    const result = await fetchDeckCards(parsedDeck, 8, { deckPriceMode: "oracle-default" });
+
+    expect(result.knownCards).toHaveLength(3);
+    expect(result.unknownCards).toHaveLength(0);
+    expect(
+      fetchMock.mock.calls.filter((call) => String(call[0]).includes("/cards/collection")).length
+    ).toBe(1);
+    expect(fetchMock.mock.calls.filter((call) => String(call[0]).includes("/cards/named")).length).toBe(0);
+  });
+
+  it("uses collection name fallback in decklist-set mode when set-specific rows are missing", async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === "string" ? input : input.toString();
+      if (url.includes("/cards/collection")) {
+        const body = JSON.parse(String(init?.body)) as {
+          identifiers: Array<
+            | { id: string }
+            | { set: string; collector_number: string }
+            | { name: string; set: string }
+            | { name: string }
+          >;
+        };
+
+        return jsonResponse({
+          object: "list",
+          data: body.identifiers
+            .map((identifier) => {
+              if ("name" in identifier && !("set" in identifier)) {
+                return toCard(identifier.name, "clb", "1");
+              }
+
+              return { object: "error", code: "not_found" };
+            })
+            .filter((row) => row.object !== "error")
+        });
+      }
+
+      if (url.includes("/cards/named")) {
+        return jsonResponse({ object: "error", code: "unexpected_named_lookup" }, 500);
+      }
+
+      return jsonResponse({ object: "error", code: "not_found" }, 404);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { fetchDeckCards } = await import("@/lib/scryfall");
+    const parsedDeck = [
+      { name: "Arcane Signet", qty: 1, setCode: "c20" },
+      { name: "Mind Stone", qty: 1, setCode: "clb" }
+    ];
+
+    const result = await fetchDeckCards(parsedDeck, 8, { deckPriceMode: "decklist-set" });
+
+    expect(result.knownCards).toHaveLength(2);
+    expect(result.unknownCards).toHaveLength(0);
+    expect(
+      fetchMock.mock.calls.filter((call) => String(call[0]).includes("/cards/collection")).length
+    ).toBe(1);
+    expect(fetchMock.mock.calls.filter((call) => String(call[0]).includes("/cards/named")).length).toBe(0);
   });
 });

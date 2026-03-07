@@ -42,6 +42,7 @@ const ANALYZE_RATE_LIMIT = {
   limit: 45,
   windowSeconds: 60
 };
+const ANALYZE_PROFILE_LOG_ENABLED = process.env.ANALYZE_PROFILE_LOG === "1";
 
 type AnalyzeCacheEntry = {
   expiresAt: number;
@@ -53,6 +54,75 @@ type DetectCombosInDeckFn = typeof import("@/lib/combos").detectCombosInDeck;
 let analyzerEnginePromise: Promise<EngineApi> | null = null;
 let detectCombosInDeckFn: DetectCombosInDeckFn | null = null;
 const analyzeResponseCache = new Map<string, AnalyzeCacheEntry>();
+
+type AnalyzeMetricsInput = {
+  cache: "hit" | "miss";
+  totalMs: number;
+  parseMs?: number;
+  lookupMs?: number;
+  computeMs?: number;
+  serializeMs?: number;
+  responseBytes?: number;
+  deckSize?: number;
+  knownCards?: number;
+  unknownCards?: number;
+};
+
+function toMetricValue(value: number | undefined): string | null {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return null;
+  }
+
+  return Number(value.toFixed(1)).toString();
+}
+
+function buildAnalyzeMetricsHeaders(metrics: AnalyzeMetricsInput): Record<string, string> {
+  const headers: Record<string, string> = {
+    "x-analyze-cache": metrics.cache,
+    "x-analyze-total-ms": toMetricValue(metrics.totalMs) ?? "0"
+  };
+
+  const parseMs = toMetricValue(metrics.parseMs);
+  if (parseMs) headers["x-analyze-parse-ms"] = parseMs;
+
+  const lookupMs = toMetricValue(metrics.lookupMs);
+  if (lookupMs) headers["x-analyze-lookup-ms"] = lookupMs;
+
+  const computeMs = toMetricValue(metrics.computeMs);
+  if (computeMs) headers["x-analyze-compute-ms"] = computeMs;
+
+  const serializeMs = toMetricValue(metrics.serializeMs);
+  if (serializeMs) headers["x-analyze-serialize-ms"] = serializeMs;
+
+  if (typeof metrics.responseBytes === "number" && Number.isFinite(metrics.responseBytes)) {
+    headers["x-analyze-response-bytes"] = String(Math.max(0, Math.floor(metrics.responseBytes)));
+  }
+
+  if (typeof metrics.deckSize === "number" && Number.isFinite(metrics.deckSize)) {
+    headers["x-analyze-deck-size"] = String(Math.max(0, Math.floor(metrics.deckSize)));
+  }
+
+  if (typeof metrics.knownCards === "number" && Number.isFinite(metrics.knownCards)) {
+    headers["x-analyze-known-cards"] = String(Math.max(0, Math.floor(metrics.knownCards)));
+  }
+
+  if (typeof metrics.unknownCards === "number" && Number.isFinite(metrics.unknownCards)) {
+    headers["x-analyze-unknown-cards"] = String(Math.max(0, Math.floor(metrics.unknownCards)));
+  }
+
+  return headers;
+}
+
+function maybeLogAnalyzeProfile(requestId: string, metrics: AnalyzeMetricsInput): void {
+  if (!ANALYZE_PROFILE_LOG_ENABLED) {
+    return;
+  }
+
+  console.info("Analyze timing", {
+    requestId,
+    ...metrics
+  });
+}
 
 async function getAnalyzerEngine(): Promise<EngineApi> {
   if (!analyzerEnginePromise) {
@@ -450,6 +520,7 @@ function buildDeckPriceSummary(
 }
 
 export async function POST(request: Request) {
+  const requestStartedAt = performance.now();
   const requestId = getRequestId(request);
   const rateLimit = await checkRateLimit(request, ANALYZE_RATE_LIMIT);
   const rateLimitHeaders = buildRateLimitHeaders(rateLimit);
@@ -482,6 +553,7 @@ export async function POST(request: Request) {
   }
 
   try {
+    const parseStartedAt = performance.now();
     const deckPriceMode = parseDeckPriceMode(payload.deckPriceMode);
     const targetBracket = parseOptionalBracket(payload.targetBracket);
     const expectedWinTurn = parseExpectedWinTurn(payload.expectedWinTurn);
@@ -510,7 +582,26 @@ export async function POST(request: Request) {
     });
     const cachedPayload = getCachedAnalyzePayload(cacheKey);
     if (cachedPayload) {
-      return apiJson(cachedPayload, { status: 200, requestId, headers: rateLimitHeaders });
+      const parseCompletedAt = performance.now();
+      const serializeStartedAt = performance.now();
+      const responseBytes = Buffer.byteLength(JSON.stringify(cachedPayload), "utf8");
+      const serializeCompletedAt = performance.now();
+      const metrics = {
+        cache: "hit" as const,
+        totalMs: performance.now() - requestStartedAt,
+        parseMs: parseCompletedAt - parseStartedAt,
+        serializeMs: serializeCompletedAt - serializeStartedAt,
+        responseBytes
+      };
+      maybeLogAnalyzeProfile(requestId, metrics);
+      return apiJson(cachedPayload, {
+        status: 200,
+        requestId,
+        headers: {
+          ...rateLimitHeaders,
+          ...buildAnalyzeMetricsHeaders(metrics)
+        }
+      });
     }
 
     const effectiveParsedDeck = parsedDeck.map((entry) => {
@@ -537,12 +628,16 @@ export async function POST(request: Request) {
     const requestedSetCodeByCardName = new Map(
       effectiveParsedDeck.map((entry) => [entry.name.toLowerCase(), entry.setCode?.toLowerCase() ?? null])
     );
+    const parseCompletedAt = performance.now();
     // Warm expensive modules while card resolution is in-flight.
     const analyzerPromise = getAnalyzerEngine();
     const detectCombosPromise = getDetectCombosInDeck();
 
     // Fetch only the cards we can resolve; unknown names are reported separately.
+    const lookupStartedAt = performance.now();
     const { knownCards, unknownCards } = await fetchDeckCards(effectiveParsedDeck, 8, { deckPriceMode });
+    const lookupCompletedAt = performance.now();
+    const computeStartedAt = performance.now();
     const summary = computeDeckSummary(knownCards);
     const analyzer = await analyzerPromise;
     const engineCardByName = (cardName: string) => analyzer.cardDatabase.getCardByName(cardName);
@@ -924,8 +1019,34 @@ export async function POST(request: Request) {
       warnings: [...new Set([...deckHealth.warnings, ...explanation.warnings])],
       bracketReport
     };
+    const computeCompletedAt = performance.now();
     setCachedAnalyzePayload(cacheKey, responsePayload);
-    return apiJson(responsePayload, { status: 200, requestId, headers: rateLimitHeaders });
+
+    const serializeStartedAt = performance.now();
+    const responseBytes = Buffer.byteLength(JSON.stringify(responsePayload), "utf8");
+    const serializeCompletedAt = performance.now();
+    const metrics = {
+      cache: "miss" as const,
+      totalMs: performance.now() - requestStartedAt,
+      parseMs: parseCompletedAt - parseStartedAt,
+      lookupMs: lookupCompletedAt - lookupStartedAt,
+      computeMs: computeCompletedAt - computeStartedAt,
+      serializeMs: serializeCompletedAt - serializeStartedAt,
+      responseBytes,
+      deckSize: inputDeckSize,
+      knownCards: knownCards.length,
+      unknownCards: unknownCards.length
+    };
+    maybeLogAnalyzeProfile(requestId, metrics);
+
+    return apiJson(responsePayload, {
+      status: 200,
+      requestId,
+      headers: {
+        ...rateLimitHeaders,
+        ...buildAnalyzeMetricsHeaders(metrics)
+      }
+    });
   } catch (error) {
     reportApiError(error, {
       requestId,

@@ -234,6 +234,16 @@ describe("POST /api/analyze", () => {
 
     expect(responseOne.status).toBe(200);
     expect(responseTwo.status).toBe(200);
+    expect(responseOne.headers.get("x-analyze-cache")).toBe("miss");
+    expect(responseTwo.headers.get("x-analyze-cache")).toBe("hit");
+    expect(responseOne.headers.get("x-analyze-lookup-ms")).toBeTruthy();
+    expect(responseOne.headers.get("x-analyze-compute-ms")).toBeTruthy();
+    expect(responseOne.headers.get("x-analyze-serialize-ms")).toBeTruthy();
+    expect(responseTwo.headers.get("x-analyze-lookup-ms")).toBeNull();
+    expect(responseTwo.headers.get("x-analyze-compute-ms")).toBeNull();
+    expect(responseTwo.headers.get("x-analyze-serialize-ms")).toBeTruthy();
+    expect(responseOne.headers.get("x-analyze-total-ms")).toBeTruthy();
+    expect(responseTwo.headers.get("x-analyze-total-ms")).toBeTruthy();
     expect(fetchDeckCardsMock).toHaveBeenCalledTimes(1);
   });
 

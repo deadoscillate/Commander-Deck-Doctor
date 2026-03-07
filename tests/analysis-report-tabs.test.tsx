@@ -1,0 +1,44 @@
+/* @vitest-environment jsdom */
+
+import React from "react";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { AnalysisReport } from "@/components/AnalysisReport";
+import { createAnalyzeResponseFixture } from "@/tests/fixtures/analyzeResponseFixture";
+
+describe("analysis report tab smoke", () => {
+  afterEach(() => {
+    cleanup();
+    vi.restoreAllMocks();
+  });
+
+  it("switches across report tabs and keeps core interactions available", async () => {
+    const onOpenPrintingPicker = vi.fn();
+    const user = userEvent.setup();
+    const result = createAnalyzeResponseFixture();
+
+    render(<AnalysisReport result={result} onOpenPrintingPicker={onOpenPrintingPicker} />);
+
+    expect(screen.getByRole("tab", { name: "Overview" }).getAttribute("aria-selected")).toBe("true");
+    expect(screen.getByRole("heading", { name: "Player Snapshot" })).toBeTruthy();
+
+    await user.click(screen.getByRole("tab", { name: "Composition" }));
+    expect(screen.getByRole("heading", { name: "Core Composition" })).toBeTruthy();
+
+    await user.click(screen.getByRole("tab", { name: "Simulations" }));
+    expect(screen.getByRole("button", { name: "Run Simulations" })).toBeTruthy();
+
+    await user.click(screen.getByRole("tab", { name: "Cards" }));
+    expect(screen.getByRole("heading", { name: "Detected Cards" })).toBeTruthy();
+
+    await user.click(screen.getAllByRole("button", { name: "Select Printing" })[0]);
+    await waitFor(() => {
+      expect(onOpenPrintingPicker).toHaveBeenCalledWith("Sol Ring");
+    });
+
+    await user.click(screen.getByRole("tab", { name: "Combos" }));
+    expect(screen.getByRole("heading", { name: "Combo Detection" })).toBeTruthy();
+    expect(screen.getByRole("tab", { name: /Live Combos/i })).toBeTruthy();
+  });
+});

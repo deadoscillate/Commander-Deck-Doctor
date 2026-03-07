@@ -97,6 +97,10 @@ function buildSetCollectorKey(setCode: string, collectorNumber: string): string 
   return `set:${setCode.trim().toLowerCase()}|collector:${normalizeCollectorNumber(collectorNumber)}`;
 }
 
+function buildBatchNameKey(name: string): string {
+  return `name:${normalizeLookupName(name)}`;
+}
+
 function chunkArray<T>(rows: T[], chunkSize: number): T[][] {
   if (rows.length === 0) {
     return [];
@@ -143,23 +147,30 @@ function collectorNumberMatches(
 type ScryfallCollectionIdentifier =
   | { id: string }
   | { set: string; collector_number: string }
-  | { name: string; set: string };
+  | { name: string; set: string }
+  | { name: string };
 
 type BatchLookupMaps = {
   byId: Map<string, ScryfallCard>;
   bySetCollector: Map<string, ScryfallCard>;
   byNameSet: Map<string, ScryfallCard>;
+  byName: Map<string, ScryfallCard>;
 };
 
 function createEmptyBatchLookupMaps(): BatchLookupMaps {
   return {
     byId: new Map<string, ScryfallCard>(),
     bySetCollector: new Map<string, ScryfallCard>(),
-    byNameSet: new Map<string, ScryfallCard>()
+    byNameSet: new Map<string, ScryfallCard>(),
+    byName: new Map<string, ScryfallCard>()
   };
 }
 
-async function fetchCardsByBatchIdentifiers(parsedDeck: ParsedDeckEntry[]): Promise<BatchLookupMaps> {
+async function fetchCardsByBatchIdentifiers(
+  parsedDeck: ParsedDeckEntry[],
+  options?: { includeSetLookups?: boolean }
+): Promise<BatchLookupMaps> {
+  const includeSetLookups = options?.includeSetLookups ?? true;
   const identifiersByKey = new Map<string, ScryfallCollectionIdentifier>();
   for (const entry of parsedDeck) {
     const setCode = typeof entry.setCode === "string" ? entry.setCode.trim().toLowerCase() : "";
@@ -167,6 +178,17 @@ async function fetchCardsByBatchIdentifiers(parsedDeck: ParsedDeckEntry[]): Prom
       typeof entry.collectorNumber === "string" ? entry.collectorNumber.trim() : "";
     const printingId = typeof entry.printingId === "string" ? entry.printingId.trim().toLowerCase() : "";
     const name = entry.name.trim();
+    if (name) {
+      const nameKey = buildBatchNameKey(name);
+      if (!identifiersByKey.has(nameKey)) {
+        identifiersByKey.set(nameKey, { name });
+      }
+    }
+
+    if (!includeSetLookups) {
+      continue;
+    }
+
     if (printingId) {
       const idKey = buildPrintingIdKey(printingId);
       if (!identifiersByKey.has(idKey)) {
@@ -228,6 +250,10 @@ async function fetchCardsByBatchIdentifiers(parsedDeck: ParsedDeckEntry[]): Prom
         }
 
         const normalizedCard = normalizeScryfallCard(rawCard);
+        const batchNameKey = buildBatchNameKey(normalizedCard.name);
+        if (batchNameKey !== "name:") {
+          resolved.byName.set(batchNameKey, normalizedCard);
+        }
         const normalizedSet = normalizedCard.set ?? "";
         if (normalizedSet) {
           resolved.byNameSet.set(buildNameSetKey(normalizedCard.name, normalizedSet), normalizedCard);
@@ -246,6 +272,7 @@ async function fetchCardsByBatchIdentifiers(parsedDeck: ParsedDeckEntry[]): Prom
           const nameSetCacheKey = `${normalizedCard.name.toLowerCase().trim()}|set:${normalizedSet}`;
           cardCache.set(nameSetCacheKey, Promise.resolve(normalizedCard));
         }
+        cardCache.set(normalizedCard.name.toLowerCase().trim(), Promise.resolve(normalizedCard));
         if (normalizedCard.id) {
           cardCache.set(buildPrintingIdKey(normalizedCard.id), Promise.resolve(normalizedCard));
         }
@@ -476,8 +503,9 @@ export async function fetchDeckCards(
   options?: { deckPriceMode?: DeckPriceMode }
 ): Promise<{ knownCards: DeckCard[]; unknownCards: string[] }> {
   const mode = options?.deckPriceMode ?? "oracle-default";
-  const batchLookups =
-    mode === "decklist-set" ? await fetchCardsByBatchIdentifiers(parsedDeck) : createEmptyBatchLookupMaps();
+  const batchLookups = await fetchCardsByBatchIdentifiers(parsedDeck, {
+    includeSetLookups: mode === "decklist-set"
+  });
   const lookedUp = await mapWithConcurrency(parsedDeck, Math.max(1, concurrency), async (entry) => {
     const setCode = typeof entry.setCode === "string" && entry.setCode.trim() ? entry.setCode : null;
     const collectorNumber =
@@ -486,6 +514,7 @@ export async function fetchDeckCards(
         : null;
     const printingId =
       typeof entry.printingId === "string" && entry.printingId.trim() ? entry.printingId : null;
+    const batchByName = batchLookups.byName.get(buildBatchNameKey(entry.name));
     let card: ScryfallCard | null = null;
 
     if (mode === "decklist-set" && printingId) {
@@ -513,6 +542,11 @@ export async function fetchDeckCards(
       }
     }
 
+    // Prefer collection-name fallback before per-card named endpoints.
+    if (mode === "decklist-set" && !card && batchByName) {
+      card = batchByName;
+    }
+
     if (mode === "decklist-set" && !card && setCode) {
       card = card ?? await getCardByNameWithSet(entry.name, setCode);
     }
@@ -522,7 +556,7 @@ export async function fetchDeckCards(
     }
 
     if (!card) {
-      card = await getCardByName(entry.name);
+      card = batchByName ?? (await getCardByName(entry.name));
     }
 
     return { entry, card };

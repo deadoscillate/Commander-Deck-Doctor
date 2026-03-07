@@ -11,6 +11,7 @@
     "test:a11y": "vitest run tests/a11y-smoke.test.tsx",
     "test:coverage": "vitest run --coverage",
     "test:watch": "vitest",
+    "bench:analyze": "tsx scripts/benchmark-analyze.ts",
     "scryfall:download": "node scripts/scryfall-download-oracle.mjs",
     "scryfall:compile": "node scripts/scryfall-compile-oracle.mjs",
     "scryfall:verify": "node scripts/scryfall-verify-compiled.mjs",

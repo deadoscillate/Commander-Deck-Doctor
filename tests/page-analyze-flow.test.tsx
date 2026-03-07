@@ -5,8 +5,18 @@ import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-function MockAnalysisReport(props: { result: { commander?: { selectedName?: string | null } } }) {
-  return <div data-testid="analysis-report">{props.result?.commander?.selectedName ?? "none"}</div>;
+function MockAnalysisReport(props: {
+  result: { commander?: { selectedName?: string | null } };
+  onOpenPrintingPicker?: (cardName: string) => void;
+}) {
+  return (
+    <div>
+      <div data-testid="analysis-report">{props.result?.commander?.selectedName ?? "none"}</div>
+      <button type="button" onClick={() => props.onOpenPrintingPicker?.("Sol Ring")}>
+        Open Printing Picker
+      </button>
+    </div>
+  );
 }
 
 function MockExportButtons() {
@@ -151,5 +161,112 @@ describe("app page analyze flow", () => {
     const secondPayload = JSON.parse(String(secondRequest.body));
     expect(secondPayload.commanderName).toBe("Atraxa, Praetors' Voice");
     expect(await screen.findByText("Atraxa, Praetors' Voice")).toBeTruthy();
+  });
+
+  it("keeps analyze + commander flow working at mobile viewport width", async () => {
+    Object.defineProperty(window, "innerWidth", {
+      configurable: true,
+      writable: true,
+      value: 390
+    });
+    window.dispatchEvent(new Event("resize"));
+
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse(
+        createAnalyzeResponse({
+          commander: {
+            selectedName: null,
+            source: "none",
+            needsManualSelection: true
+          }
+        })
+      )
+    );
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse(
+        createAnalyzeResponse({
+          commander: {
+            selectedName: "Atraxa, Praetors' Voice",
+            source: "manual",
+            needsManualSelection: false
+          }
+        })
+      )
+    );
+
+    const user = userEvent.setup();
+    const { default: Page } = await import("@/app/page");
+    render(<Page />);
+
+    await user.type(screen.getByLabelText(/Decklist \(paste here\)/i), "1 Sol Ring");
+    await user.click(screen.getByRole("button", { name: /Analyze Deck/i }));
+
+    const commanderSelect = await screen.findByLabelText(/Commander \(manual selection\)/i);
+    await user.selectOptions(commanderSelect, "Atraxa, Praetors' Voice");
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+    });
+
+    const [, secondRequest] = fetchMock.mock.calls[1] as [string, RequestInit];
+    const secondPayload = JSON.parse(String(secondRequest.body));
+    expect(secondPayload.commanderName).toBe("Atraxa, Praetors' Voice");
+  });
+
+  it("opens and closes printing modal via report interaction", async () => {
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse(
+        createAnalyzeResponse({
+          commander: {
+            selectedName: "Atraxa, Praetors' Voice",
+            source: "manual",
+            needsManualSelection: false
+          }
+        })
+      )
+    );
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({
+        name: "Sol Ring",
+        count: 1,
+        printings: [
+          {
+            id: "sol-ring-cmm",
+            name: "Sol Ring",
+            setCode: "cmm",
+            setName: "Commander Masters",
+            collectorNumber: "217",
+            releasedAt: "2023-08-04",
+            imageUrl: "https://img.test/sol-ring-cmm.jpg",
+            label: "Commander Masters #217"
+          }
+        ]
+      })
+    );
+
+    const user = userEvent.setup();
+    const { default: Page } = await import("@/app/page");
+    render(<Page />);
+
+    await user.type(screen.getByLabelText(/Decklist \(paste here\)/i), "1 Sol Ring");
+    await user.click(screen.getByRole("button", { name: /Analyze Deck/i }));
+
+    const openButton = await screen.findByRole("button", { name: "Open Printing Picker" });
+    await user.click(openButton);
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+    });
+
+    const [secondUrl] = fetchMock.mock.calls[1] as [string, RequestInit];
+    expect(secondUrl).toContain("/api/card-printings?name=Sol%20Ring");
+    expect(await screen.findByRole("dialog")).toBeTruthy();
+    expect(screen.getByText("Select Printing")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Close" })).toBeTruthy();
+
+    await user.keyboard("{Escape}");
+    await waitFor(() => {
+      expect(screen.queryByRole("dialog")).toBeNull();
+    });
   });
 });

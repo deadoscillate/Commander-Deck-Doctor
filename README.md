@@ -35,6 +35,7 @@ npm run test
 npm run test:a11y
 npm run test:coverage
 npm run build
+npm run bench:analyze -- --file tests/fixtures/kentaro-benchmark.decklist.txt --mode decklist-set --repeat-hits 2
 ```
 
 Notes:
@@ -187,10 +188,26 @@ Minimum standards to treat the app as production-ready for regular player usage:
 
 ### Phase 1: Reliability + Speed (Highest Priority)
 
-1. Profile `/api/analyze` end-to-end timing and publish stage-level metrics (parse, lookup, engine, serialization).
-2. Reduce p95 runtime for 100-card set-aware lists by cutting remaining upstream Scryfall calls and repeat lookups.
-3. Add response-size and cache-hit instrumentation to prevent regressions during feature additions.
-4. Add browser-level smoke coverage for desktop/mobile interactions (analyze flow, commander changes, tabs, modal UX).
+1. Completed: `/api/analyze` now publishes stage-level metrics headers (`parse`, `lookup`, `compute`, `serialize`, `total`) plus cache and response-size metrics.
+2. Completed: Scryfall lookup path now batch-resolves by card name before per-card fallback (in both `oracle-default` and `decklist-set` modes), reducing repeated named lookups.
+3. Completed: cache-hit/miss and response-size instrumentation is regression-tested.
+4. Completed: UI interaction smoke coverage now includes analyze flow, commander re-selection, report tabs, and printing modal UX (desktop/mobile viewport test included).
+5. Ongoing: continue lowering `lookup` stage time for slow external conditions using additional fallback/caching strategies.
+
+### Phase 1 Benchmark Snapshot (March 7, 2026)
+
+Deck used: `tests/fixtures/kentaro-benchmark.decklist.txt` (74 non-empty lines, includes set codes).
+
+- `decklist-set` miss: ~3593ms total (`parse 2.9ms`, `lookup 2833.9ms`, `compute 747ms`, `serialize 0.4ms`)
+- `oracle-default` miss: ~3060.6ms total (`parse 1.9ms`, `lookup 2518.3ms`, `compute 533.1ms`, `serialize 0.3ms`)
+- cache hits for repeated identical requests: ~1.4-2.0ms total
+
+Reproduce:
+
+```bash
+npm run bench:analyze -- --file tests/fixtures/kentaro-benchmark.decklist.txt --mode decklist-set --repeat-hits 2
+npm run bench:analyze -- --file tests/fixtures/kentaro-benchmark.decklist.txt --mode oracle-default --repeat-hits 1
+```
 
 ### Phase 2: Analyzer Quality
 
