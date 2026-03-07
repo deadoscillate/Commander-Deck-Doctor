@@ -53,9 +53,9 @@ body {
 
 body.has-commander-page-art {
   background:
-    radial-gradient(circle at 9% 8%, rgba(255, 248, 231, 0.2) 0%, transparent 34%),
-    radial-gradient(circle at 92% 18%, rgba(222, 236, 255, 0.22) 0%, transparent 40%),
-    linear-gradient(180deg, rgba(8, 12, 19, 0.82), rgba(8, 12, 19, 0.9)),
+    radial-gradient(circle at 9% 8%, rgba(255, 248, 231, 0.26) 0%, transparent 34%),
+    radial-gradient(circle at 92% 18%, rgba(222, 236, 255, 0.3) 0%, transparent 40%),
+    linear-gradient(180deg, rgba(8, 12, 19, 0.58), rgba(8, 12, 19, 0.72)),
     var(--commander-page-art);
   background-repeat: no-repeat, no-repeat, no-repeat, no-repeat;
   background-size: cover, cover, cover, cover;
@@ -69,17 +69,17 @@ body.has-commander-page-art .results > section:not(.commander-hero),
 body.has-commander-page-art .results-commander-picker,
 body.has-commander-page-art .tuning-controls,
 body.has-commander-page-art .simulations-details {
-  background: linear-gradient(140deg, rgba(9, 15, 24, 0.78), rgba(14, 23, 36, 0.68)) !important;
-  border-color: rgba(113, 141, 171, 0.48);
-  backdrop-filter: blur(12px) saturate(1.06);
+  background: linear-gradient(140deg, rgba(9, 15, 24, 0.56), rgba(14, 23, 36, 0.44)) !important;
+  border-color: rgba(135, 164, 194, 0.56);
+  backdrop-filter: blur(14px) saturate(1.08);
 }
 
 body.has-commander-page-art .summary-card,
 body.has-commander-page-art .technical-group,
 body.has-commander-page-art .decklist-preview,
 body.has-commander-page-art .printing-modal {
-  background: linear-gradient(150deg, rgba(12, 20, 31, 0.82), rgba(17, 28, 43, 0.74)) !important;
-  border-color: rgba(113, 141, 171, 0.52);
+  background: linear-gradient(150deg, rgba(12, 20, 31, 0.6), rgba(17, 28, 43, 0.5)) !important;
+  border-color: rgba(135, 164, 194, 0.58);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -608,7 +608,7 @@ button:disabled {
   width: 100%;
   aspect-ratio: 0.72;
   background-size: cover;
-  background-position: center top;
+  background-position: center center;
   background-repeat: no-repeat;
 }
 

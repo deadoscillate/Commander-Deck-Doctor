@@ -21,16 +21,17 @@ export function CommanderHeroHeader({
   archetypeLabel,
   bracketLabel
 }: CommanderHeroHeaderProps) {
-  const preferredHeroArtUrl = commander.artUrl ?? commander.cardImageUrl;
-  const heroArtStyle = preferredHeroArtUrl
+  const pageBackgroundArtUrl = commander.artUrl ?? commander.cardImageUrl;
+  const commanderCardPreviewUrl = commander.cardImageUrl ?? commander.artUrl;
+  const heroArtStyle = commanderCardPreviewUrl
     ? {
-        backgroundImage: `url("${preferredHeroArtUrl}")`
+        backgroundImage: `url("${commanderCardPreviewUrl}")`
       }
     : undefined;
 
-  const backgroundStyle = preferredHeroArtUrl
+  const backgroundStyle = pageBackgroundArtUrl
     ? {
-        backgroundImage: `radial-gradient(circle at 12% 22%, rgba(255, 236, 190, 0.16), transparent 42%), linear-gradient(120deg, rgba(10, 16, 24, 0.94) 0%, rgba(19, 30, 42, 0.82) 50%, rgba(10, 16, 24, 0.94) 100%), url("${preferredHeroArtUrl}")`,
+        backgroundImage: `radial-gradient(circle at 12% 22%, rgba(255, 236, 190, 0.16), transparent 42%), linear-gradient(120deg, rgba(10, 16, 24, 0.94) 0%, rgba(19, 30, 42, 0.82) 50%, rgba(10, 16, 24, 0.94) 100%), url("${pageBackgroundArtUrl}")`,
         backgroundRepeat: "no-repeat, no-repeat, no-repeat",
         backgroundSize: "cover, cover, cover",
         backgroundPosition: "center, center, center"
