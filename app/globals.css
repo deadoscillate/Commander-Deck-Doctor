@@ -199,6 +199,17 @@ select:focus {
   background: #fff;
 }
 
+button:focus-visible,
+a:focus-visible,
+[role="tab"]:focus-visible,
+[role="button"]:focus-visible,
+.inline-action:focus-visible,
+.share-link:focus-visible {
+  outline: 2px solid #8fc1ff;
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
 textarea {
   resize: vertical;
 }
@@ -239,6 +250,7 @@ input[type="url"] {
   padding-top: 0.7rem;
 }
 
+.saved-decks-panel h2,
 .saved-decks-panel h3 {
   margin: 0 0 0.35rem;
 }
@@ -852,7 +864,25 @@ button:disabled {
 }
 
 .card-hover-text {
+  color: inherit;
+  font: inherit;
+  line-height: inherit;
+  text-align: inherit;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  background: transparent;
   cursor: pointer;
+}
+
+.card-hover-text:focus-visible {
+  outline: 2px solid #8fc1ff;
+  outline-offset: 2px;
+  border-radius: 4px;
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-decoration-color: #8ba4ad;
+  text-underline-offset: 0.12em;
 }
 
 .card-hover:hover .card-hover-text {

@@ -2,7 +2,7 @@ import { Pool } from "pg";
 import { getClientAddress } from "./http";
 
 type RateLimitRule = {
-  scope: "analyze" | "import-url" | "share-report";
+  scope: "analyze" | "import-url" | "share-report" | "simulate" | "card-printings";
   limit: number;
   windowSeconds: number;
 };
@@ -26,6 +26,10 @@ let pgPool: Pool | null = null;
 let tableReady: Promise<void> | null = null;
 
 function shouldUsePostgres(): boolean {
+  if (process.env.NODE_ENV === "test") {
+    return false;
+  }
+
   return Boolean(process.env.POSTGRES_URL || process.env.POSTGRES_URL_NON_POOLING || process.env.DATABASE_URL);
 }
 

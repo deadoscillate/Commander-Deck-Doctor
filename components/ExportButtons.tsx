@@ -174,7 +174,7 @@ export function ExportButtons({ result, decklist }: ExportButtonsProps) {
       {shareStatus === "copied" ? <span className="muted">Share link copied.</span> : null}
       {shareStatus === "ready" ? <span className="muted">Share link created.</span> : null}
       {shareUrl ? (
-        <a className="share-link" href={shareUrl} target="_blank" rel="noreferrer">
+        <a className="share-link" href={shareUrl} target="_blank" rel="noreferrer noopener">
           Open shared report
         </a>
       ) : null}

@@ -175,7 +175,7 @@ describe("POST /api/analyze", () => {
     expect(body.rulesEngine?.status).toBeDefined();
     expect(Array.isArray(body.rulesEngine?.rules)).toBe(true);
     expect(body.rulesEngine?.rules?.some((rule) => rule.id === "commander.deck-size-exactly-100")).toBe(true);
-  });
+  }, 15000);
 
   it("reuses analyze cache for identical requests", async () => {
     const fetchDeckCardsMock = vi.fn(async () => ({

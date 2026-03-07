@@ -30,10 +30,17 @@ Open `http://localhost:3000`.
 ## Build And Test
 
 ```bash
-npm run test
 npm run lint
+npm run test
+npm run test:a11y
+npm run test:coverage
 npm run build
 ```
+
+Notes:
+
+- `test:a11y` runs automated accessibility smoke checks (axe-core) on core UI surfaces.
+- `test:coverage` enforces minimum thresholds for critical API/runtime modules.
 
 ## Scryfall Data (Offline-First)
 
@@ -119,6 +126,8 @@ Current sync includes:
 - Vercel hosts the app.
 - Shared report persistence uses Neon Postgres (`POSTGRES_URL` or `DATABASE_URL`).
 - `/api/analyze` runs on Node runtime and loads local compiled Scryfall data.
+- Security headers are configured at the framework level (XFO, XCTO, Referrer-Policy, Permissions-Policy, CSP, HSTS).
+- All public API routes use scoped rate limiting.
 
 ## Branch Flow
 
@@ -149,7 +158,8 @@ Recommended flow:
 - Core workflow is live: import/paste decklist -> analyze -> review report sections.
 - Key analysis outputs are present: legality checks, role coverage, archetypes, combos, Rule 0 snapshot, deck price, and simulations.
 - UX is significantly improved, including commander hero/header and desktop/mobile layout parity.
-- Primary remaining gap to harden before broader live rollout: speed + regression safety under frequent feature changes.
+- Regression safety is materially improved (CI + smoke + accessibility + coverage gates).
+- Primary remaining gap before broader live rollout: end-to-end analysis speed for larger, print-aware decklists.
 
 ## Live Product Standards
 
@@ -162,23 +172,25 @@ Minimum standards to treat the app as production-ready for regular player usage:
    - Legality checks remain deterministic and explain failures clearly.
    - Price/preview/combo/archetype outputs degrade gracefully when card data is missing.
 3. Performance
-   - Analyze requests should feel responsive for typical 100-card lists.
+   - Analyze requests should feel responsive for typical 100-card lists (including set-aware pricing mode).
    - Client interactions (tab switch, hover previews, commander changes) should not block the UI.
 4. Test coverage
    - API contract and rules-engine tests green in CI.
+   - Accessibility smoke tests and coverage threshold checks green in CI.
    - Regression tests for critical user actions (analyze button, commander dropdown refresh, mobile rendering).
 5. Operability
    - Data refresh scripts (`scryfall:update`, `spellbook:update`, `rules:update`) documented and reproducible.
    - Deploy flow remains `staging` -> validate -> `main`.
+   - Preview/prod smoke checks confirm API baseline behavior and required security headers.
 
 ## Development Roadmap
 
 ### Phase 1: Reliability + Speed (Highest Priority)
 
-1. Add integration tests for core flows (analyze, commander reselection, report tab rendering, share/export).
-2. Add browser-level smoke coverage for mobile and desktop breakpoints.
-3. Profile analyzer latency and remove repeat work in the `/api/analyze` path.
-4. Expand caching strategy for expensive card lookups and preview fetches.
+1. Profile `/api/analyze` end-to-end timing and publish stage-level metrics (parse, lookup, engine, serialization).
+2. Reduce p95 runtime for 100-card set-aware lists by cutting remaining upstream Scryfall calls and repeat lookups.
+3. Add response-size and cache-hit instrumentation to prevent regressions during feature additions.
+4. Add browser-level smoke coverage for desktop/mobile interactions (analyze flow, commander changes, tabs, modal UX).
 
 ### Phase 2: Analyzer Quality
 
@@ -197,3 +209,4 @@ Minimum standards to treat the app as production-ready for regular player usage:
 1. Add persistent telemetry/error tracking dashboards for real-world usage patterns.
 2. Define release gates (tests, lint, build, smoke checks) before production deploy.
 3. Improve user-facing guidance text for Rule 0 interpretation and recommendation confidence.
+4. Add a release checklist with explicit go/no-go thresholds (latency, error rate, test pass, accessibility pass).

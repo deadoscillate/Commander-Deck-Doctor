@@ -141,6 +141,18 @@ export function CardLink({ name, setCode, collectorNumber, printingId, className
     }, CLOSE_DELAY_MS);
   }
 
+  function toggleOpen() {
+    clearOpenTimer();
+    clearCloseTimer();
+    if (open) {
+      setOpen(false);
+      return;
+    }
+
+    setOpen(true);
+    void ensurePreviewLoaded();
+  }
+
   return (
     <span
       ref={anchorRef}
@@ -148,7 +160,8 @@ export function CardLink({ name, setCode, collectorNumber, printingId, className
       onMouseEnter={openWithDelay}
       onMouseLeave={closeWithDelay}
     >
-      <span
+      <button
+        type="button"
         className="card-hover-text"
         onFocus={openWithDelay}
         onBlur={closeWithDelay}
@@ -156,22 +169,24 @@ export function CardLink({ name, setCode, collectorNumber, printingId, className
           if (!isTouchLikeInput()) {
             return;
           }
-
-          clearOpenTimer();
-          clearCloseTimer();
-          if (open) {
+          toggleOpen();
+        }}
+        onKeyDown={(event) => {
+          if (event.key === "Escape") {
+            clearOpenTimer();
+            clearCloseTimer();
             setOpen(false);
             return;
           }
 
-          setOpen(true);
-          void ensurePreviewLoaded();
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            toggleOpen();
+          }
         }}
-        role="button"
-        tabIndex={0}
       >
         {name}
-      </span>
+      </button>
 
       {typeof document !== "undefined"
         ? createPortal(

@@ -55,7 +55,7 @@ export default function PrivacyPage() {
           <Link
             href="https://github.com/deadoscillate/Commander-Deck-Doctor/issues/new?title=%5BLegal%20Request%5D%20"
             target="_blank"
-            rel="noreferrer"
+            rel="noreferrer noopener"
             className="inline-link"
           >
             legal request

@@ -1,4 +1,5 @@
 import { apiJson, getRequestId } from "@/lib/api/http";
+import { buildRateLimitHeaders, checkRateLimit } from "@/lib/api/rateLimit";
 import { reportApiError } from "@/lib/api/monitoring";
 
 export const runtime = "nodejs";
@@ -48,6 +49,11 @@ const MAX_PRINTINGS = 60;
 const PRINTINGS_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
 const MAX_CACHE_ENTRIES = 500;
 const PRINTINGS_CACHE_CONTROL = "public, max-age=0, s-maxage=21600, stale-while-revalidate=86400";
+const CARD_PRINTINGS_RATE_LIMIT = {
+  scope: "card-printings" as const,
+  limit: 60,
+  windowSeconds: 60
+};
 
 type CachedPrintings = {
   expiresAt: number;
@@ -131,15 +137,24 @@ function sortPrintings(a: CardPrintingOption, b: CardPrintingOption): number {
  */
 export async function GET(request: Request) {
   const requestId = getRequestId(request);
+  const rateLimit = await checkRateLimit(request, CARD_PRINTINGS_RATE_LIMIT);
+  const rateLimitHeaders = buildRateLimitHeaders(rateLimit);
+  if (!rateLimit.allowed) {
+    return apiJson(
+      { error: "Rate limit exceeded. Please retry shortly." },
+      { status: 429, requestId, headers: rateLimitHeaders }
+    );
+  }
+
   const url = new URL(request.url);
   const name = normalizeCardName(url.searchParams.get("name"));
 
   if (!name) {
-    return apiJson({ error: "Card name is required." }, { status: 400, requestId });
+    return apiJson({ error: "Card name is required." }, { status: 400, requestId, headers: rateLimitHeaders });
   }
 
   if (name.length > MAX_NAME_LENGTH) {
-    return apiJson({ error: "Card name is too long." }, { status: 413, requestId });
+    return apiJson({ error: "Card name is too long." }, { status: 413, requestId, headers: rateLimitHeaders });
   }
 
   const cached = getCachedPrintings(name);
@@ -153,7 +168,7 @@ export async function GET(request: Request) {
       {
         status: 200,
         requestId,
-        headers: { "cache-control": PRINTINGS_CACHE_CONTROL }
+        headers: { ...rateLimitHeaders, "cache-control": PRINTINGS_CACHE_CONTROL }
       }
     );
   }
@@ -178,7 +193,7 @@ export async function GET(request: Request) {
     if (!response.ok) {
       return apiJson(
         { error: "Could not load printings from Scryfall right now." },
-        { status: 502, requestId }
+        { status: 502, requestId, headers: rateLimitHeaders }
       );
     }
 
@@ -232,7 +247,7 @@ export async function GET(request: Request) {
       {
         status: 200,
         requestId,
-        headers: { "cache-control": PRINTINGS_CACHE_CONTROL }
+        headers: { ...rateLimitHeaders, "cache-control": PRINTINGS_CACHE_CONTROL }
       }
     );
   } catch (error) {
@@ -241,6 +256,9 @@ export async function GET(request: Request) {
       route: "/api/card-printings",
       status: 500
     });
-    return apiJson({ error: "Could not load printings." }, { status: 500, requestId });
+    return apiJson(
+      { error: "Could not load printings." },
+      { status: 500, requestId, headers: rateLimitHeaders }
+    );
   }
 }

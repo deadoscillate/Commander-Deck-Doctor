@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import { AnalysisReport } from "@/components/AnalysisReport";
 import { ExportButtons } from "@/components/ExportButtons";
 import type { AnalyzeResponse, DeckPriceMode } from "@/lib/contracts";
@@ -240,6 +240,8 @@ export default function Page() {
   const [importing, setImporting] = useState(false);
   const [importError, setImportError] = useState("");
   const [importInfo, setImportInfo] = useState("");
+  const printingModalRef = useRef<HTMLDivElement | null>(null);
+  const printingCloseButtonRef = useRef<HTMLButtonElement | null>(null);
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -472,6 +474,79 @@ export default function Page() {
     void ensurePrintingsLoaded(cardName);
   }
 
+  useEffect(() => {
+    if (!activePrintingPicker || typeof document === "undefined") {
+      return;
+    }
+
+    const previousActiveElement =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const focusableSelector =
+      'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+    const focusModal = window.setTimeout(() => {
+      const modal = printingModalRef.current;
+      if (!modal) {
+        return;
+      }
+
+      const firstFocusable = modal.querySelector<HTMLElement>(focusableSelector);
+      (firstFocusable ?? printingCloseButtonRef.current ?? modal).focus();
+    }, 0);
+
+    function onDocumentKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setActivePrintingPicker(null);
+        return;
+      }
+
+      if (event.key !== "Tab") {
+        return;
+      }
+
+      const modal = printingModalRef.current;
+      if (!modal) {
+        return;
+      }
+
+      const focusableElements = Array.from(modal.querySelectorAll<HTMLElement>(focusableSelector)).filter(
+        (element) => !element.hasAttribute("disabled") && element.tabIndex >= 0
+      );
+
+      if (focusableElements.length === 0) {
+        event.preventDefault();
+        modal.focus();
+        return;
+      }
+
+      const firstElement = focusableElements[0];
+      const lastElement = focusableElements[focusableElements.length - 1];
+      const activeElement = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+
+      if (event.shiftKey) {
+        if (!activeElement || !modal.contains(activeElement) || activeElement === firstElement) {
+          event.preventDefault();
+          lastElement.focus();
+        }
+        return;
+      }
+
+      if (!activeElement || !modal.contains(activeElement) || activeElement === lastElement) {
+        event.preventDefault();
+        firstElement.focus();
+      }
+    }
+
+    document.addEventListener("keydown", onDocumentKeyDown);
+
+    return () => {
+      window.clearTimeout(focusModal);
+      document.removeEventListener("keydown", onDocumentKeyDown);
+      previousActiveElement?.focus();
+    };
+  }, [activePrintingPicker]);
+
   function onSelectPrinting(cardName: string, printingId: string) {
     const cardKey = normalizeCardKey(cardName);
     if (!printingId) {
@@ -630,7 +705,7 @@ export default function Page() {
           {saveInfo ? <p className="muted">{saveInfo}</p> : null}
 
           <section className="saved-decks-panel">
-            <h3>Saved Decks</h3>
+            <h2>Saved Decks</h2>
             {savedDecks.length === 0 ? (
               <p className="muted">
                 No saved decks yet. Analyze a deck, then click &quot;Save Deck Locally&quot;.{" "}
@@ -819,22 +894,33 @@ export default function Page() {
       {activePrintingPicker ? (
         <div
           className="printing-modal-backdrop"
-          role="dialog"
-          aria-modal="true"
-          aria-label={`Select printing for ${activePrintingCardName}`}
           onClick={() => setActivePrintingPicker(null)}
         >
-          <div className="printing-modal" onClick={(event) => event.stopPropagation()}>
+          <div
+            ref={printingModalRef}
+            className="printing-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="printing-modal-title"
+            aria-describedby="printing-modal-description"
+            tabIndex={-1}
+            onClick={(event) => event.stopPropagation()}
+          >
             <div className="printing-modal-head">
-              <h2>Select Printing</h2>
-              <button type="button" className="btn-tertiary" onClick={() => setActivePrintingPicker(null)}>
+              <h2 id="printing-modal-title">Select Printing</h2>
+              <button
+                ref={printingCloseButtonRef}
+                type="button"
+                className="btn-tertiary"
+                onClick={() => setActivePrintingPicker(null)}
+              >
                 Close
               </button>
             </div>
             <p>
               <strong>{activePrintingCardName}</strong>
             </p>
-            <p className="muted">
+            <p id="printing-modal-description" className="muted">
               Selection updates card art and set-aware pricing lookup for this card.
             </p>
 

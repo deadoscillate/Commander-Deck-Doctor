@@ -1,5 +1,6 @@
 import { CardDatabase, createEngine } from "@/engine";
 import { apiJson, getRequestId, parseJsonBody } from "@/lib/api/http";
+import { buildRateLimitHeaders, checkRateLimit } from "@/lib/api/rateLimit";
 import { reportApiError } from "@/lib/api/monitoring";
 
 export const runtime = "nodejs";
@@ -10,6 +11,11 @@ const MAX_CARD_NAME_LENGTH = 160;
 const MAX_RUNS = 10_000;
 const DEFAULT_RUNS = 1_000;
 const DEFAULT_SEED = "report-sim";
+const SIMULATE_RATE_LIMIT = {
+  scope: "simulate" as const,
+  limit: 30,
+  windowSeconds: 60
+};
 
 type RawDeckEntry = {
   name?: unknown;
@@ -129,11 +135,23 @@ function parseDeckEntries(value: unknown): NormalizedDeckEntry[] {
  */
 export async function POST(request: Request) {
   const requestId = getRequestId(request);
+  const rateLimit = await checkRateLimit(request, SIMULATE_RATE_LIMIT);
+  const rateLimitHeaders = buildRateLimitHeaders(rateLimit);
+  if (!rateLimit.allowed) {
+    return apiJson(
+      { error: "Rate limit exceeded. Please retry shortly." },
+      { status: 429, requestId, headers: rateLimitHeaders }
+    );
+  }
+
   const parsedBody = await parseJsonBody<SimulateRequest>(request, {
     maxBytes: SIMULATE_REQUEST_MAX_BYTES
   });
   if (!parsedBody.ok) {
-    return apiJson({ error: parsedBody.error }, { status: parsedBody.status, requestId });
+    return apiJson(
+      { error: parsedBody.error },
+      { status: parsedBody.status, requestId, headers: rateLimitHeaders }
+    );
   }
 
   const payload = parsedBody.data;
@@ -141,14 +159,14 @@ export async function POST(request: Request) {
   if (deck.length === 0) {
     return apiJson(
       { error: "Simulation deck is empty. Analyze a deck first, then retry." },
-      { status: 400, requestId }
+      { status: 400, requestId, headers: rateLimitHeaders }
     );
   }
 
   if (deck.length > MAX_DECK_ENTRIES) {
     return apiJson(
       { error: `Simulation supports up to ${MAX_DECK_ENTRIES} distinct entries.` },
-      { status: 413, requestId }
+      { status: 413, requestId, headers: rateLimitHeaders }
     );
   }
 
@@ -205,7 +223,7 @@ export async function POST(request: Request) {
         unknownCards,
         warning
       },
-      { status: 200, requestId }
+      { status: 200, requestId, headers: rateLimitHeaders }
     );
   } catch (error) {
     reportApiError(error, {
@@ -215,7 +233,7 @@ export async function POST(request: Request) {
     });
     return apiJson(
       { error: "Simulation failed due to a server error. Please retry." },
-      { status: 500, requestId }
+      { status: 500, requestId, headers: rateLimitHeaders }
     );
   }
 }

@@ -9,7 +9,7 @@ export function AppFooter() {
           <Link
             href="https://company.wizards.com/en/legal/fancontentpolicy"
             target="_blank"
-            rel="noreferrer"
+            rel="noreferrer noopener"
             className="inline-link"
           >
             Wizards Fan Content Policy
@@ -20,14 +20,14 @@ export function AppFooter() {
         <p className="muted">Magic: The Gathering and Commander are trademarks of Wizards of the Coast LLC.</p>
         <p className="muted">
           Card data and symbols via{" "}
-          <Link href="https://scryfall.com" target="_blank" rel="noreferrer" className="inline-link">
+          <Link href="https://scryfall.com" target="_blank" rel="noreferrer noopener" className="inline-link">
             Scryfall
           </Link>
           .
         </p>
         <p className="muted">
           Combo data via{" "}
-          <Link href="https://commanderspellbook.com" target="_blank" rel="noreferrer" className="inline-link">
+          <Link href="https://commanderspellbook.com" target="_blank" rel="noreferrer noopener" className="inline-link">
             Commander Spellbook
           </Link>
           .
@@ -41,7 +41,7 @@ export function AppFooter() {
           <Link
             href="https://github.com/deadoscillate/Commander-Deck-Doctor/issues/new?title=%5BLegal%20Request%5D%20"
             target="_blank"
-            rel="noreferrer"
+            rel="noreferrer noopener"
             className="inline-link"
           >
             Open a legal request
@@ -60,7 +60,7 @@ export function AppFooter() {
           <Link
             href="https://github.com/deadoscillate/Commander-Deck-Doctor/issues"
             target="_blank"
-            rel="noreferrer"
+            rel="noreferrer noopener"
             className="inline-link"
           >
             Report a bug / feedback
