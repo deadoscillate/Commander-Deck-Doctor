@@ -41,7 +41,7 @@
     "@types/react": "19.0.2",
     "@types/react-dom": "19.0.2",
     "axe-core": "^4.11.0",
-    "eslint": "9.39.3",
+    "eslint": "10.0.3",
     "eslint-config-next": "15.5.12",
     "jsdom": "^28.1.0",
     "tsx": "^4.21.0",
