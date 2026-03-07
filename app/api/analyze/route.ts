@@ -1,5 +1,5 @@
 import { computeDeckSummary, computeRoleBreakdown, computeRoleCounts, computeTutorSummary } from "@/lib/analysis";
-import { CardDatabase, createEngine } from "@/engine";
+import type { EngineApi } from "@/engine";
 import { computeDeckArchetypes } from "@/lib/archetypes";
 import {
   buildBracketExplanation,
@@ -13,7 +13,6 @@ import { buildDeckHealthReport } from "@/lib/deckHealth";
 import { parseDecklistWithCommander } from "@/lib/decklist";
 import { GAME_CHANGERS_VERSION, findGameChangerName } from "@/lib/gameChangers";
 import { buildColorIdentityCheck, buildDeckChecks } from "@/lib/checks";
-import { detectCombosInDeck } from "@/lib/combos";
 import { computePlayerHeuristics } from "@/lib/playerHeuristics";
 import { buildRoleSuggestions } from "@/lib/suggestions";
 import { evaluateCommanderRules } from "@/lib/rulesEngine";
@@ -27,9 +26,9 @@ export const runtime = "nodejs";
 
 const ANALYZE_REQUEST_MAX_BYTES = 500_000;
 const ANALYZE_DECKLIST_MAX_CHARS = 50_000;
-const ANALYZE_CACHE_TTL_MS = 2 * 60 * 1000;
+const ANALYZE_CACHE_TTL_MS = 10 * 60 * 1000;
 const ANALYZE_CACHE_MAX_ENTRIES = 120;
-const DEFAULT_ANALYZE_SIMULATION_RUNS = 400;
+const DEFAULT_ANALYZE_SIMULATION_RUNS = 250;
 const ANALYZE_SIMULATION_RUNS = (() => {
   const parsed = Number(process.env.ANALYZE_SIMULATION_RUNS ?? "");
   if (!Number.isFinite(parsed)) {
@@ -49,23 +48,43 @@ type AnalyzeCacheEntry = {
   payload: unknown;
 };
 
-let analyzerEngine: ReturnType<typeof createEngine> | null = null;
+type DetectCombosInDeckFn = typeof import("@/lib/combos").detectCombosInDeck;
+
+let analyzerEnginePromise: Promise<EngineApi> | null = null;
+let detectCombosInDeckFn: DetectCombosInDeckFn | null = null;
 const analyzeResponseCache = new Map<string, AnalyzeCacheEntry>();
 
-function getAnalyzerEngine() {
-  if (analyzerEngine) {
-    return analyzerEngine;
+async function getAnalyzerEngine(): Promise<EngineApi> {
+  if (!analyzerEnginePromise) {
+    analyzerEnginePromise = (async () => {
+      const engineModule = await import("@/engine");
+
+      try {
+        return engineModule.createEngine();
+      } catch {
+        return engineModule.createEngine({
+          cardDatabase: engineModule.CardDatabase.createWithEngineSet()
+        });
+      }
+    })();
   }
 
   try {
-    analyzerEngine = createEngine();
-    return analyzerEngine;
-  } catch {
-    analyzerEngine = createEngine({
-      cardDatabase: CardDatabase.createWithEngineSet()
-    });
-    return analyzerEngine;
+    return await analyzerEnginePromise;
+  } catch (error) {
+    analyzerEnginePromise = null;
+    throw error;
   }
+}
+
+async function getDetectCombosInDeck(): Promise<DetectCombosInDeckFn> {
+  if (detectCombosInDeckFn) {
+    return detectCombosInDeckFn;
+  }
+
+  const combosModule = await import("@/lib/combos");
+  detectCombosInDeckFn = combosModule.detectCombosInDeck;
+  return detectCombosInDeckFn;
 }
 
 /**
@@ -516,7 +535,7 @@ export async function POST(request: Request) {
     // Fetch only the cards we can resolve; unknown names are reported separately.
     const { knownCards, unknownCards } = await fetchDeckCards(effectiveParsedDeck, 8, { deckPriceMode });
     const summary = computeDeckSummary(knownCards);
-    const analyzer = getAnalyzerEngine();
+    const analyzer = await getAnalyzerEngine();
     const engineCardByName = (cardName: string) => analyzer.cardDatabase.getCardByName(cardName);
     const behaviorIdByCardName = (cardName: string) => engineCardByName(cardName)?.behaviorId ?? null;
     const roles = computeRoleCounts(knownCards, { engineCardByName, behaviorIdByCardName });
@@ -683,6 +702,7 @@ export async function POST(request: Request) {
         colorIdentity: card.colorIdentity
       };
     };
+    const detectCombosInDeck = await getDetectCombosInDeck();
     const comboReport = detectCombosInDeck(
       parsedDeckView.flatMap((entry) =>
         entry.resolvedName ? [entry.name, entry.resolvedName] : [entry.name]

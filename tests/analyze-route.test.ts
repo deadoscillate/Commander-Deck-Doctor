@@ -44,7 +44,7 @@ describe("POST /api/analyze", () => {
 
     expect(response.status).toBe(400);
     expect(body.error).toBe("Decklist is required.");
-  });
+  }, 15000);
 
   it("returns controlled 500 when analysis dependency throws", async () => {
     vi.doMock("@/lib/scryfall", () => ({

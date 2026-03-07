@@ -62,7 +62,7 @@ describe("Commander rules engine", () => {
 
     expect(report.status).toBe("PASS");
     expect(report.failedRules).toBe(0);
-    expect(report.passedRules).toBe(5);
+    expect(report.passedRules).toBe(6);
     expect(report.rules.every((rule) => rule.outcome === "PASS")).toBe(true);
   });
 
@@ -137,5 +137,50 @@ describe("Commander rules engine", () => {
     expect(report.status).toBe("PASS");
     expect(colorRule?.outcome).toBe("SKIP");
     expect(colorRule?.message).toContain("could not be resolved");
+  });
+
+  it("fails when a banned card is present", () => {
+    const report = evaluateCommanderRules({
+      parsedDeck: [
+        { name: "Omnath, Locus of Mana", qty: 1 },
+        { name: "Black Lotus", qty: 1 },
+        { name: "Forest", qty: 98 }
+      ],
+      knownCards: [
+        buildDeckCard("Omnath, Locus of Mana", 1, {
+          type_line: "Legendary Creature - Elemental",
+          color_identity: ["G"],
+          colors: ["G"]
+        }),
+        buildDeckCard("Black Lotus", 1, {
+          type_line: "Artifact",
+          cmc: 0,
+          mana_cost: "{0}",
+          color_identity: [],
+          colors: []
+        }),
+        buildDeckCard("Forest", 98, {
+          type_line: "Basic Land - Forest",
+          cmc: 0,
+          mana_cost: "",
+          color_identity: ["G"],
+          colors: []
+        })
+      ],
+      unknownCards: [],
+      commander: {
+        name: "Omnath, Locus of Mana",
+        colorIdentity: ["G"],
+        resolved: true
+      }
+    });
+
+    const banlistRule = report.rules.find((rule) => rule.id === "commander.banlist");
+
+    expect(report.status).toBe("FAIL");
+    expect(banlistRule?.outcome).toBe("FAIL");
+    expect(banlistRule?.findings.some((entry) => entry.name === "Black Lotus" && entry.qty === 1)).toBe(
+      true
+    );
   });
 });

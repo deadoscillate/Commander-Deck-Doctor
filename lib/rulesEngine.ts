@@ -1,8 +1,10 @@
 import { buildColorIdentityCheck, buildDeckChecks } from "./checks";
 import type { RulesEngineReport, RulesEngineRuleResult } from "./contracts";
 import type { DeckCard, ParsedDeckEntry } from "./types";
+import banlistDataset from "./rules/datasets/banlist.json";
+import officialRulesDataset from "./rules/datasets/officialRules.json";
 
-const RULES_ENGINE_VERSION = "2026.03.05-alpha.1";
+const RULES_ENGINE_VERSION = `2026.03.07-official-${banlistDataset.versionDate}`;
 
 type CommanderSelection = {
   name: string | null;
@@ -42,6 +44,46 @@ function buildRule(rule: RulesEngineRuleResult): RulesEngineRuleResult {
   return rule;
 }
 
+function normalizeName(name: string): string {
+  return name
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "");
+}
+
+function buildBanlistFindings(
+  parsedDeck: ParsedDeckEntry[],
+  commanderName: string | null
+): Array<{ name: string; qty: number }> {
+  const bannedByNormalizedName = new Map(
+    banlistDataset.bannedNames.map((name) => [normalizeName(name), name] as const)
+  );
+  const findingsByCardName = new Map<string, number>();
+
+  for (const entry of parsedDeck) {
+    const normalizedName = normalizeName(entry.name);
+    const bannedName = bannedByNormalizedName.get(normalizedName);
+    if (!bannedName) {
+      continue;
+    }
+
+    findingsByCardName.set(bannedName, (findingsByCardName.get(bannedName) ?? 0) + entry.qty);
+  }
+
+  if (commanderName) {
+    const normalizedCommanderName = normalizeName(commanderName);
+    const bannedCommanderName = bannedByNormalizedName.get(normalizedCommanderName);
+    if (bannedCommanderName && !findingsByCardName.has(bannedCommanderName)) {
+      findingsByCardName.set(bannedCommanderName, 1);
+    }
+  }
+
+  return [...findingsByCardName.entries()]
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .map(([name, qty]) => ({ name, qty }));
+}
+
 /**
  * Evaluates Commander legality rules and returns structured findings.
  */
@@ -60,6 +102,7 @@ export function evaluateCommanderRules(input: CommanderRulesEngineInput): RulesE
           message: `Commander "${input.commander.name}" could not be resolved for color identity validation.`
         }
     : checks.colorIdentity;
+  const banlistFindings = buildBanlistFindings(input.parsedDeck, input.commander.name);
 
   const rules: RulesEngineRuleResult[] = [
     buildRule({
@@ -81,6 +124,20 @@ export function evaluateCommanderRules(input: CommanderRulesEngineInput): RulesE
       outcome: checks.singleton.ok ? "PASS" : "FAIL",
       message: checks.singleton.message,
       findings: checks.singleton.duplicates
+    }),
+    buildRule({
+      id: "commander.banlist",
+      name: "Commander Banlist",
+      description:
+        "Cards listed on the official Commander Rules Committee banned list are not legal in Commander deck construction.",
+      domain: "DECK_CONSTRUCTION",
+      severity: "ERROR",
+      outcome: banlistFindings.length === 0 ? "PASS" : "FAIL",
+      message:
+        banlistFindings.length === 0
+          ? `No banned cards detected against Commander RC banlist (${banlistDataset.versionDate}).`
+          : `${banlistFindings.length} banned card${banlistFindings.length === 1 ? "" : "s"} detected against Commander RC banlist (${banlistDataset.versionDate}).`,
+      findings: banlistFindings
     }),
     buildRule({
       id: "commander.known-card-resolution",
@@ -137,7 +194,8 @@ export function evaluateCommanderRules(input: CommanderRulesEngineInput): RulesE
     rules,
     warnings,
     disclaimer:
-      "Rules Engine currently focuses on deck-construction legality and commander color identity. " +
-      "Oracle-level gameplay rules and continuous effects are out of scope for this pass."
+      "Rules Engine uses official Commander rules + banlist sources (mtgcommander.net) and " +
+      `Magic Comprehensive Rules metadata (effective ${officialRulesDataset.comprehensiveRules.effectiveDate ?? "unknown"}; revision ${officialRulesDataset.comprehensiveRules.revision ?? "unknown"}). ` +
+      "Oracle-level gameplay rules and continuous effects are still out of scope for this pass."
   };
 }

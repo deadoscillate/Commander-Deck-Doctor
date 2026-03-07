@@ -18,6 +18,7 @@
     "spellbook:download": "node scripts/spellbook-download-variants.mjs",
     "spellbook:compile": "node scripts/spellbook-compile-variants.mjs",
     "spellbook:update": "npm run spellbook:download && npm run spellbook:compile",
+    "rules:update": "node scripts/rules-sync-official.mjs",
     "backup:reports": "node scripts/export-shared-reports.mjs",
     "restore:reports": "node scripts/import-shared-reports.mjs"
   },

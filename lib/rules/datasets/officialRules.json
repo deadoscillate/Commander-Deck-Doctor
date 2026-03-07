@@ -1,0 +1,84 @@
+{
+  "generatedAt": "2026-03-07T20:45:51.217Z",
+  "sources": {
+    "comprehensiveRulesPageUrl": "https://magic.wizards.com/en/rules",
+    "commanderRulesPageUrl": "https://mtgcommander.net/index.php/rules/",
+    "commanderBanlistPageUrl": "https://mtgcommander.net/index.php/banned-list/"
+  },
+  "comprehensiveRules": {
+    "txtUrl": "https://media.wizards.com/2026/downloads/MagicCompRules 20260227.txt",
+    "pdfUrl": "https://media.wizards.com/2026/downloads/MagicCompRules 20260227.pdf",
+    "docxUrl": "https://media.wizards.com/2026/downloads/MagicCompRules 20260227.docx",
+    "revision": "20260227",
+    "effectiveDate": "February 27, 2026",
+    "sha256": "aa0108d15bf0148da4976ca39630758e0d61997e91a04b055e6b200ff896a555"
+  },
+  "commanderRules": {
+    "apiUrl": "https://mtgcommander.net/index.php/wp-json/wp/v2/pages?slug=rules",
+    "pageUrl": "https://mtgcommander.net/index.php/rules/",
+    "lastModified": "2021-09-13T20:34:35.000Z",
+    "deckConstructionRules": [
+      "Players choose a legendary creature as the commander for their deck.",
+      "A card's color identity is its color plus the color of any mana symbols in the card's rules text. A card's color identity is established before the game begins, and cannot be changed by game effects. The cards in a deck may not have any colors in their color identity which are not in the color identity of the deck's commander.",
+      "A Commander deck must contain exactly 100 cards, including the commander. If you're playing a companion, it must adhere to color identity and singleton rules. While it is not part of the deck, it is effectively a 101st card.",
+      "With the exception of basic lands, no two cards in the deck may have the same English name. Some cards (e.g. Relentless Rats) may have rules text that overrides this restriction."
+    ]
+  },
+  "commanderBanlist": {
+    "apiUrl": "https://mtgcommander.net/index.php/wp-json/wp/v2/pages?slug=banned-list",
+    "pageUrl": "https://mtgcommander.net/index.php/banned-list/",
+    "lastModified": "2025-05-19T23:48:33.000Z",
+    "categoryBans": [
+      "All cards that refer to the ante mechanic (full list here)",
+      "All cards that Wizards has removed from constructed formats (full list here)",
+      "All cards with the Conspiracy card type (full list here)"
+    ],
+    "totalBannedCards": 44,
+    "bannedNames": [
+      "Ancestral Recall",
+      "Balance",
+      "Biorhythm",
+      "Black Lotus",
+      "Channel",
+      "Chaos Orb",
+      "Dockside Extortionist",
+      "Emrakul, the Aeon's Torn",
+      "Erayo, Soratami Ascendant",
+      "Falling Star",
+      "Fastbond",
+      "Flash",
+      "Golos, Tireless Pilgrim",
+      "Griselbrand",
+      "Hullbreacher",
+      "Iona, Shield of Emeria",
+      "Jeweled Lotus",
+      "Karakas",
+      "Leovold, Emissary of Trest",
+      "Library of Alexandria",
+      "Limited Resources",
+      "Lutri, the Spellchaser",
+      "Mana Crypt",
+      "Mox Emerald",
+      "Mox Jet",
+      "Mox Pearl",
+      "Mox Ruby",
+      "Mox Sapphire",
+      "Nadu, Winged Wisdom",
+      "Paradox Engine",
+      "Primeval Titan",
+      "Prophet of Kruphix",
+      "Recurring Nightmare",
+      "Rofellos, Llanowar Emissary",
+      "Shahrazad",
+      "Sundering Titan",
+      "Sylvan Primordial",
+      "Time Vault",
+      "Time Walk",
+      "Tinker",
+      "Tolarian Academy",
+      "Trade Secrets",
+      "Upheaval",
+      "Yawgmoth's Bargain"
+    ]
+  }
+}

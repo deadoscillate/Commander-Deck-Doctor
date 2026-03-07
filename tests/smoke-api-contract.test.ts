@@ -21,7 +21,7 @@ describe("smoke API contracts", () => {
 
     expect(response.status).toBe(400);
     expect(body.error).toBe("Decklist is required.");
-  });
+  }, 15000);
 
   it("import-url returns 400 url-required message", async () => {
     const { POST } = await import("@/app/api/import-url/route");

@@ -69,6 +69,25 @@ npm run spellbook:update
 This runs download + compile from Commander Spellbook backend API into a local offline snapshot.
 Runtime/tests do not call Commander Spellbook.
 
+## Official Rules Data (Wizards + Commander RC)
+
+The rules engine consumes synced official data snapshots:
+
+- `lib/rules/datasets/officialRules.json`
+- `lib/rules/datasets/banlist.json`
+
+Refresh these datasets from official websites:
+
+```bash
+npm run rules:update
+```
+
+Current sync includes:
+
+- latest Magic Comprehensive Rules document links + revision/effective-date metadata from `https://magic.wizards.com/en/rules`
+- Commander Rules page metadata from `https://mtgcommander.net/index.php/rules/`
+- Commander RC banned card names from `https://mtgcommander.net/index.php/banned-list/`
+
 ## Pricing And Printing Selection
 
 - `Oracle default lookup`: name-based pricing.
@@ -125,10 +144,56 @@ Recommended flow:
 - Rules engine foundation exists but full judge-level gameplay correctness is still in progress.
 - Rules Sandbox route exists but is intentionally hidden from the main landing UI.
 
-## Near-Term Roadmap
+## MVP Status (March 2026)
 
-1. Continue role/category accuracy hardening with broader fixture coverage and edge-case card overrides.
-1. Add richer cut-ranking heuristics (curve pressure, redundancy, and protected staples by archetype/strategy).
-1. Expand deterministic engine behavior coverage for cards most used in analyzer signals and simulations.
-1. Improve smoke checks and release reliability for preview -> prod flow.
-1. Keep Scryfall compiled data and Spellbook combo snapshots refreshed.
+- Core workflow is live: import/paste decklist -> analyze -> review report sections.
+- Key analysis outputs are present: legality checks, role coverage, archetypes, combos, Rule 0 snapshot, deck price, and simulations.
+- UX is significantly improved, including commander hero/header and desktop/mobile layout parity.
+- Primary remaining gap to harden before broader live rollout: speed + regression safety under frequent feature changes.
+
+## Live Product Standards
+
+Minimum standards to treat the app as production-ready for regular player usage:
+
+1. Stability
+   - No uncaught runtime errors in normal flows (analyze, commander select, tab switching, share/export).
+   - No hydration mismatch warnings caused by app code.
+2. Correctness
+   - Legality checks remain deterministic and explain failures clearly.
+   - Price/preview/combo/archetype outputs degrade gracefully when card data is missing.
+3. Performance
+   - Analyze requests should feel responsive for typical 100-card lists.
+   - Client interactions (tab switch, hover previews, commander changes) should not block the UI.
+4. Test coverage
+   - API contract and rules-engine tests green in CI.
+   - Regression tests for critical user actions (analyze button, commander dropdown refresh, mobile rendering).
+5. Operability
+   - Data refresh scripts (`scryfall:update`, `spellbook:update`, `rules:update`) documented and reproducible.
+   - Deploy flow remains `staging` -> validate -> `main`.
+
+## Development Roadmap
+
+### Phase 1: Reliability + Speed (Highest Priority)
+
+1. Add integration tests for core flows (analyze, commander reselection, report tab rendering, share/export).
+2. Add browser-level smoke coverage for mobile and desktop breakpoints.
+3. Profile analyzer latency and remove repeat work in the `/api/analyze` path.
+4. Expand caching strategy for expensive card lookups and preview fetches.
+
+### Phase 2: Analyzer Quality
+
+1. Expand archetype detection taxonomy and weighting to reduce false positives.
+2. Grow combo database breadth, including more common infinite lines and commander-specific packages.
+3. Improve cut/add recommendation ranking (curve pressure, redundancy, protection density, strategy lock-ins).
+
+### Phase 3: Commander Rules Completeness
+
+1. Continue official-rules sync hardening and dataset verification.
+2. Increase deterministic coverage for commander pair rules, companion edge cases, and banlist updates.
+3. Add targeted fixture suites for known tricky rules interactions that affect legality output.
+
+### Phase 4: Productization
+
+1. Add persistent telemetry/error tracking dashboards for real-world usage patterns.
+2. Define release gates (tests, lint, build, smoke checks) before production deploy.
+3. Improve user-facing guidance text for Rule 0 interpretation and recommendation confidence.

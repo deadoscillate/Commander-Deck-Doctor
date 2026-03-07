@@ -2777,3 +2777,273 @@ ul {
   border-color: #456080;
   background: #1a2b3e;
 }
+
+/* Mobile parity pass: keep all desktop features available with readable stacked layout. */
+@media (max-width: 960px) {
+  .page {
+    padding: 1rem 0.72rem 2rem;
+  }
+
+  .hero {
+    margin-bottom: 0.75rem;
+    padding: 0.95rem 0.95rem 1rem;
+    border-radius: 16px;
+  }
+
+  .hero h1 {
+    font-size: clamp(1.6rem, 8vw, 2.25rem);
+  }
+
+  .hero p {
+    margin-top: 0.5rem;
+    font-size: 0.9rem;
+  }
+
+  .hero-actions {
+    margin-top: 0.65rem;
+  }
+
+  .panel-grid {
+    gap: 0.75rem;
+  }
+
+  .panel {
+    border-radius: 14px;
+    padding: 0.86rem;
+  }
+
+  .url-import-row,
+  .save-row {
+    grid-template-columns: 1fr;
+  }
+
+  .url-import-row button,
+  .save-row button {
+    width: 100%;
+  }
+
+  .results-commander-picker {
+    padding: 0.65rem 0.7rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .results > section {
+    border-radius: 14px;
+    padding: 0.82rem 0.84rem;
+    margin-bottom: 0.82rem;
+  }
+
+  .report-tabs-shell {
+    margin: 0 0 0.55rem;
+    padding: 0;
+  }
+
+  .report-tabs {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: thin;
+    padding-bottom: 0.15rem;
+  }
+
+  .report-tab {
+    flex: 0 0 auto;
+  }
+
+  .commander-hero {
+    min-height: 0;
+    grid-template-columns: 1fr;
+    gap: 0.66rem;
+    padding: 0.8rem;
+  }
+
+  .commander-hero-art {
+    max-width: 136px;
+    justify-self: flex-start;
+  }
+
+  .commander-hero-content {
+    padding: 0.72rem 0.78rem;
+  }
+
+  .commander-hero-title {
+    font-size: clamp(1.2rem, 6.4vw, 1.72rem);
+  }
+
+  .commander-hero-archetype {
+    font-size: 0.84rem;
+  }
+
+  .commander-hero-meta {
+    align-items: flex-start;
+    gap: 0.45rem;
+  }
+
+  .commander-hero-meta-right {
+    margin-left: 0;
+    width: 100%;
+    flex-wrap: wrap;
+    gap: 0.34rem;
+  }
+
+  .commander-hero-pill {
+    font-size: 0.72rem;
+  }
+
+  .summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.5rem;
+  }
+
+  .summary-card {
+    padding: 0.6rem 0.62rem;
+  }
+
+  .summary-card span {
+    font-size: 0.77rem;
+  }
+
+  .summary-card strong {
+    font-size: 0.95rem;
+  }
+
+  .deck-price-meta {
+    line-height: 1.4;
+    font-size: 0.78rem;
+  }
+
+  .table-talk-grid,
+  .checks-grid,
+  .suggestion-groups {
+    grid-template-columns: 1fr;
+  }
+
+  .table-talk-head {
+    flex-wrap: wrap;
+    align-items: center;
+    row-gap: 0.25rem;
+  }
+
+  .table-talk-item {
+    padding: 0.56rem 0.6rem;
+  }
+
+  .curve-row {
+    grid-template-columns: 1.6rem 1fr 1.6rem;
+    gap: 0.36rem;
+  }
+
+  .curve-label,
+  .curve-value {
+    font-size: 0.78rem;
+  }
+
+  .chips {
+    gap: 0.35rem;
+  }
+
+  .chip {
+    font-size: 0.78rem;
+    padding: 0.18rem 0.5rem;
+  }
+
+  .role-bar-row {
+    padding: 0.5rem 0.56rem;
+  }
+
+  .role-bar-head {
+    flex-wrap: wrap;
+    gap: 0.3rem;
+  }
+
+  .role-bar-head strong {
+    min-width: 0;
+  }
+
+  .role-bar-copy {
+    font-size: 0.76rem;
+  }
+
+  .detected-cards-grid,
+  .combo-card-strip,
+  .role-tagged-grid,
+  .suggestion-card-grid {
+    grid-template-columns: repeat(auto-fill, minmax(98px, 1fr));
+    gap: 0.44rem;
+  }
+
+  .detected-card-meta {
+    padding: 0.46rem 0.5rem 0.52rem;
+  }
+
+  .detected-card-pricing {
+    margin-top: 0.36rem;
+    padding-top: 0.36rem;
+  }
+
+  .detected-card-price-row {
+    font-size: 0.74rem;
+  }
+
+  .detected-card-price-note {
+    font-size: 0.68rem;
+  }
+
+  .detected-card-sellers a {
+    font-size: 0.66rem;
+    padding: 0.08rem 0.36rem;
+  }
+
+  .detected-card-printings-btn {
+    width: 100%;
+  }
+
+  .decklist-preview {
+    max-height: 220px;
+    padding: 0.48rem 0.54rem;
+  }
+
+  .decklist-preview-row {
+    grid-template-columns: 1fr;
+    align-items: flex-start;
+    gap: 0.32rem;
+  }
+
+  .decklist-preview-printing-controls {
+    width: 100%;
+    flex-wrap: wrap;
+    gap: 0.3rem;
+  }
+
+  .decklist-preview-printing-controls .btn-tertiary {
+    width: 100%;
+  }
+
+  .combo-view-tabs {
+    gap: 0.3rem;
+  }
+
+  .combo-view-tab {
+    min-height: 1.82rem;
+    padding: 0.2rem 0.5rem;
+    font-size: 0.74rem;
+  }
+
+  .simulations-details,
+  .tuning-controls {
+    padding: 0.58rem 0.62rem;
+  }
+
+  .sim-controls {
+    grid-template-columns: 1fr;
+    gap: 0.4rem;
+  }
+
+  .printing-modal {
+    padding: 0.85rem 0.85rem;
+  }
+
+  .card-hover-preview {
+    width: min(90vw, 340px);
+    max-width: 90vw;
+  }
+}
