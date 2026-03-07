@@ -531,11 +531,14 @@ export async function POST(request: Request) {
     const requestedSetCodeByCardName = new Map(
       effectiveParsedDeck.map((entry) => [entry.name.toLowerCase(), entry.setCode?.toLowerCase() ?? null])
     );
+    // Warm expensive modules while card resolution is in-flight.
+    const analyzerPromise = getAnalyzerEngine();
+    const detectCombosPromise = getDetectCombosInDeck();
 
     // Fetch only the cards we can resolve; unknown names are reported separately.
     const { knownCards, unknownCards } = await fetchDeckCards(effectiveParsedDeck, 8, { deckPriceMode });
     const summary = computeDeckSummary(knownCards);
-    const analyzer = await getAnalyzerEngine();
+    const analyzer = await analyzerPromise;
     const engineCardByName = (cardName: string) => analyzer.cardDatabase.getCardByName(cardName);
     const behaviorIdByCardName = (cardName: string) => engineCardByName(cardName)?.behaviorId ?? null;
     const roles = computeRoleCounts(knownCards, { engineCardByName, behaviorIdByCardName });
@@ -702,7 +705,7 @@ export async function POST(request: Request) {
         colorIdentity: card.colorIdentity
       };
     };
-    const detectCombosInDeck = await getDetectCombosInDeck();
+    const detectCombosInDeck = await detectCombosPromise;
     const comboReport = detectCombosInDeck(
       parsedDeckView.flatMap((entry) =>
         entry.resolvedName ? [entry.name, entry.resolvedName] : [entry.name]

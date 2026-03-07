@@ -13,8 +13,6 @@
  * This module intentionally returns null on lookup failures so analysis can continue.
  */
 const NAMED_ENDPOINT = "https://api.scryfall.com/cards/named";
-const COLLECTION_ENDPOINT = "https://api.scryfall.com/cards/collection";
-const COLLECTION_BATCH_SIZE = 75;
 const DEFAULT_CONCURRENCY = 8;
 const SCRYFALL_HEADERS = {
   Accept: "application/json",
@@ -46,18 +44,6 @@ type ScryfallApiCard = {
   purchase_uris?: ScryfallPurchaseUris | null;
 };
 
-type ScryfallCollectionIdentifier = {
-  id?: string;
-  name?: string;
-  set?: string;
-  collector_number?: string;
-};
-
-type ScryfallCollectionResponse = {
-  object?: string;
-  data?: ScryfallApiCard[];
-};
-
 function normalizeScryfallCard(data: ScryfallApiCard): ScryfallCard {
   const oracleText =
     data.oracle_text ??
@@ -83,113 +69,6 @@ function normalizeScryfallCard(data: ScryfallApiCard): ScryfallCard {
     prices: data.prices ?? null,
     purchase_uris: data.purchase_uris ?? null
   };
-}
-
-function normalizeIdentifier(value: string | null | undefined): string {
-  return typeof value === "string" ? value.trim().toLowerCase() : "";
-}
-
-function collectionKeyForId(id: string): string {
-  return `id:${normalizeIdentifier(id)}`;
-}
-
-function collectionKeyForSetCollector(setCode: string, collectorNumber: string): string {
-  return `sc:${normalizeIdentifier(setCode)}:${normalizeIdentifier(collectorNumber)}`;
-}
-
-function collectionKeyForNameSet(name: string, setCode: string): string {
-  return `ns:${normalizeIdentifier(name)}:${normalizeIdentifier(setCode)}`;
-}
-
-function collectionKeyForName(name: string): string {
-  return `n:${normalizeIdentifier(name)}`;
-}
-
-function keyForCollectionIdentifier(identifier: ScryfallCollectionIdentifier): string {
-  if (typeof identifier.id === "string" && identifier.id.trim()) {
-    return collectionKeyForId(identifier.id);
-  }
-
-  const setCode = identifier.set?.trim();
-  const collectorNumber = identifier.collector_number?.trim();
-  if (setCode && collectorNumber) {
-    return collectionKeyForSetCollector(setCode, collectorNumber);
-  }
-
-  if (setCode && identifier.name?.trim()) {
-    return collectionKeyForNameSet(identifier.name, setCode);
-  }
-
-  return collectionKeyForName(identifier.name ?? "");
-}
-
-function appendCollectionIndex(index: Map<string, ScryfallCard>, card: ScryfallCard): void {
-  if (typeof card.id === "string" && card.id.trim()) {
-    index.set(collectionKeyForId(card.id), card);
-  }
-
-  if (typeof card.set === "string" && card.set && typeof card.collector_number === "string" && card.collector_number) {
-    index.set(collectionKeyForSetCollector(card.set, card.collector_number), card);
-  }
-
-  if (typeof card.set === "string" && card.set) {
-    index.set(collectionKeyForNameSet(card.name, card.set), card);
-  }
-
-  index.set(collectionKeyForName(card.name), card);
-}
-
-async function fetchCollectionIndex(
-  identifiers: ScryfallCollectionIdentifier[]
-): Promise<Map<string, ScryfallCard>> {
-  if (identifiers.length === 0) {
-    return new Map();
-  }
-
-  const unique = new Map<string, ScryfallCollectionIdentifier>();
-  for (const identifier of identifiers) {
-    const key = keyForCollectionIdentifier(identifier);
-    if (!key) {
-      continue;
-    }
-
-    if (!unique.has(key)) {
-      unique.set(key, identifier);
-    }
-  }
-
-  const deduped = Array.from(unique.values());
-  const index = new Map<string, ScryfallCard>();
-
-  for (let start = 0; start < deduped.length; start += COLLECTION_BATCH_SIZE) {
-    const chunk = deduped.slice(start, start + COLLECTION_BATCH_SIZE);
-    try {
-      const response = await fetch(COLLECTION_ENDPOINT, {
-        method: "POST",
-        headers: SCRYFALL_HEADERS,
-        cache: "no-store",
-        body: JSON.stringify({ identifiers: chunk })
-      });
-
-      if (!response.ok) {
-        continue;
-      }
-
-      const payload = (await response.json()) as ScryfallCollectionResponse;
-      const cards = Array.isArray(payload.data) ? payload.data : [];
-      for (const card of cards) {
-        if (!card?.name || card.object === "error") {
-          continue;
-        }
-
-        appendCollectionIndex(index, normalizeScryfallCard(card));
-      }
-    } catch {
-      continue;
-    }
-  }
-
-  return index;
 }
 
 async function fetchNamedCard(
@@ -404,63 +283,7 @@ export async function fetchDeckCards(
   options?: { deckPriceMode?: DeckPriceMode }
 ): Promise<{ knownCards: DeckCard[]; unknownCards: string[] }> {
   const mode = options?.deckPriceMode ?? "oracle-default";
-  const primaryLookups = parsedDeck.map((entry) => {
-    const setCode = typeof entry.setCode === "string" && entry.setCode.trim() ? entry.setCode : null;
-    const collectorNumber =
-      typeof entry.collectorNumber === "string" && entry.collectorNumber.trim()
-        ? entry.collectorNumber
-        : null;
-    const printingId =
-      typeof entry.printingId === "string" && entry.printingId.trim() ? entry.printingId : null;
-
-    if (mode === "decklist-set" && printingId) {
-      return {
-        key: collectionKeyForId(printingId),
-        identifier: {
-          id: printingId
-        } satisfies ScryfallCollectionIdentifier
-      };
-    }
-
-    if (mode === "decklist-set" && setCode && collectorNumber) {
-      return {
-        key: collectionKeyForSetCollector(setCode, collectorNumber),
-        identifier: {
-          set: setCode,
-          collector_number: collectorNumber
-        } satisfies ScryfallCollectionIdentifier
-      };
-    }
-
-    if (mode === "decklist-set" && setCode) {
-      return {
-        key: collectionKeyForNameSet(entry.name, setCode),
-        identifier: {
-          name: entry.name,
-          set: setCode
-        } satisfies ScryfallCollectionIdentifier
-      };
-    }
-
-    return {
-      key: collectionKeyForName(entry.name),
-      identifier: {
-        name: entry.name
-      } satisfies ScryfallCollectionIdentifier
-    };
-  });
-
-  const primaryCollectionIndex = await fetchCollectionIndex(
-    primaryLookups.map((lookup) => lookup.identifier)
-  );
-  const preResolved = parsedDeck.map((_, index) => primaryCollectionIndex.get(primaryLookups[index].key) ?? null);
-
-  const lookedUp = await mapWithConcurrency(parsedDeck, Math.max(1, concurrency), async (entry, index) => {
-    const preResolvedCard = preResolved[index];
-    if (preResolvedCard) {
-      return { entry, card: preResolvedCard };
-    }
-
+  const lookedUp = await mapWithConcurrency(parsedDeck, Math.max(1, concurrency), async (entry) => {
     const setCode = typeof entry.setCode === "string" && entry.setCode.trim() ? entry.setCode : null;
     const collectorNumber =
       typeof entry.collectorNumber === "string" && entry.collectorNumber.trim()
