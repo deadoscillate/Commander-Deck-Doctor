@@ -290,6 +290,49 @@ function isLegendaryCreature(typeLine: string): boolean {
   return lower.includes("legendary") && lower.includes("creature");
 }
 
+function canBeCommanderCard(card: ScryfallCard): boolean {
+  if (isLegendaryCreature(card.type_line)) {
+    return true;
+  }
+
+  const oracleTexts = [card.oracle_text, ...card.card_faces.map((face) => face.oracle_text ?? "")]
+    .join("\n")
+    .toLowerCase();
+
+  return oracleTexts.includes("can be your commander");
+}
+
+function extractCommanderTelemetry(
+  payload: unknown
+): { commanderSelected: boolean; commanderSource: "section" | "manual" | "auto" | "none" } {
+  if (!payload || typeof payload !== "object") {
+    return { commanderSelected: false, commanderSource: "none" };
+  }
+
+  const row = payload as {
+    commander?: {
+      selectedName?: string | null;
+      source?: "section" | "manual" | "auto" | "none";
+    };
+  };
+
+  const selectedName =
+    typeof row.commander?.selectedName === "string" && row.commander.selectedName.trim()
+      ? row.commander.selectedName
+      : null;
+  const commanderSource =
+    row.commander?.source === "section" ||
+    row.commander?.source === "manual" ||
+    row.commander?.source === "auto"
+      ? row.commander.source
+      : "none";
+
+  return {
+    commanderSelected: Boolean(selectedName),
+    commanderSource
+  };
+}
+
 function getPreferredArtUrl(card: ScryfallCard | null): string | null {
   if (!card) {
     return null;
@@ -516,7 +559,7 @@ export async function POST(request: Request) {
 
     const setOverridesByCardName = parseSetOverrides(payload.setOverrides);
     const selectedCommanderForCache = commanderFromSection ?? manualCommanderName ?? null;
-    const commanderSource = commanderFromSection
+    const requestedCommanderSource = commanderFromSection
       ? "section"
       : manualCommanderName
         ? "manual"
@@ -548,6 +591,7 @@ export async function POST(request: Request) {
         responseBytes,
         deckSize: inputDeckSize
       };
+      const cachedCommander = extractCommanderTelemetry(cachedPayload);
       maybeLogAnalyzeProfile(requestId, metrics);
       void recordAnalyzeTelemetry({
         requestId,
@@ -555,8 +599,8 @@ export async function POST(request: Request) {
         deckPriceMode,
         setOverrideCount: setOverridesByCardName.size,
         coldStart: runtimeWarmSnapshot.coldStart,
-        commanderSelected: Boolean(selectedCommanderForCache),
-        commanderSource,
+        commanderSelected: cachedCommander.commanderSelected,
+        commanderSource: cachedCommander.commanderSource,
         targetBracket,
         expectedWinTurn,
         userCedhFlag,
@@ -659,7 +703,7 @@ export async function POST(request: Request) {
     const commanderOptions = [
       ...new Map(
         knownCards
-          .filter((entry) => isLegendaryCreature(entry.card.type_line))
+          .filter((entry) => canBeCommanderCard(entry.card))
           .map((entry) => [
             normalizeLookupName(entry.card.name),
             {
@@ -670,8 +714,35 @@ export async function POST(request: Request) {
       ).values()
     ].sort((a, b) => a.name.localeCompare(b.name));
 
+    const commanderCandidates = [
+      ...new Map(
+        knownCards
+          .filter((entry) => canBeCommanderCard(entry.card))
+          .map((entry) => [normalizeLookupName(entry.card.name), entry.card])
+      ).values()
+    ];
+
+    const autoCommanderCard =
+      requestedCommanderSource !== "none"
+        ? null
+        : commanderCandidates.length === 1
+          ? commanderCandidates[0]
+          : (() => {
+              const legalCandidates = commanderCandidates.filter((candidate) =>
+                buildColorIdentityCheck(knownCards, candidate.name, candidate.color_identity).ok
+              );
+              return legalCandidates.length === 1 ? legalCandidates[0] : null;
+            })();
+
     const selectedCommanderName =
-      commanderFromSection ?? (!commanderFromSection && manualCommanderName ? manualCommanderName : null);
+      commanderFromSection ?? manualCommanderName ?? autoCommanderCard?.name ?? null;
+    const resolvedCommanderSource = commanderFromSection
+      ? "section"
+      : manualCommanderName
+        ? "manual"
+        : autoCommanderCard
+          ? "auto"
+          : "none";
     const selectedCommanderOverride = selectedCommanderName
       ? setOverridesByCardName.get(normalizeLookupName(selectedCommanderName)) ?? null
       : null;
@@ -684,8 +755,8 @@ export async function POST(request: Request) {
         )?.card
       : null;
 
-    let selectedCommanderCard: ScryfallCard | null = knownCommander ?? null;
-    if (selectedCommanderName) {
+    let selectedCommanderCard: ScryfallCard | null = autoCommanderCard ?? knownCommander ?? null;
+    if (selectedCommanderName && resolvedCommanderSource !== "auto") {
       if (selectedCommanderOverride?.printingId) {
         selectedCommanderCard =
           (await getCardById(selectedCommanderOverride.printingId)) ??
@@ -871,7 +942,7 @@ export async function POST(request: Request) {
           typeof selectedCommanderCard?.id === "string" && selectedCommanderCard.id
             ? selectedCommanderCard.id
             : selectedCommanderOverride?.printingId ?? null,
-        source: commanderSource,
+        source: resolvedCommanderSource,
         options: commanderOptions,
         needsManualSelection: !commanderFromSection && !selectedCommanderName && commanderOptions.length > 0
       },
@@ -921,7 +992,7 @@ export async function POST(request: Request) {
       setOverrideCount: setOverridesByCardName.size,
       coldStart: runtimeWarmSnapshot.coldStart,
       commanderSelected: Boolean(selectedCommanderName),
-      commanderSource,
+      commanderSource: resolvedCommanderSource,
       targetBracket,
       expectedWinTurn,
       userCedhFlag,

@@ -343,6 +343,68 @@ describe("POST /api/analyze", () => {
     expect(fetchDeckCardsMock).toHaveBeenCalledTimes(1);
   });
 
+  it("auto-selects a single commander-eligible candidate when no commander is provided", async () => {
+    vi.doMock("@/lib/scryfall", () => ({
+      fetchDeckCards: vi.fn(async () => ({
+        knownCards: [
+          {
+            name: "Atraxa, Praetors' Voice",
+            qty: 1,
+            card: buildCard({
+              name: "Atraxa, Praetors' Voice",
+              type_line: "Legendary Creature - Phyrexian Angel Horror",
+              cmc: 4,
+              mana_cost: "{G}{W}{U}{B}",
+              colors: ["G", "W", "U", "B"],
+              color_identity: ["G", "W", "U", "B"],
+              oracle_text: "Flying, vigilance, deathtouch, lifelink"
+            })
+          },
+          {
+            name: "Sol Ring",
+            qty: 99,
+            card: buildCard({
+              name: "Sol Ring",
+              type_line: "Artifact",
+              cmc: 1,
+              mana_cost: "{1}",
+              oracle_text: "{T}: Add {C}{C}."
+            })
+          }
+        ],
+        unknownCards: []
+      })),
+      getCardById: vi.fn(async () => null),
+      getCardByName: vi.fn(async () => null),
+      getCardByNameWithSet: vi.fn(async () => null)
+    }));
+
+    const { POST } = await import("@/app/api/analyze/route");
+    const response = await POST(buildRequest({ decklist: "1 Atraxa, Praetors' Voice\n99 Sol Ring" }));
+    const body = (await response.json()) as {
+      commander?: {
+        selectedName?: string | null;
+        source?: string;
+        needsManualSelection?: boolean;
+        options?: Array<{ name?: string }>;
+      };
+      checks?: {
+        colorIdentity?: {
+          enabled?: boolean;
+          commanderName?: string | null;
+        };
+      };
+    };
+
+    expect(response.status).toBe(200);
+    expect(body.commander?.selectedName).toBe("Atraxa, Praetors' Voice");
+    expect(body.commander?.source).toBe("auto");
+    expect(body.commander?.needsManualSelection).toBe(false);
+    expect(body.commander?.options?.some((option) => option.name === "Atraxa, Praetors' Voice")).toBe(true);
+    expect(body.checks?.colorIdentity?.enabled).toBe(true);
+    expect(body.checks?.colorIdentity?.commanderName).toBe("Atraxa, Praetors' Voice");
+  });
+
   it("does not precompute opening hand simulation metrics in analyze responses", async () => {
     vi.doMock("@/lib/scryfall", () => ({
       fetchDeckCards: vi.fn(async () => ({

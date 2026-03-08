@@ -402,7 +402,10 @@ export default function Page() {
       return;
     }
 
-    if (result.commander.source === "section" && result.commander.selectedName) {
+    if (
+      (result.commander.source === "section" || result.commander.source === "auto") &&
+      result.commander.selectedName
+    ) {
       setCommanderName(result.commander.selectedName);
     }
   }, [result]);

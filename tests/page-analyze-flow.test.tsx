@@ -163,6 +163,53 @@ describe("app page analyze flow", () => {
     expect(await screen.findByText("Atraxa, Praetors' Voice")).toBeTruthy();
   });
 
+  it("reuses an auto-detected commander on the next analyze request", async () => {
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse(
+        createAnalyzeResponse({
+          commander: {
+            selectedName: "Atraxa, Praetors' Voice",
+            source: "auto",
+            needsManualSelection: false
+          }
+        })
+      )
+    );
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse(
+        createAnalyzeResponse({
+          commander: {
+            selectedName: "Atraxa, Praetors' Voice",
+            source: "manual",
+            needsManualSelection: false
+          }
+        })
+      )
+    );
+
+    const user = userEvent.setup();
+    const { default: Page } = await import("@/app/page");
+    render(<Page />);
+
+    await user.type(screen.getByLabelText(/Decklist \(paste here\)/i), "1 Atraxa, Praetors' Voice");
+    await user.click(screen.getByRole("button", { name: /Analyze Deck/i }));
+
+    const commanderSelect = await screen.findByLabelText(/Commander \(manual selection\)/i);
+    await waitFor(() => {
+      expect((commanderSelect as HTMLSelectElement).value).toBe("Atraxa, Praetors' Voice");
+    });
+
+    await user.click(screen.getByRole("button", { name: /Analyze Deck/i }));
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+    });
+
+    const [, secondRequest] = fetchMock.mock.calls[1] as [string, RequestInit];
+    const secondPayload = JSON.parse(String(secondRequest.body));
+    expect(secondPayload.commanderName).toBe("Atraxa, Praetors' Voice");
+  });
+
   it("keeps analyze + commander flow working at mobile viewport width", async () => {
     Object.defineProperty(window, "innerWidth", {
       configurable: true,

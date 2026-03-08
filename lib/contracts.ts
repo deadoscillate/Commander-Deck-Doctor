@@ -170,7 +170,7 @@ export type CommanderInfo = {
   selectedSetCode: string | null;
   selectedCollectorNumber: string | null;
   selectedPrintingId: string | null;
-  source: "section" | "manual" | "none";
+  source: "section" | "manual" | "auto" | "none";
   options: CommanderChoice[];
   needsManualSelection: boolean;
 };

@@ -17,7 +17,7 @@ export type AnalyzeTelemetryRecord = {
   deckPriceMode: DeckPriceMode;
   setOverrideCount: number;
   commanderSelected: boolean;
-  commanderSource: "section" | "manual" | "none";
+  commanderSource: "section" | "manual" | "auto" | "none";
   targetBracket: number | null;
   expectedWinTurn: ExpectedWinTurn | null;
   userCedhFlag: boolean;
