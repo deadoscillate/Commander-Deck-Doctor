@@ -138,7 +138,7 @@ Current sync includes:
 - Raw decklists are intentionally excluded from this telemetry dataset.
 - Environment controls:
   - `ANALYZE_TELEMETRY_ENABLED=1` to force-enable telemetry outside production, `0` to disable.
-  - `ANALYZE_TELEMETRY_SAMPLE_RATE` to adjust sampling (default `0.15`).
+  - `ANALYZE_TELEMETRY_SAMPLE_RATE` to adjust capture rate (default `1`).
   - `ANALYZE_TELEMETRY_RETENTION_DAYS` to tune retention (default `30`).
 - `npm run telemetry:summary -- --days 7` prints a markdown telemetry summary from Postgres.
 - GitHub Action: `.github/workflows/telemetry-summary.yml`
@@ -267,7 +267,7 @@ npm run bench:analyze -- --file tests/fixtures/kentaro-benchmark.decklist.txt --
 
 ### Phase 4: Productization
 
-1. Started: sampled `/api/analyze` timing telemetry is now persisted for production profiling without storing raw decklists.
+1. Started: `/api/analyze` timing telemetry is now persisted for production profiling without storing raw decklists.
 2. Add persistent dashboards/queries on top of telemetry and error tracking for real-world usage patterns.
 3. Define release gates (tests, lint, build, smoke checks) before production deploy.
 4. Improve user-facing guidance text for Rule 0 interpretation and recommendation confidence.

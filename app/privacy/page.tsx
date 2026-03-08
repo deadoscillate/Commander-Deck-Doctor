@@ -18,8 +18,8 @@ export default function PrivacyPage() {
           <li>Saved Decks are stored in your browser local storage only.</li>
           <li>Analyze Deck sends your submitted decklist to server endpoints for processing.</li>
           <li>
-            We may store sampled analyzer performance telemetry such as timing, deck size, cache status, and pricing
-            mode to improve speed and reliability. Raw decklists are not stored in this telemetry dataset.
+            We may store analyzer performance telemetry such as timing, deck size, cache status, and pricing mode to
+            improve speed and reliability. Raw decklists are not stored in this telemetry dataset.
           </li>
           <li>Share Deck Report stores a decklist + report snapshot in our database to generate share links.</li>
         </ul>

@@ -23,7 +23,7 @@ export type AnalyzeTelemetryRecord = {
   userHighPowerNoGCFlag: boolean;
 };
 
-const DEFAULT_SAMPLE_RATE = 0.15;
+const DEFAULT_SAMPLE_RATE = 1;
 const DEFAULT_RETENTION_DAYS = 30;
 const MIN_RETENTION_DAYS = 7;
 const MAX_RETENTION_DAYS = 365;
@@ -221,7 +221,7 @@ function toFiniteInteger(value: number | undefined): number | null {
 }
 
 /**
- * Stores sampled analyzer timings and request-shape metadata for production profiling.
+ * Stores analyzer timings and request-shape metadata for production profiling.
  * Raw decklists are intentionally excluded from this dataset.
  */
 export async function recordAnalyzeTelemetry(record: AnalyzeTelemetryRecord): Promise<void> {
