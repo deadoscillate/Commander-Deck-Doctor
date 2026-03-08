@@ -3,7 +3,7 @@ import { createEngine } from "@/engine";
 import { createZoneChangeEvent } from "@/engine/core/Event";
 import { moveCardBetweenZones, updatePlayer } from "@/engine/core/GameState";
 import { flushTriggerQueueToStack } from "@/engine/core/TriggerSystem";
-import type { CreateGameInput, GameState, ManaPool, ZoneName } from "@/engine/core/types";
+import type { CreateGameInput, EngineAction, GameState, ManaPool, ZoneName } from "@/engine/core/types";
 
 function manaPool(values: Partial<ManaPool>): ManaPool {
   return {
@@ -494,24 +494,24 @@ describe("engine core loop + commander layer", () => {
     const mountainId = findCardInZone(state, "p1", "hand", "Mountain");
     const shockId = findCardInZone(state, "p1", "hand", "Shock");
 
-    const actions = [
-      { type: "PLAY_LAND", playerId: "p1", cardId: mountainId } as const,
+    const actions: EngineAction[] = [
+      { type: "PLAY_LAND", playerId: "p1", cardId: mountainId },
       {
         type: "ACTIVATE_ABILITY",
         playerId: "p1",
         sourceCardId: mountainId,
         abilityId: "tap_for_mana",
         targetIds: []
-      } as const,
+      },
       {
         type: "CAST_SPELL",
         playerId: "p1",
         cardId: shockId,
         sourceZone: "hand",
         targetIds: ["p2"]
-      } as const,
-      { type: "PASS_PRIORITY", playerId: "p1" } as const,
-      { type: "PASS_PRIORITY", playerId: "p2" } as const
+      },
+      { type: "PASS_PRIORITY", playerId: "p1" },
+      { type: "PASS_PRIORITY", playerId: "p2" }
     ];
 
     for (const action of actions) {

@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import type { AnalyzeTelemetryRecord } from "@/lib/analyzeTelemetryStore";
 import type { ScryfallCard } from "@/lib/types";
 
 function buildRequest(payload: unknown): Request {
@@ -278,7 +279,7 @@ describe("POST /api/analyze", () => {
       ],
       unknownCards: []
     }));
-    const recordAnalyzeTelemetryMock = vi.fn(async () => {});
+    const recordAnalyzeTelemetryMock = vi.fn(async (_record: AnalyzeTelemetryRecord) => {});
 
     vi.doMock("@/lib/scryfall", () => ({
       fetchDeckCards: fetchDeckCardsMock,
