@@ -236,15 +236,23 @@ Current product standards for ethical operation:
 2. Completed: Scryfall lookup path now batch-resolves by card name before per-card fallback (in both `oracle-default` and `decklist-set` modes), reducing repeated named lookups.
 3. Completed: cache-hit/miss and response-size instrumentation is regression-tested.
 4. Completed: UI interaction smoke coverage now includes analyze flow, commander re-selection, report tabs, and printing modal UX (desktop/mobile viewport test included).
-5. Ongoing: continue lowering `lookup` stage time for slow external conditions using additional fallback/caching strategies.
+5. Completed: miss-path card resolution now uses a two-pass strategy (`precise identifiers` -> unresolved `name batch`) plus a persistent resolved-card cache to reduce repeated live Scryfall work.
+6. Ongoing: continue lowering `lookup` stage time for slow external conditions using additional fallback/caching strategies and broader local-data usage.
 
-### Phase 1 Benchmark Snapshot (March 7, 2026)
+### Phase 1 Benchmark Snapshot (March 8, 2026)
 
 Deck used: `tests/fixtures/kentaro-benchmark.decklist.txt` (74 non-empty lines, includes set codes).
 
-- `decklist-set` miss: ~3593ms total (`parse 2.9ms`, `lookup 2833.9ms`, `compute 747ms`, `serialize 0.4ms`)
-- `oracle-default` miss: ~3060.6ms total (`parse 1.9ms`, `lookup 2518.3ms`, `compute 533.1ms`, `serialize 0.3ms`)
-- cache hits for repeated identical requests: ~1.4-2.0ms total
+- Prior baseline:
+  - `decklist-set` miss: ~3593ms total (`lookup 2833.9ms`, `compute 747ms`)
+  - `oracle-default` miss: ~3060.6ms total (`lookup 2518.3ms`, `compute 533.1ms`)
+- Current cold miss with persistent card cache disabled:
+  - `decklist-set` miss: ~1895.4ms total (`parse 2.1ms`, `lookup 1360.2ms`, `compute 524.2ms`, `serialize 0.3ms`)
+  - `oracle-default` miss: ~2379.5ms total (`parse 1.9ms`, `lookup 1805.8ms`, `compute 564.4ms`, `serialize 0.3ms`)
+- Current warmed miss with persistent card cache available:
+  - `decklist-set` miss: ~1384.1ms total (`parse 2.1ms`, `lookup 869.5ms`, `compute 505.3ms`, `serialize 0.2ms`)
+  - `oracle-default` miss: ~1291.6ms total (`parse 2.0ms`, `lookup 782.0ms`, `compute 501.3ms`, `serialize 0.2ms`)
+- Cache hits for repeated identical requests remain ~1-2ms total.
 
 Reproduce:
 

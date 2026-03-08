@@ -1,4 +1,4 @@
-﻿import {
+import {
   DeckCard,
   ParsedDeckEntry,
   ScryfallCard,
@@ -7,23 +7,27 @@
   ScryfallPurchaseUris,
   ScryfallPrices
 } from "./types";
+import { getCachedScryfallCards, saveCachedScryfallCards } from "./scryfallCardCacheStore";
 
 /**
- * Scryfall integration for named-card lookups.
- * This module intentionally returns null on lookup failures so analysis can continue.
+ * Scryfall integration for card lookups.
+ * Network failures intentionally return null so analysis can continue.
  */
 const NAMED_ENDPOINT = "https://api.scryfall.com/cards/named";
 const COLLECTION_ENDPOINT = "https://api.scryfall.com/cards/collection";
+const CARD_BY_ID_ENDPOINT = "https://api.scryfall.com/cards";
 const DEFAULT_CONCURRENCY = 8;
+const COLLECTION_CHUNK_SIZE = 75;
 const SCRYFALL_HEADERS = {
   Accept: "application/json",
   "User-Agent": "CommanderDeckDoctor/1.0",
   "Content-Type": "application/json"
 } as const;
-// Promise cache deduplicates repeated lookups for identical names.
+// Promise cache deduplicates repeated lookups for identical identifiers.
 const cardCache = new Map<string, Promise<ScryfallCard | null>>();
 
 type DeckPriceMode = "oracle-default" | "decklist-set";
+type BatchLookupMode = "precise" | "name";
 
 type ScryfallApiCard = {
   object: string;
@@ -48,6 +52,19 @@ type ScryfallApiCard = {
 type ScryfallCollectionResponse = {
   object?: string;
   data?: ScryfallApiCard[];
+};
+
+type ScryfallCollectionIdentifier =
+  | { id: string }
+  | { set: string; collector_number: string }
+  | { name: string; set: string }
+  | { name: string };
+
+type BatchLookupMaps = {
+  byId: Map<string, ScryfallCard>;
+  bySetCollector: Map<string, ScryfallCard>;
+  byNameSet: Map<string, ScryfallCard>;
+  byName: Map<string, ScryfallCard>;
 };
 
 function normalizeScryfallCard(data: ScryfallApiCard): ScryfallCard {
@@ -85,6 +102,18 @@ function normalizeLookupName(name: string): string {
     .replace(/[^a-z0-9]/g, "");
 }
 
+function normalizeCollectorNumber(value: string | null | undefined): string {
+  return (value ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/^#+/, "")
+    .replace(/[★☆]/g, "");
+}
+
+function buildNameKey(name: string): string {
+  return `name:${normalizeLookupName(name)}`;
+}
+
 function buildNameSetKey(name: string, setCode: string): string {
   return `${normalizeLookupName(name)}|set:${setCode.trim().toLowerCase()}`;
 }
@@ -95,32 +124,6 @@ function buildPrintingIdKey(printingId: string): string {
 
 function buildSetCollectorKey(setCode: string, collectorNumber: string): string {
   return `set:${setCode.trim().toLowerCase()}|collector:${normalizeCollectorNumber(collectorNumber)}`;
-}
-
-function buildBatchNameKey(name: string): string {
-  return `name:${normalizeLookupName(name)}`;
-}
-
-function chunkArray<T>(rows: T[], chunkSize: number): T[][] {
-  if (rows.length === 0) {
-    return [];
-  }
-
-  const size = Math.max(1, Math.floor(chunkSize));
-  const chunks: T[][] = [];
-  for (let index = 0; index < rows.length; index += size) {
-    chunks.push(rows.slice(index, index + size));
-  }
-
-  return chunks;
-}
-
-function normalizeCollectorNumber(value: string | null | undefined): string {
-  return (value ?? "")
-    .trim()
-    .toLowerCase()
-    .replace(/^#+/, "")
-    .replace(/[★☆]/g, "");
 }
 
 function collectorNumberMatches(
@@ -144,18 +147,19 @@ function collectorNumberMatches(
   return false;
 }
 
-type ScryfallCollectionIdentifier =
-  | { id: string }
-  | { set: string; collector_number: string }
-  | { name: string; set: string }
-  | { name: string };
+function chunkArray<T>(rows: T[], chunkSize: number): T[][] {
+  if (rows.length === 0) {
+    return [];
+  }
 
-type BatchLookupMaps = {
-  byId: Map<string, ScryfallCard>;
-  bySetCollector: Map<string, ScryfallCard>;
-  byNameSet: Map<string, ScryfallCard>;
-  byName: Map<string, ScryfallCard>;
-};
+  const size = Math.max(1, Math.floor(chunkSize));
+  const chunks: T[][] = [];
+  for (let index = 0; index < rows.length; index += size) {
+    chunks.push(rows.slice(index, index + size));
+  }
+
+  return chunks;
+}
 
 function createEmptyBatchLookupMaps(): BatchLookupMaps {
   return {
@@ -166,26 +170,123 @@ function createEmptyBatchLookupMaps(): BatchLookupMaps {
   };
 }
 
-async function fetchCardsByBatchIdentifiers(
+function buildCacheEntriesForCard(card: ScryfallCard): Array<{ key: string; card: ScryfallCard }> {
+  const rows = new Map<string, ScryfallCard>();
+  rows.set(buildNameKey(card.name), card);
+
+  if (card.set) {
+    rows.set(buildNameSetKey(card.name, card.set), card);
+  }
+  if (card.id) {
+    rows.set(buildPrintingIdKey(card.id), card);
+  }
+  if (card.set && card.collector_number) {
+    rows.set(buildSetCollectorKey(card.set, card.collector_number), card);
+  }
+
+  return [...rows.entries()].map(([key, cachedCard]) => ({ key, card: cachedCard }));
+}
+
+function primeMemoryCache(card: ScryfallCard): void {
+  for (const entry of buildCacheEntriesForCard(card)) {
+    cardCache.set(entry.key, Promise.resolve(entry.card));
+  }
+}
+
+function persistCards(cards: ScryfallCard[]): void {
+  if (cards.length === 0) {
+    return;
+  }
+
+  const cacheEntries = cards.flatMap((card) => buildCacheEntriesForCard(card));
+  if (cacheEntries.length === 0) {
+    return;
+  }
+
+  void saveCachedScryfallCards(cacheEntries);
+}
+
+function applyCardToLookupMaps(lookups: BatchLookupMaps, card: ScryfallCard): void {
+  lookups.byName.set(buildNameKey(card.name), card);
+
+  if (card.set) {
+    lookups.byNameSet.set(buildNameSetKey(card.name, card.set), card);
+  }
+  if (card.set && card.collector_number) {
+    lookups.bySetCollector.set(buildSetCollectorKey(card.set, card.collector_number), card);
+  }
+  if (card.id) {
+    lookups.byId.set(buildPrintingIdKey(card.id), card);
+  }
+}
+
+async function getCachedCardsByKeys(keys: string[]): Promise<Map<string, ScryfallCard>> {
+  const uniqueKeys = [...new Set(keys.filter((key) => typeof key === "string" && key.trim().length > 0))];
+  if (uniqueKeys.length === 0) {
+    return new Map();
+  }
+
+  const results = new Map<string, ScryfallCard>();
+  const unresolvedKeys: string[] = [];
+  const memoryRows = await Promise.all(
+    uniqueKeys.map(async (key) => {
+      const pending = cardCache.get(key);
+      if (!pending) {
+        return [key, null] as const;
+      }
+
+      try {
+        return [key, await pending] as const;
+      } catch {
+        return [key, null] as const;
+      }
+    })
+  );
+
+  for (const [key, card] of memoryRows) {
+    if (card) {
+      results.set(key, card);
+      continue;
+    }
+
+    unresolvedKeys.push(key);
+  }
+
+  if (unresolvedKeys.length === 0) {
+    return results;
+  }
+
+  const persisted = await getCachedScryfallCards(unresolvedKeys);
+  for (const [key, card] of persisted.entries()) {
+    results.set(key, card);
+    primeMemoryCache(card);
+  }
+
+  return results;
+}
+
+function resolveIdentifierKeys(
   parsedDeck: ParsedDeckEntry[],
-  options?: { includeSetLookups?: boolean }
-): Promise<BatchLookupMaps> {
-  const includeSetLookups = options?.includeSetLookups ?? true;
+  lookupMode: BatchLookupMode
+): Map<string, ScryfallCollectionIdentifier> {
   const identifiersByKey = new Map<string, ScryfallCollectionIdentifier>();
+
   for (const entry of parsedDeck) {
     const setCode = typeof entry.setCode === "string" ? entry.setCode.trim().toLowerCase() : "";
     const collectorNumber =
       typeof entry.collectorNumber === "string" ? entry.collectorNumber.trim() : "";
     const printingId = typeof entry.printingId === "string" ? entry.printingId.trim().toLowerCase() : "";
     const name = entry.name.trim();
-    if (name) {
-      const nameKey = buildBatchNameKey(name);
+
+    if (lookupMode === "name") {
+      if (!name) {
+        continue;
+      }
+
+      const nameKey = buildNameKey(name);
       if (!identifiersByKey.has(nameKey)) {
         identifiersByKey.set(nameKey, { name });
       }
-    }
-
-    if (!includeSetLookups) {
       continue;
     }
 
@@ -218,13 +319,35 @@ async function fetchCardsByBatchIdentifiers(
     }
   }
 
+  return identifiersByKey;
+}
+
+async function fetchCardsByBatchIdentifiers(
+  parsedDeck: ParsedDeckEntry[],
+  options?: { lookupMode?: BatchLookupMode }
+): Promise<BatchLookupMaps> {
+  const lookupMode = options?.lookupMode ?? "precise";
+  const identifiersByKey = resolveIdentifierKeys(parsedDeck, lookupMode);
   if (identifiersByKey.size === 0) {
     return createEmptyBatchLookupMaps();
   }
 
   const resolved = createEmptyBatchLookupMaps();
-  const identifiers = [...identifiersByKey.values()];
-  for (const chunk of chunkArray(identifiers, 75)) {
+  const cachedCards = await getCachedCardsByKeys([...identifiersByKey.keys()]);
+  const unresolvedIdentifiers: ScryfallCollectionIdentifier[] = [];
+
+  for (const [key, identifier] of identifiersByKey.entries()) {
+    const cachedCard = cachedCards.get(key);
+    if (cachedCard) {
+      applyCardToLookupMaps(resolved, cachedCard);
+      continue;
+    }
+
+    unresolvedIdentifiers.push(identifier);
+  }
+
+  const fetchedCards: ScryfallCard[] = [];
+  for (const chunk of chunkArray(unresolvedIdentifiers, COLLECTION_CHUNK_SIZE)) {
     try {
       const response = await fetch(COLLECTION_ENDPOINT, {
         method: "POST",
@@ -250,44 +373,16 @@ async function fetchCardsByBatchIdentifiers(
         }
 
         const normalizedCard = normalizeScryfallCard(rawCard);
-        const batchNameKey = buildBatchNameKey(normalizedCard.name);
-        if (batchNameKey !== "name:") {
-          resolved.byName.set(batchNameKey, normalizedCard);
-        }
-        const normalizedSet = normalizedCard.set ?? "";
-        if (normalizedSet) {
-          resolved.byNameSet.set(buildNameSetKey(normalizedCard.name, normalizedSet), normalizedCard);
-        }
-        if (normalizedSet && normalizedCard.collector_number) {
-          resolved.bySetCollector.set(
-            buildSetCollectorKey(normalizedSet, normalizedCard.collector_number),
-            normalizedCard
-          );
-        }
-        if (normalizedCard.id) {
-          resolved.byId.set(buildPrintingIdKey(normalizedCard.id), normalizedCard);
-        }
-
-        if (normalizedSet) {
-          const nameSetCacheKey = `${normalizedCard.name.toLowerCase().trim()}|set:${normalizedSet}`;
-          cardCache.set(nameSetCacheKey, Promise.resolve(normalizedCard));
-        }
-        cardCache.set(normalizedCard.name.toLowerCase().trim(), Promise.resolve(normalizedCard));
-        if (normalizedCard.id) {
-          cardCache.set(buildPrintingIdKey(normalizedCard.id), Promise.resolve(normalizedCard));
-        }
-        if (normalizedSet && normalizedCard.collector_number) {
-          cardCache.set(
-            buildSetCollectorKey(normalizedSet, normalizedCard.collector_number),
-            Promise.resolve(normalizedCard)
-          );
-        }
+        applyCardToLookupMaps(resolved, normalizedCard);
+        primeMemoryCache(normalizedCard);
+        fetchedCards.push(normalizedCard);
       }
     } catch {
       continue;
     }
   }
 
+  persistCards(fetchedCards);
   return resolved;
 }
 
@@ -327,7 +422,7 @@ async function fetchNamedCard(
 
 async function fetchCardById(printingId: string): Promise<ScryfallCard | null> {
   try {
-    const response = await fetch(`https://api.scryfall.com/cards/${encodeURIComponent(printingId)}`, {
+    const response = await fetch(`${CARD_BY_ID_ENDPOINT}/${encodeURIComponent(printingId)}`, {
       method: "GET",
       headers: SCRYFALL_HEADERS,
       cache: "no-store"
@@ -357,7 +452,7 @@ async function fetchCardBySetAndCollector(
   for (const candidate of candidates) {
     try {
       const response = await fetch(
-        `https://api.scryfall.com/cards/${encodeURIComponent(setCode)}/${encodeURIComponent(candidate)}`,
+        `${CARD_BY_ID_ENDPOINT}/${encodeURIComponent(setCode)}/${encodeURIComponent(candidate)}`,
         {
           method: "GET",
           headers: SCRYFALL_HEADERS,
@@ -384,20 +479,26 @@ async function fetchCardBySetAndCollector(
 }
 
 export async function getCardByName(name: string): Promise<ScryfallCard | null> {
-  const key = name.toLowerCase().trim();
-  const cached = cardCache.get(key);
-  if (cached) {
-    return cached;
+  const key = buildNameKey(name);
+  const cached = await getCachedCardsByKeys([key]);
+  if (cached.has(key)) {
+    return cached.get(key) ?? null;
   }
 
   const pending = (async () => {
-    // Primary lookup path, then tolerant fallback to fuzzy.
     const exact = await fetchNamedCard("exact", name);
     if (exact) {
+      primeMemoryCache(exact);
+      persistCards([exact]);
       return exact;
     }
 
-    return fetchNamedCard("fuzzy", name);
+    const fuzzy = await fetchNamedCard("fuzzy", name);
+    if (fuzzy) {
+      primeMemoryCache(fuzzy);
+      persistCards([fuzzy]);
+    }
+    return fuzzy;
   })();
 
   cardCache.set(key, pending);
@@ -410,13 +511,21 @@ export async function getCardById(printingId: string): Promise<ScryfallCard | nu
     return null;
   }
 
-  const key = `id:${normalizedId}`;
-  const cached = cardCache.get(key);
-  if (cached) {
-    return cached;
+  const key = buildPrintingIdKey(normalizedId);
+  const cached = await getCachedCardsByKeys([key]);
+  if (cached.has(key)) {
+    return cached.get(key) ?? null;
   }
 
-  const pending = fetchCardById(normalizedId);
+  const pending = (async () => {
+    const card = await fetchCardById(normalizedId);
+    if (card) {
+      primeMemoryCache(card);
+      persistCards([card]);
+    }
+    return card;
+  })();
+
   cardCache.set(key, pending);
   return pending;
 }
@@ -427,19 +536,26 @@ export async function getCardByNameWithSet(name: string, setCode: string): Promi
     return getCardByName(name);
   }
 
-  const key = `${name.toLowerCase().trim()}|set:${normalizedSet}`;
-  const cached = cardCache.get(key);
-  if (cached) {
-    return cached;
+  const key = buildNameSetKey(name, normalizedSet);
+  const cached = await getCachedCardsByKeys([key]);
+  if (cached.has(key)) {
+    return cached.get(key) ?? null;
   }
 
   const pending = (async () => {
     const exact = await fetchNamedCard("exact", name, { setCode: normalizedSet });
     if (exact) {
+      primeMemoryCache(exact);
+      persistCards([exact]);
       return exact;
     }
 
-    return fetchNamedCard("fuzzy", name, { setCode: normalizedSet });
+    const fuzzy = await fetchNamedCard("fuzzy", name, { setCode: normalizedSet });
+    if (fuzzy) {
+      primeMemoryCache(fuzzy);
+      persistCards([fuzzy]);
+    }
+    return fuzzy;
   })();
 
   cardCache.set(key, pending);
@@ -456,15 +572,64 @@ async function getCardBySetAndCollector(
     return null;
   }
 
-  const key = `set:${normalizedSet}|collector:${normalizedCollector.toLowerCase()}`;
-  const cached = cardCache.get(key);
-  if (cached) {
-    return cached;
+  const key = buildSetCollectorKey(normalizedSet, normalizedCollector);
+  const cached = await getCachedCardsByKeys([key]);
+  if (cached.has(key)) {
+    return cached.get(key) ?? null;
   }
 
-  const pending = fetchCardBySetAndCollector(normalizedSet, normalizedCollector);
+  const pending = (async () => {
+    const card = await fetchCardBySetAndCollector(normalizedSet, normalizedCollector);
+    if (card) {
+      primeMemoryCache(card);
+      persistCards([card]);
+    }
+    return card;
+  })();
+
   cardCache.set(key, pending);
   return pending;
+}
+
+function resolveCardFromBatchLookups(
+  entry: ParsedDeckEntry,
+  mode: DeckPriceMode,
+  preciseLookups: BatchLookupMaps,
+  nameLookups?: BatchLookupMaps | null
+): ScryfallCard | null {
+  const setCode = typeof entry.setCode === "string" && entry.setCode.trim() ? entry.setCode : null;
+  const collectorNumber =
+    typeof entry.collectorNumber === "string" && entry.collectorNumber.trim()
+      ? entry.collectorNumber
+      : null;
+  const printingId =
+    typeof entry.printingId === "string" && entry.printingId.trim() ? entry.printingId : null;
+
+  if (mode === "decklist-set" && printingId) {
+    const byId = preciseLookups.byId.get(buildPrintingIdKey(printingId));
+    if (byId) {
+      return byId;
+    }
+  }
+
+  if (mode === "decklist-set" && setCode && collectorNumber) {
+    const byCollector = preciseLookups.bySetCollector.get(buildSetCollectorKey(setCode, collectorNumber));
+    if (byCollector && normalizeLookupName(byCollector.name) === normalizeLookupName(entry.name)) {
+      return byCollector;
+    }
+  }
+
+  if (mode === "decklist-set" && setCode) {
+    const byNameSet = preciseLookups.byNameSet.get(buildNameSetKey(entry.name, setCode));
+    if (byNameSet) {
+      if (!collectorNumber || collectorNumberMatches(collectorNumber, byNameSet.collector_number)) {
+        return byNameSet;
+      }
+    }
+  }
+
+  const nameMaps = nameLookups ?? preciseLookups;
+  return nameMaps.byName.get(buildNameKey(entry.name)) ?? null;
 }
 
 async function mapWithConcurrency<T, R>(
@@ -503,56 +668,37 @@ export async function fetchDeckCards(
   options?: { deckPriceMode?: DeckPriceMode }
 ): Promise<{ knownCards: DeckCard[]; unknownCards: string[] }> {
   const mode = options?.deckPriceMode ?? "oracle-default";
-  const batchLookups = await fetchCardsByBatchIdentifiers(parsedDeck, {
-    includeSetLookups: mode === "decklist-set"
+  const preciseLookups = await fetchCardsByBatchIdentifiers(parsedDeck, {
+    lookupMode: mode === "decklist-set" ? "precise" : "name"
   });
+  let nameLookups: BatchLookupMaps | null = mode === "oracle-default" ? preciseLookups : null;
+
+  if (mode === "decklist-set") {
+    const unresolvedForNameBatch = parsedDeck.filter(
+      (entry) => !resolveCardFromBatchLookups(entry, mode, preciseLookups, null)
+    );
+    if (unresolvedForNameBatch.length > 0) {
+      nameLookups = await fetchCardsByBatchIdentifiers(unresolvedForNameBatch, {
+        lookupMode: "name"
+      });
+    }
+  }
+
   const lookedUp = await mapWithConcurrency(parsedDeck, Math.max(1, concurrency), async (entry) => {
     const setCode = typeof entry.setCode === "string" && entry.setCode.trim() ? entry.setCode : null;
     const collectorNumber =
       typeof entry.collectorNumber === "string" && entry.collectorNumber.trim()
         ? entry.collectorNumber
         : null;
-    const printingId =
-      typeof entry.printingId === "string" && entry.printingId.trim() ? entry.printingId : null;
-    const batchByName = batchLookups.byName.get(buildBatchNameKey(entry.name));
-    let card: ScryfallCard | null = null;
+    const batchByName = nameLookups?.byName.get(buildNameKey(entry.name)) ?? null;
+    let card: ScryfallCard | null = resolveCardFromBatchLookups(entry, mode, preciseLookups, nameLookups);
 
-    if (mode === "decklist-set" && printingId) {
-      card = batchLookups.byId.get(buildPrintingIdKey(printingId)) ?? (await getCardById(printingId));
+    if (mode === "decklist-set" && !card && setCode) {
+      card = await getCardByNameWithSet(entry.name, setCode);
     }
 
     if (mode === "decklist-set" && !card && setCode && collectorNumber) {
-      const batchByCollector = batchLookups.bySetCollector.get(
-        buildSetCollectorKey(setCode, collectorNumber)
-      );
-      if (
-        batchByCollector &&
-        normalizeLookupName(batchByCollector.name) === normalizeLookupName(entry.name)
-      ) {
-        card = batchByCollector;
-      }
-    }
-
-    if (mode === "decklist-set" && !card && setCode) {
-      const batchResolved = batchLookups.byNameSet.get(buildNameSetKey(entry.name, setCode));
-      if (batchResolved) {
-        if (!collectorNumber || collectorNumberMatches(collectorNumber, batchResolved.collector_number)) {
-          card = batchResolved;
-        }
-      }
-    }
-
-    // Prefer collection-name fallback before per-card named endpoints.
-    if (mode === "decklist-set" && !card && batchByName) {
-      card = batchByName;
-    }
-
-    if (mode === "decklist-set" && !card && setCode) {
-      card = card ?? await getCardByNameWithSet(entry.name, setCode);
-    }
-
-    if (mode === "decklist-set" && !card && setCode && collectorNumber) {
-      card = card ?? (await getCardBySetAndCollector(setCode, collectorNumber));
+      card = await getCardBySetAndCollector(setCode, collectorNumber);
     }
 
     if (!card) {

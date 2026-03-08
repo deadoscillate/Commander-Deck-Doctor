@@ -57,6 +57,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
   vi.resetModules();
   vi.clearAllMocks();
+  vi.unmock("@/lib/scryfallCardCacheStore");
 });
 
 describe("scryfall set-batch lookup", () => {
@@ -160,7 +161,7 @@ describe("scryfall set-batch lookup", () => {
     expect(result.unknownCards).toHaveLength(0);
     expect(
       fetchMock.mock.calls.filter((call) => String(call[0]).includes("/cards/collection")).length
-    ).toBe(1);
+    ).toBe(2);
     expect(
       fetchMock.mock.calls.filter((call) => String(call[0]).includes("/cards/named")).length
     ).toBeGreaterThanOrEqual(2);
@@ -251,7 +252,31 @@ describe("scryfall set-batch lookup", () => {
     expect(result.unknownCards).toHaveLength(0);
     expect(
       fetchMock.mock.calls.filter((call) => String(call[0]).includes("/cards/collection")).length
-    ).toBe(1);
+    ).toBe(2);
     expect(fetchMock.mock.calls.filter((call) => String(call[0]).includes("/cards/named")).length).toBe(0);
+  });
+
+  it("uses persistent card cache before network lookups", async () => {
+    const fetchMock = vi.fn(async () =>
+      jsonResponse({ object: "error", code: "unexpected_network_lookup" }, 500)
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    vi.doMock("@/lib/scryfallCardCacheStore", () => ({
+      getCachedScryfallCards: vi.fn(async () =>
+        new Map([
+          ["name:arcanesignet", toCard("Arcane Signet", "c20", "237")]
+        ])
+      ),
+      saveCachedScryfallCards: vi.fn(async () => {})
+    }));
+
+    const { fetchDeckCards } = await import("@/lib/scryfall");
+    const parsedDeck = [{ name: "Arcane Signet", qty: 1 }];
+
+    const result = await fetchDeckCards(parsedDeck, 8, { deckPriceMode: "oracle-default" });
+
+    expect(result.knownCards).toHaveLength(1);
+    expect(result.unknownCards).toHaveLength(0);
+    expect(fetchMock).toHaveBeenCalledTimes(0);
   });
 });
