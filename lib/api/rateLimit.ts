@@ -2,7 +2,13 @@ import { Pool } from "pg";
 import { getClientAddress } from "./http";
 
 type RateLimitRule = {
-  scope: "analyze" | "import-url" | "share-report" | "simulate" | "card-printings";
+  scope:
+    | "analyze"
+    | "import-url"
+    | "share-report"
+    | "simulate"
+    | "card-printings"
+    | "improvement-suggestions";
   limit: number;
   windowSeconds: number;
 };

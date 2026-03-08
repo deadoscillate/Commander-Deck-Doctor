@@ -73,8 +73,11 @@ function mockEmptyLocalDefaultStore(): void {
 function mockEmptyLocalPrintIndexStore(): void {
   vi.doMock("@/lib/scryfallLocalPrintIndexStore", () => ({
     getLocalPrintCardById: vi.fn(() => null),
+    getLocalPrintCardsByIds: vi.fn(async () => new Map()),
     getLocalPrintCardBySetCollector: vi.fn(() => null),
-    getLocalPrintCardByNameSet: vi.fn(() => null)
+    getLocalPrintCardsBySetCollectors: vi.fn(async () => new Map()),
+    getLocalPrintCardByNameSet: vi.fn(() => null),
+    getLocalPrintCardsByNameSets: vi.fn(async () => new Map())
   }));
 }
 
@@ -316,6 +319,7 @@ describe("scryfall set-batch lookup", () => {
     vi.stubGlobal("fetch", fetchMock);
     vi.doMock("@/lib/scryfallLocalPrintIndexStore", () => ({
       getLocalPrintCardById: vi.fn(() => null),
+      getLocalPrintCardsByIds: vi.fn(async () => new Map()),
       getLocalPrintCardBySetCollector: vi.fn((setCode: string, collectorNumber: string) =>
         setCode === "c20" && collectorNumber === "237"
           ? {
@@ -336,7 +340,33 @@ describe("scryfall set-batch lookup", () => {
             }
           : null
       ),
-      getLocalPrintCardByNameSet: vi.fn(() => null)
+      getLocalPrintCardsBySetCollectors: vi.fn(async (lookups: Array<{ setCode: string; collectorNumber: string }>) =>
+        new Map(
+          lookups
+            .filter((lookup) => lookup.setCode === "c20" && lookup.collectorNumber === "237")
+            .map((lookup) => [
+              `set:${lookup.setCode}|collector:${lookup.collectorNumber}`,
+              {
+                id: "print-arcane-signet-c20-237",
+                oracle_id: "oracle-arcane-signet",
+                name: "Arcane Signet",
+                set: "c20",
+                collector_number: "237",
+                image_uris: null,
+                card_faces: [],
+                prices: {
+                  usd: "1.99",
+                  usd_foil: null,
+                  usd_etched: null,
+                  tix: null
+                },
+                purchase_uris: null
+              }
+            ])
+        )
+      ),
+      getLocalPrintCardByNameSet: vi.fn(() => null),
+      getLocalPrintCardsByNameSets: vi.fn(async () => new Map())
     }));
     vi.doMock("@/engine/cards/CardDatabase", () => ({
       CardDatabase: {

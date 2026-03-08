@@ -12,6 +12,7 @@ describe("analysis report tab smoke", () => {
   afterEach(() => {
     cleanup();
     vi.restoreAllMocks();
+    vi.unstubAllGlobals();
   });
 
   it("switches across report tabs and keeps core interactions available", async () => {
@@ -86,4 +87,5 @@ describe("analysis report tab smoke", () => {
     await userEvent.click(screen.getByRole("tab", { name: "Simulations" }));
     expect(screen.getAllByText("N/A").length).toBeGreaterThan(0);
   });
+
 });

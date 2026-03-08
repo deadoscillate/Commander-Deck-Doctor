@@ -397,6 +397,14 @@ function buildIndexedCards(cardDatabase: SuggestionCardDatabase): IndexedCard[] 
   return indexed;
 }
 
+export function prewarmRoleSuggestionsIndex(cardDatabase?: SuggestionCardDatabase): void {
+  if (!cardDatabase) {
+    return;
+  }
+
+  buildIndexedCards(cardDatabase);
+}
+
 function preferredCandidatesForRole(
   roleKey: SuggestionRoleKey,
   deckColors: Set<string>,

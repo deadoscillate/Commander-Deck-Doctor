@@ -90,6 +90,25 @@ body.has-commander-page-art::after {
   z-index: 1;
 }
 
+.page,
+.panel-grid,
+.panel,
+.results-panel,
+.results,
+.results > section,
+.results-commander-picker,
+.report-tabs-shell,
+.report-tabs,
+.commander-hero,
+.commander-hero-content,
+.summary-card,
+.decklist-preview,
+.printing-modal,
+.export-actions,
+.sim-controls {
+  min-width: 0;
+}
+
 body.has-commander-page-art .hero,
 body.has-commander-page-art .panel,
 body.has-commander-page-art .results > section:not(.commander-hero),
@@ -526,6 +545,7 @@ button:disabled {
   color: #8c350f;
   font-weight: 700;
   text-underline-offset: 0.14em;
+  overflow-wrap: anywhere;
 }
 
 .summary-grid {
@@ -550,11 +570,13 @@ button:disabled {
 
 .summary-card strong {
   font-size: 1.02rem;
+  overflow-wrap: anywhere;
 }
 
 .deck-price-meta {
   margin-top: 0.45rem;
   font-size: 0.84rem;
+  overflow-wrap: anywhere;
 }
 
 .summary-color-icons {
@@ -1621,6 +1643,7 @@ button:disabled {
 
 .decklist-preview li {
   margin-bottom: 0.2rem;
+  overflow-wrap: anywhere;
 }
 
 .decklist-preview-row {
@@ -1657,6 +1680,7 @@ button:disabled {
 .decklist-preview-printing-label {
   margin: 0.2rem 0 0;
   font-size: 0.74rem;
+  overflow-wrap: anywhere;
 }
 
 .printing-modal-backdrop {
@@ -2907,12 +2931,15 @@ ul {
   .report-tabs {
     flex-wrap: nowrap;
     overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scroll-snap-type: x proximity;
     scrollbar-width: thin;
     padding-bottom: 0.15rem;
   }
 
   .report-tab {
     flex: 0 0 auto;
+    scroll-snap-align: start;
   }
 
   .commander-hero {
@@ -2933,6 +2960,7 @@ ul {
 
   .commander-hero-title {
     font-size: clamp(1.2rem, 6.4vw, 1.72rem);
+    overflow-wrap: anywhere;
   }
 
   .commander-hero-archetype {
@@ -2981,6 +3009,30 @@ ul {
   .checks-grid,
   .suggestion-groups {
     grid-template-columns: 1fr;
+  }
+
+  .export-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+
+  .export-actions button,
+  .export-actions .share-link,
+  .export-actions .error-inline,
+  .export-actions .muted {
+    width: 100%;
+  }
+
+  .export-actions .share-link,
+  .export-actions .error-inline,
+  .export-actions .muted {
+    text-align: center;
+  }
+
+  .results-commander-picker label,
+  .results-commander-picker p {
+    overflow-wrap: anywhere;
   }
 
   .table-talk-head {
@@ -3187,6 +3239,11 @@ ul {
   .report-tab {
     padding: 0.26rem 0.56rem;
     font-size: 0.75rem;
+  }
+
+  .results-commander-picker,
+  .export-actions {
+    gap: 0.4rem;
   }
 
   .commander-hero-content {

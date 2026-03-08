@@ -3,10 +3,17 @@ import type { ImprovementSuggestions as ImprovementSuggestionsType } from "@/lib
 
 type ImprovementSuggestionsProps = {
   suggestions: ImprovementSuggestionsType;
+  loading?: boolean;
+  error?: string | null;
   getCardPreviewImage?: (cardName: string) => string | null;
 };
 
-export function ImprovementSuggestions({ suggestions, getCardPreviewImage }: ImprovementSuggestionsProps) {
+export function ImprovementSuggestions({
+  suggestions,
+  loading = false,
+  error = null,
+  getCardPreviewImage
+}: ImprovementSuggestionsProps) {
   return (
     <section>
       <h2>Deck Improvement Suggestions</h2>
@@ -16,7 +23,11 @@ export function ImprovementSuggestions({ suggestions, getCardPreviewImage }: Imp
         {suggestions.colorIdentity.length > 0 ? suggestions.colorIdentity.join("/") : "Colorless"}
       </p>
 
-      {suggestions.items.length === 0 ? (
+      {loading ? (
+        <p className="muted">Loading suggestions...</p>
+      ) : error ? (
+        <p className="muted">{error}</p>
+      ) : suggestions.items.length === 0 ? (
         <p className="muted">No add/cut role suggestions right now.</p>
       ) : (
         <div className="suggestion-groups">

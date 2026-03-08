@@ -4,6 +4,9 @@ import zlib from "node:zlib";
 import type { ScryfallCardFace, ScryfallImageUris, ScryfallPrices, ScryfallPurchaseUris } from "./types";
 import {
   getSqlitePrintCardById,
+  getSqlitePrintCardsByIds,
+  getSqlitePrintCardsByNameSets,
+  getSqlitePrintCardsBySetCollectors,
   getSqlitePrintCardByNameSet,
   getSqlitePrintCardBySetCollector
 } from "./scryfallLocalPrintSqliteStore";
@@ -18,10 +21,27 @@ export type LocalPrintCardRecord = {
   name: string;
   set: string;
   collector_number: string;
+  type_line?: string;
+  cmc?: number;
+  mana_cost?: string;
+  colors?: string[];
+  color_identity?: string[];
+  oracle_text?: string;
+  keywords?: string[];
   image_uris: ScryfallImageUris | null;
   card_faces: LocalPrintCardFace[];
   prices: ScryfallPrices | null;
   purchase_uris: ScryfallPurchaseUris | null;
+};
+
+type NameSetLookup = {
+  name: string;
+  setCode: string;
+};
+
+type SetCollectorLookup = {
+  setCode: string;
+  collectorNumber: string;
 };
 
 type PrintIndexManifestPayload = {
@@ -94,6 +114,13 @@ function normalizeRecord(record: LocalPrintCardRecord): LocalPrintCardRecord {
   return {
     ...record,
     set: record.set.toLowerCase(),
+    colors: Array.isArray(record.colors) ? record.colors.filter((value) => typeof value === "string") : undefined,
+    color_identity: Array.isArray(record.color_identity)
+      ? record.color_identity.filter((value) => typeof value === "string")
+      : undefined,
+    keywords: Array.isArray(record.keywords)
+      ? record.keywords.filter((value) => typeof value === "string")
+      : undefined,
     image_uris: record.image_uris ?? null,
     card_faces: Array.isArray(record.card_faces)
       ? record.card_faces
@@ -185,6 +212,38 @@ export async function getLocalPrintCardById(printingId: string): Promise<LocalPr
   return resolveRecord(store, store.byId.get(key));
 }
 
+export async function getLocalPrintCardsByIds(
+  printingIds: string[]
+): Promise<Map<string, LocalPrintCardRecord>> {
+  const sqliteCards = await getSqlitePrintCardsByIds(printingIds);
+  if (sqliteCards.size > 0) {
+    return new Map([...sqliteCards.entries()].map(([key, record]) => [key, normalizeRecord(record)]));
+  }
+
+  const manifest = loadManifest();
+  const results = new Map<string, LocalPrintCardRecord>();
+
+  for (const printingId of printingIds) {
+    const key = buildIdKey(printingId);
+    if (results.has(key)) {
+      continue;
+    }
+
+    const bucketId = manifest.get(key);
+    if (!bucketId) {
+      continue;
+    }
+
+    const store = loadShard(bucketId);
+    const record = resolveRecord(store, store.byId.get(key));
+    if (record) {
+      results.set(key, record);
+    }
+  }
+
+  return results;
+}
+
 export async function getLocalPrintCardBySetCollector(
   setCode: string,
   collectorNumber: string
@@ -199,6 +258,31 @@ export async function getLocalPrintCardBySetCollector(
   return resolveRecord(store, store.bySetCollector.get(key));
 }
 
+export async function getLocalPrintCardsBySetCollectors(
+  lookups: SetCollectorLookup[]
+): Promise<Map<string, LocalPrintCardRecord>> {
+  const sqliteCards = await getSqlitePrintCardsBySetCollectors(lookups);
+  if (sqliteCards.size > 0) {
+    return new Map([...sqliteCards.entries()].map(([key, record]) => [key, normalizeRecord(record)]));
+  }
+
+  const results = new Map<string, LocalPrintCardRecord>();
+  for (const lookup of lookups) {
+    const key = buildSetCollectorKey(lookup.setCode, lookup.collectorNumber);
+    if (results.has(key)) {
+      continue;
+    }
+
+    const store = loadShard(getPrintIndexBucketId(lookup.setCode));
+    const record = resolveRecord(store, store.bySetCollector.get(key));
+    if (record) {
+      results.set(key, record);
+    }
+  }
+
+  return results;
+}
+
 export async function getLocalPrintCardByNameSet(
   name: string,
   setCode: string
@@ -211,4 +295,29 @@ export async function getLocalPrintCardByNameSet(
   const store = loadShard(getPrintIndexBucketId(setCode));
   const key = buildNameSetKey(name, setCode);
   return resolveRecord(store, store.byNameSet.get(key));
+}
+
+export async function getLocalPrintCardsByNameSets(
+  lookups: NameSetLookup[]
+): Promise<Map<string, LocalPrintCardRecord>> {
+  const sqliteCards = await getSqlitePrintCardsByNameSets(lookups);
+  if (sqliteCards.size > 0) {
+    return new Map([...sqliteCards.entries()].map(([key, record]) => [key, normalizeRecord(record)]));
+  }
+
+  const results = new Map<string, LocalPrintCardRecord>();
+  for (const lookup of lookups) {
+    const key = buildNameSetKey(lookup.name, lookup.setCode);
+    if (results.has(key)) {
+      continue;
+    }
+
+    const store = loadShard(getPrintIndexBucketId(lookup.setCode));
+    const record = resolveRecord(store, store.byNameSet.get(key));
+    if (record) {
+      results.set(key, record);
+    }
+  }
+
+  return results;
 }

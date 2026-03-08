@@ -886,7 +886,22 @@ export default function Page() {
               Run analysis to see summary, checks, deck health, and bracket report.
             </p>
           ) : (
-            <AnalysisReport result={result} onOpenPrintingPicker={openPrintingPicker} />
+            <AnalysisReport
+              result={result}
+              onOpenPrintingPicker={openPrintingPicker}
+              onImprovementSuggestionsLoaded={(improvementSuggestions) => {
+                setResult((current) => {
+                  if (!current) {
+                    return current;
+                  }
+
+                  return {
+                    ...current,
+                    improvementSuggestions
+                  };
+                });
+              }}
+            />
           )}
         </div>
       </section>

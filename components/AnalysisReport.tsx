@@ -12,7 +12,12 @@ import { ManaCost } from "@/components/ManaCost";
 import { RecommendedCounts } from "@/components/RecommendedCounts";
 import { SimulationsSection } from "@/components/report/SimulationsSection";
 import { RoleBars } from "@/components/RoleBars";
-import type { AnalyzeResponse, RoleBreakdown, TutorSummary } from "@/lib/contracts";
+import type {
+  AnalyzeResponse,
+  ImprovementSuggestions as ImprovementSuggestionsPayload,
+  RoleBreakdown,
+  TutorSummary
+} from "@/lib/contracts";
 import { getStatusMeta } from "@/lib/ui/statusStyles";
 
 const CURVE_ORDER = ["0", "1", "2", "3", "4", "5", "6", "7+"];
@@ -485,6 +490,7 @@ function normalizeTutorSummary(result: AnalyzeResponse): TutorSummary | null {
 type AnalysisReportProps = {
   result: AnalyzeResponse;
   onOpenPrintingPicker?: (cardName: string) => void;
+  onImprovementSuggestionsLoaded?: (suggestions: ImprovementSuggestionsPayload) => void;
 };
 
 type ReportTabKey = "overview" | "composition" | "simulations" | "cards" | "advanced";
@@ -507,7 +513,11 @@ const COMBO_VIEW_TABS: Array<{ key: ComboViewKey; label: string }> = [
 /**
  * Read-only report renderer shared by the main analysis page and /report/[hash].
  */
-export function AnalysisReport({ result, onOpenPrintingPicker }: AnalysisReportProps) {
+export function AnalysisReport({
+  result,
+  onOpenPrintingPicker,
+  onImprovementSuggestionsLoaded
+}: AnalysisReportProps) {
   const maxCurveCount = Math.max(...Object.values(result.summary.manaCurve), 0);
   const archetypeReport = result.archetypeReport ?? {
     primary: null,
@@ -554,7 +564,16 @@ export function AnalysisReport({ result, onOpenPrintingPicker }: AnalysisReportP
     previewImageByName.get(normalizeComboText(cardName)) ?? null;
   const [activeTab, setActiveTab] = useState<ReportTabKey>("overview");
   const [activeComboView, setActiveComboView] = useState<ComboViewKey>("live");
+  const [improvementSuggestions, setImprovementSuggestions] = useState(result.improvementSuggestions);
+  const [improvementSuggestionsLoading, setImprovementSuggestionsLoading] = useState(false);
+  const [improvementSuggestionsError, setImprovementSuggestionsError] = useState<string | null>(null);
   const lastComboCountsRef = useRef<string>("");
+
+  useEffect(() => {
+    setImprovementSuggestions(result.improvementSuggestions);
+    setImprovementSuggestionsLoading(false);
+    setImprovementSuggestionsError(null);
+  }, [result]);
 
   useEffect(() => {
     if (typeof document === "undefined") {
@@ -620,6 +639,84 @@ export function AnalysisReport({ result, onOpenPrintingPicker }: AnalysisReportP
     comboReport.detected.length,
     comboReport.conditional.length,
     comboReport.potential.length
+  ]);
+
+  useEffect(() => {
+    const shouldFetchSuggestions =
+      result.improvementSuggestions.items.length === 0 &&
+      /load after the initial report/i.test(result.improvementSuggestions.disclaimer);
+
+    if (!shouldFetchSuggestions) {
+      return;
+    }
+
+    const controller = new AbortController();
+    const deckColorIdentity =
+      commanderInfo.colorIdentity.length > 0 ? commanderInfo.colorIdentity : result.summary.colors;
+    const existingCardNames = result.parsedDeck.flatMap((entry) =>
+      entry.resolvedName ? [entry.name, entry.resolvedName] : [entry.name]
+    );
+
+    async function loadImprovementSuggestions() {
+      setImprovementSuggestionsLoading(true);
+      setImprovementSuggestionsError(null);
+
+      try {
+        const response = await fetch("/api/improvement-suggestions", {
+          method: "POST",
+          headers: {
+            "content-type": "application/json"
+          },
+          body: JSON.stringify({
+            roleRows: result.deckHealth.rows,
+            roleBreakdown,
+            deckColorIdentity,
+            existingCardNames,
+            limit: 7
+          }),
+          signal: controller.signal
+        });
+
+        const payload = (await response.json()) as unknown;
+        if (!response.ok) {
+          const message =
+            payload &&
+            typeof payload === "object" &&
+            "error" in payload &&
+            typeof payload.error === "string"
+              ? payload.error
+              : "Suggestions are unavailable right now.";
+          throw new Error(message);
+        }
+
+        const suggestionsPayload = payload as ImprovementSuggestionsPayload;
+        setImprovementSuggestions(suggestionsPayload);
+        onImprovementSuggestionsLoaded?.(suggestionsPayload);
+      } catch (error) {
+        if (controller.signal.aborted) {
+          return;
+        }
+
+        setImprovementSuggestionsError(
+          error instanceof Error ? error.message : "Suggestions are unavailable right now."
+        );
+      } finally {
+        if (!controller.signal.aborted) {
+          setImprovementSuggestionsLoading(false);
+        }
+      }
+    }
+
+    void loadImprovementSuggestions();
+
+    return () => {
+      controller.abort();
+    };
+  }, [
+    commanderInfo.colorIdentity,
+    onImprovementSuggestionsLoaded,
+    result,
+    roleBreakdown
   ]);
 
   const archetypeLabel =
@@ -979,7 +1076,9 @@ export function AnalysisReport({ result, onOpenPrintingPicker }: AnalysisReportP
           <RecommendedCounts rows={result.deckHealth.rows} />
           <DeckHealth report={result.deckHealth} />
           <ImprovementSuggestions
-            suggestions={result.improvementSuggestions}
+            suggestions={improvementSuggestions}
+            loading={improvementSuggestionsLoading}
+            error={improvementSuggestionsError}
             getCardPreviewImage={getCardPreviewImage}
           />
         </>

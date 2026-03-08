@@ -428,6 +428,13 @@ async function compilePrintSqliteArtifact() {
         collector_sort_suffix TEXT NOT NULL,
         oracle_id TEXT NOT NULL,
         name TEXT NOT NULL,
+        type_line TEXT,
+        cmc REAL,
+        mana_cost TEXT,
+        colors_json TEXT,
+        color_identity_json TEXT,
+        oracle_text TEXT,
+        keywords_json TEXT,
         image_normal TEXT,
         image_art_crop TEXT,
         price_usd TEXT,
@@ -455,6 +462,13 @@ async function compilePrintSqliteArtifact() {
         collector_sort_suffix,
         oracle_id,
         name,
+        type_line,
+        cmc,
+        mana_cost,
+        colors_json,
+        color_identity_json,
+        oracle_text,
+        keywords_json,
         image_normal,
         image_art_crop,
         price_usd,
@@ -462,21 +476,22 @@ async function compilePrintSqliteArtifact() {
         price_usd_etched,
         tcgplayer_url,
         card_faces_json
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     let recordCount = 0;
     database.exec("BEGIN");
     for (const card of raw) {
       const compiled = compilePrintIndexCard(card);
-      if (!compiled) {
+      const oracleFields = baseCompiledCard(card);
+      if (!compiled || !oracleFields) {
         continue;
       }
 
       const collectorSort = collectorSortValue(compiled.collector_number);
       const facesPayload =
-        Array.isArray(compiled.card_faces) && compiled.card_faces.length > 0
-          ? JSON.stringify(compiled.card_faces)
+        Array.isArray(card.card_faces) && card.card_faces.length > 0
+          ? JSON.stringify(pickCardFaces(card, { includeImages: true }))
           : null;
 
       insert.run(
@@ -489,6 +504,15 @@ async function compilePrintSqliteArtifact() {
         collectorSort.suffix,
         compiled.oracle_id,
         compiled.name,
+        oracleFields.type_line ?? null,
+        typeof oracleFields.mana_value === "number" && Number.isFinite(oracleFields.mana_value)
+          ? oracleFields.mana_value
+          : null,
+        oracleFields.mana_cost ?? null,
+        Array.isArray(oracleFields.colors) ? JSON.stringify(oracleFields.colors) : null,
+        Array.isArray(oracleFields.color_identity) ? JSON.stringify(oracleFields.color_identity) : null,
+        oracleFields.oracle_text ?? null,
+        Array.isArray(oracleFields.keywords) ? JSON.stringify(oracleFields.keywords) : null,
         compiled.image_uris?.normal ?? null,
         compiled.image_uris?.art_crop ?? null,
         compiled.prices?.usd ?? null,

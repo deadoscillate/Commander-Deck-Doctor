@@ -3,12 +3,17 @@ import path from "node:path";
 import type { LocalPrintCardRecord } from "./scryfallLocalPrintIndexStore";
 
 type SqliteDatabase = import("node:sqlite").DatabaseSync;
+type SqliteStatement = ReturnType<SqliteDatabase["prepare"]>;
 
 const PRINT_SQLITE_FILE = path.resolve("data/scryfall/prints.compiled.sqlite");
 
 let db: SqliteDatabase | null = null;
 let sqliteReady: Promise<SqliteDatabase | null> | null = null;
 let sqliteUnavailable = false;
+let byIdStatement: SqliteStatement | null = null;
+let bySetCollectorStatement: SqliteStatement | null = null;
+let byNameSetStatement: SqliteStatement | null = null;
+let printCardsSelectClause: string | null = null;
 
 type PrintRow = {
   printing_id?: string;
@@ -16,6 +21,13 @@ type PrintRow = {
   collector_number?: string;
   oracle_id?: string;
   name?: string;
+  type_line?: string | null;
+  cmc?: number | null;
+  mana_cost?: string | null;
+  colors_json?: string | null;
+  color_identity_json?: string | null;
+  oracle_text?: string | null;
+  keywords_json?: string | null;
   image_normal?: string | null;
   image_art_crop?: string | null;
   price_usd?: string | null;
@@ -23,6 +35,16 @@ type PrintRow = {
   price_usd_etched?: string | null;
   tcgplayer_url?: string | null;
   card_faces_json?: string | null;
+};
+
+type NameSetLookup = {
+  name: string;
+  setCode: string;
+};
+
+type SetCollectorLookup = {
+  setCode: string;
+  collectorNumber: string;
 };
 
 function normalizeLookupName(name: string): string {
@@ -39,6 +61,18 @@ function normalizeCollectorNumber(value: string | null | undefined): string {
     .toLowerCase()
     .replace(/^#+/, "")
     .replace(/[\u2605\u2606]/g, "");
+}
+
+function buildIdKey(printingId: string): string {
+  return `id:${printingId.trim().toLowerCase()}`;
+}
+
+function buildSetCollectorKey(setCode: string, collectorNumber: string): string {
+  return `set:${setCode.trim().toLowerCase()}|collector:${normalizeCollectorNumber(collectorNumber)}`;
+}
+
+function buildNameSetKey(name: string, setCode: string): string {
+  return `name:${normalizeLookupName(name)}|set:${setCode.trim().toLowerCase()}`;
 }
 
 function toLocalPrintCardRecord(row: PrintRow | undefined): LocalPrintCardRecord | null {
@@ -66,12 +100,58 @@ function toLocalPrintCardRecord(row: PrintRow | undefined): LocalPrintCardRecord
     }
   })();
 
+  const parsedColors = (() => {
+    if (typeof row.colors_json !== "string" || !row.colors_json.trim()) {
+      return undefined;
+    }
+
+    try {
+      const parsed = JSON.parse(row.colors_json) as unknown;
+      return Array.isArray(parsed) ? parsed.filter((value): value is string => typeof value === "string") : undefined;
+    } catch {
+      return undefined;
+    }
+  })();
+
+  const parsedColorIdentity = (() => {
+    if (typeof row.color_identity_json !== "string" || !row.color_identity_json.trim()) {
+      return undefined;
+    }
+
+    try {
+      const parsed = JSON.parse(row.color_identity_json) as unknown;
+      return Array.isArray(parsed) ? parsed.filter((value): value is string => typeof value === "string") : undefined;
+    } catch {
+      return undefined;
+    }
+  })();
+
+  const parsedKeywords = (() => {
+    if (typeof row.keywords_json !== "string" || !row.keywords_json.trim()) {
+      return undefined;
+    }
+
+    try {
+      const parsed = JSON.parse(row.keywords_json) as unknown;
+      return Array.isArray(parsed) ? parsed.filter((value): value is string => typeof value === "string") : undefined;
+    } catch {
+      return undefined;
+    }
+  })();
+
   return {
     id: row.printing_id,
     oracle_id: row.oracle_id,
     name: row.name,
     set: row.set_code,
     collector_number: row.collector_number,
+    type_line: row.type_line ?? undefined,
+    cmc: typeof row.cmc === "number" && Number.isFinite(row.cmc) ? row.cmc : undefined,
+    mana_cost: row.mana_cost ?? undefined,
+    colors: parsedColors,
+    color_identity: parsedColorIdentity,
+    oracle_text: row.oracle_text ?? undefined,
+    keywords: parsedKeywords,
     image_uris:
       row.image_normal || row.image_art_crop
         ? {
@@ -97,6 +177,42 @@ function toLocalPrintCardRecord(row: PrintRow | undefined): LocalPrintCardRecord
   };
 }
 
+function buildSelectClause(database: SqliteDatabase): string {
+  const pragmaRows = database.prepare("PRAGMA table_info(print_cards)").all() as Array<{
+    name?: string;
+  }>;
+  const availableColumns = new Set(
+    pragmaRows
+      .map((row) => (typeof row.name === "string" ? row.name : ""))
+      .filter(Boolean)
+  );
+
+  const selectColumn = (columnName: string, alias = columnName): string =>
+    availableColumns.has(columnName) ? columnName : `NULL AS ${alias}`;
+
+  return [
+    selectColumn("printing_id"),
+    selectColumn("set_code"),
+    selectColumn("collector_number"),
+    selectColumn("oracle_id"),
+    selectColumn("name"),
+    selectColumn("type_line"),
+    selectColumn("cmc"),
+    selectColumn("mana_cost"),
+    selectColumn("colors_json"),
+    selectColumn("color_identity_json"),
+    selectColumn("oracle_text"),
+    selectColumn("keywords_json"),
+    selectColumn("image_normal"),
+    selectColumn("image_art_crop"),
+    selectColumn("price_usd"),
+    selectColumn("price_usd_foil"),
+    selectColumn("price_usd_etched"),
+    selectColumn("tcgplayer_url"),
+    selectColumn("card_faces_json")
+  ].join(", ");
+}
+
 async function ensureDb(): Promise<SqliteDatabase | null> {
   if (db) {
     return db;
@@ -119,6 +235,10 @@ async function ensureDb(): Promise<SqliteDatabase | null> {
     try {
       const sqliteModule = await import("node:sqlite");
       db = new sqliteModule.DatabaseSync(PRINT_SQLITE_FILE, { readOnly: true });
+      byIdStatement = null;
+      bySetCollectorStatement = null;
+      byNameSetStatement = null;
+      printCardsSelectClause = buildSelectClause(db);
       return db;
     } catch {
       sqliteUnavailable = true;
@@ -130,80 +250,244 @@ async function ensureDb(): Promise<SqliteDatabase | null> {
   return sqliteReady;
 }
 
-export async function getSqlitePrintCardById(printingId: string): Promise<LocalPrintCardRecord | null> {
+async function getByIdStatement(): Promise<SqliteStatement | null> {
   const database = await ensureDb();
-  const normalizedId = printingId.trim().toLowerCase();
-  if (!database || !normalizedId) {
+  if (!database) {
     return null;
   }
 
-  const row = database
-    .prepare(
+  if (!byIdStatement) {
+    const selectClause = printCardsSelectClause ?? buildSelectClause(database);
+    byIdStatement = database.prepare(
       `
-      SELECT printing_id, set_code, collector_number, oracle_id, name,
-             image_normal, image_art_crop, price_usd, price_usd_foil, price_usd_etched,
-             tcgplayer_url, card_faces_json
+      SELECT ${selectClause}
       FROM print_cards
       WHERE printing_id = ?
       LIMIT 1
     `
-    )
-    .get(normalizedId) as PrintRow | undefined;
+    );
+  }
+
+  return byIdStatement;
+}
+
+async function getBySetCollectorStatement(): Promise<SqliteStatement | null> {
+  const database = await ensureDb();
+  if (!database) {
+    return null;
+  }
+
+  if (!bySetCollectorStatement) {
+    const selectClause = printCardsSelectClause ?? buildSelectClause(database);
+    bySetCollectorStatement = database.prepare(
+      `
+      SELECT ${selectClause}
+      FROM print_cards
+      WHERE set_code = ? AND normalized_collector_number = ?
+      LIMIT 1
+    `
+    );
+  }
+
+  return bySetCollectorStatement;
+}
+
+async function getByNameSetStatement(): Promise<SqliteStatement | null> {
+  const database = await ensureDb();
+  if (!database) {
+    return null;
+  }
+
+  if (!byNameSetStatement) {
+    const selectClause = printCardsSelectClause ?? buildSelectClause(database);
+    byNameSetStatement = database.prepare(
+      `
+      SELECT ${selectClause}
+      FROM print_cards
+      WHERE set_code = ? AND normalized_name = ?
+      ORDER BY collector_sort_rank ASC, collector_sort_suffix ASC, printing_id ASC
+      LIMIT 1
+    `
+    );
+  }
+
+  return byNameSetStatement;
+}
+
+export async function getSqlitePrintCardById(printingId: string): Promise<LocalPrintCardRecord | null> {
+  const statement = await getByIdStatement();
+  const normalizedId = printingId.trim().toLowerCase();
+  if (!statement || !normalizedId) {
+    return null;
+  }
+
+  const row = statement.get(normalizedId) as PrintRow | undefined;
 
   return toLocalPrintCardRecord(row);
+}
+
+export async function getSqlitePrintCardsByIds(
+  printingIds: string[]
+): Promise<Map<string, LocalPrintCardRecord>> {
+  const database = await ensureDb();
+  const normalizedIds = [...new Set(printingIds.map((value) => value.trim().toLowerCase()).filter(Boolean))];
+  if (!database || normalizedIds.length === 0) {
+    return new Map();
+  }
+
+  const placeholders = normalizedIds.map(() => "?").join(", ");
+  const selectClause = printCardsSelectClause ?? buildSelectClause(database);
+  const rows = database
+    .prepare(
+      `
+      SELECT ${selectClause}
+      FROM print_cards
+      WHERE printing_id IN (${placeholders})
+    `
+    )
+    .all(...normalizedIds) as PrintRow[];
+
+  const results = new Map<string, LocalPrintCardRecord>();
+  for (const row of rows) {
+    const record = toLocalPrintCardRecord(row);
+    if (record) {
+      results.set(buildIdKey(record.id), record);
+    }
+  }
+
+  return results;
 }
 
 export async function getSqlitePrintCardBySetCollector(
   setCode: string,
   collectorNumber: string
 ): Promise<LocalPrintCardRecord | null> {
-  const database = await ensureDb();
+  const statement = await getBySetCollectorStatement();
   const normalizedSet = setCode.trim().toLowerCase();
   const normalizedCollector = normalizeCollectorNumber(collectorNumber);
-  if (!database || !normalizedSet || !normalizedCollector) {
+  if (!statement || !normalizedSet || !normalizedCollector) {
     return null;
   }
 
-  const row = database
-    .prepare(
-      `
-      SELECT printing_id, set_code, collector_number, oracle_id, name,
-             image_normal, image_art_crop, price_usd, price_usd_foil, price_usd_etched,
-             tcgplayer_url, card_faces_json
-      FROM print_cards
-      WHERE set_code = ? AND normalized_collector_number = ?
-      LIMIT 1
-    `
-    )
-    .get(normalizedSet, normalizedCollector) as PrintRow | undefined;
+  const row = statement.get(normalizedSet, normalizedCollector) as PrintRow | undefined;
 
   return toLocalPrintCardRecord(row);
+}
+
+export async function getSqlitePrintCardsBySetCollectors(
+  lookups: SetCollectorLookup[]
+): Promise<Map<string, LocalPrintCardRecord>> {
+  const database = await ensureDb();
+  const deduped = new Map<string, { setCode: string; collectorNumber: string }>();
+
+  for (const lookup of lookups) {
+    const normalizedSet = lookup.setCode.trim().toLowerCase();
+    const normalizedCollector = normalizeCollectorNumber(lookup.collectorNumber);
+    if (!normalizedSet || !normalizedCollector) {
+      continue;
+    }
+
+    const key = buildSetCollectorKey(normalizedSet, normalizedCollector);
+    if (!deduped.has(key)) {
+      deduped.set(key, { setCode: normalizedSet, collectorNumber: normalizedCollector });
+    }
+  }
+
+  if (!database || deduped.size === 0) {
+    return new Map();
+  }
+
+  const where = [...deduped.values()]
+    .map(() => "(set_code = ? AND normalized_collector_number = ?)")
+    .join(" OR ");
+  const params = [...deduped.values()].flatMap((lookup) => [lookup.setCode, lookup.collectorNumber]);
+  const selectClause = printCardsSelectClause ?? buildSelectClause(database);
+  const rows = database
+    .prepare(
+      `
+      SELECT ${selectClause}
+      FROM print_cards
+      WHERE ${where}
+    `
+    )
+    .all(...params) as PrintRow[];
+
+  const results = new Map<string, LocalPrintCardRecord>();
+  for (const row of rows) {
+    const record = toLocalPrintCardRecord(row);
+    if (record) {
+      results.set(buildSetCollectorKey(record.set, record.collector_number), record);
+    }
+  }
+
+  return results;
 }
 
 export async function getSqlitePrintCardByNameSet(
   name: string,
   setCode: string
 ): Promise<LocalPrintCardRecord | null> {
-  const database = await ensureDb();
+  const statement = await getByNameSetStatement();
   const normalizedSet = setCode.trim().toLowerCase();
   const normalizedName = normalizeLookupName(name);
-  if (!database || !normalizedSet || !normalizedName) {
+  if (!statement || !normalizedSet || !normalizedName) {
     return null;
   }
 
-  const row = database
-    .prepare(
-      `
-      SELECT printing_id, set_code, collector_number, oracle_id, name,
-             image_normal, image_art_crop, price_usd, price_usd_foil, price_usd_etched,
-             tcgplayer_url, card_faces_json
-      FROM print_cards
-      WHERE set_code = ? AND normalized_name = ?
-      ORDER BY collector_sort_rank ASC, collector_sort_suffix ASC, printing_id ASC
-      LIMIT 1
-    `
-    )
-    .get(normalizedSet, normalizedName) as PrintRow | undefined;
+  const row = statement.get(normalizedSet, normalizedName) as PrintRow | undefined;
 
   return toLocalPrintCardRecord(row);
+}
+
+export async function getSqlitePrintCardsByNameSets(
+  lookups: NameSetLookup[]
+): Promise<Map<string, LocalPrintCardRecord>> {
+  const database = await ensureDb();
+  const deduped = new Map<string, { name: string; setCode: string; normalizedName: string }>();
+
+  for (const lookup of lookups) {
+    const normalizedSet = lookup.setCode.trim().toLowerCase();
+    const normalizedName = normalizeLookupName(lookup.name);
+    if (!normalizedSet || !normalizedName) {
+      continue;
+    }
+
+    const key = buildNameSetKey(lookup.name, normalizedSet);
+    if (!deduped.has(key)) {
+      deduped.set(key, { name: lookup.name, setCode: normalizedSet, normalizedName });
+    }
+  }
+
+  if (!database || deduped.size === 0) {
+    return new Map();
+  }
+
+  const where = [...deduped.values()].map(() => "(set_code = ? AND normalized_name = ?)").join(" OR ");
+  const params = [...deduped.values()].flatMap((lookup) => [lookup.setCode, lookup.normalizedName]);
+  const selectClause = printCardsSelectClause ?? buildSelectClause(database);
+  const rows = database
+    .prepare(
+      `
+      SELECT ${selectClause}
+      FROM print_cards
+      WHERE ${where}
+      ORDER BY set_code ASC, normalized_name ASC, collector_sort_rank ASC, collector_sort_suffix ASC, printing_id ASC
+    `
+    )
+    .all(...params) as PrintRow[];
+
+  const results = new Map<string, LocalPrintCardRecord>();
+  for (const row of rows) {
+    const record = toLocalPrintCardRecord(row);
+    if (!record) {
+      continue;
+    }
+
+    const key = buildNameSetKey(record.name, record.set);
+    if (!results.has(key)) {
+      results.set(key, record);
+    }
+  }
+
+  return results;
 }

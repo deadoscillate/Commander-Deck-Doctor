@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildRoleSuggestions } from "@/lib/suggestions";
+import { buildRoleSuggestions, prewarmRoleSuggestionsIndex } from "@/lib/suggestions";
 
 type MockCard = {
   oracleId: string;
@@ -112,5 +112,52 @@ describe("buildRoleSuggestions", () => {
     expect(result[0]?.direction).toBe("CUT");
     expect(result[0]?.suggestions[0]).toBe("Gilded Lotus");
     expect(result[0]?.suggestions).toContain("Cultivate");
+  });
+
+  it("supports prewarming the indexed suggestion cache", () => {
+    const mockDb = createMockDb([
+      {
+        oracleId: "1",
+        name: "Rampant Growth",
+        mv: 2,
+        typeLine: "Sorcery",
+        oracleText:
+          "Search your library for a basic land card, put that card onto the battlefield tapped, then shuffle.",
+        keywords: [],
+        colorIdentity: ["G"],
+        legalities: { commander: "legal" }
+      },
+      {
+        oracleId: "2",
+        name: "Sign in Blood",
+        mv: 2,
+        typeLine: "Sorcery",
+        oracleText: "Target player draws two cards and loses 2 life.",
+        keywords: [],
+        colorIdentity: ["B"],
+        legalities: { commander: "legal" }
+      }
+    ]);
+
+    prewarmRoleSuggestionsIndex(mockDb);
+
+    const result = buildRoleSuggestions({
+      roleRows: [
+        {
+          key: "ramp",
+          label: "Ramp",
+          value: 3,
+          recommendedText: "8-12",
+          status: "LOW"
+        }
+      ],
+      deckColorIdentity: ["G"],
+      existingCardNames: [],
+      cardDatabase: mockDb,
+      limit: 3
+    });
+
+    expect(result).toHaveLength(1);
+    expect(result[0]?.suggestions).toContain("Rampant Growth");
   });
 });

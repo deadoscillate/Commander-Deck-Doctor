@@ -14,7 +14,6 @@ import { parseDecklistWithCommander } from "@/lib/decklist";
 import { GAME_CHANGERS_VERSION, findGameChangerName } from "@/lib/gameChangers";
 import { buildColorIdentityCheck, buildDeckChecks } from "@/lib/checks";
 import { computePlayerHeuristics } from "@/lib/playerHeuristics";
-import { buildRoleSuggestions } from "@/lib/suggestions";
 import { evaluateCommanderRules } from "@/lib/rulesEngine";
 import { fetchDeckCards, getCardById, getCardByName, getCardByNameWithSet } from "@/lib/scryfall";
 import { recordAnalyzeTelemetry } from "@/lib/analyzeTelemetryStore";
@@ -823,18 +822,9 @@ export async function POST(request: Request) {
 
     const improvementSuggestions = {
       colorIdentity: suggestionColorIdentity,
-      items: buildRoleSuggestions({
-        roleRows: deckHealth.rows,
-        roleBreakdown,
-        deckColorIdentity: suggestionColorIdentity,
-        existingCardNames: parsedDeckView.flatMap((entry) =>
-          entry.resolvedName ? [entry.name, entry.resolvedName] : [entry.name]
-        ),
-        cardDatabase: analyzer.cardDatabase,
-        limit: 7
-      }),
+      items: [],
       disclaimer:
-        "Suggestions prioritize staple options, then backfill from Commander-legal engine-classified cards in your color identity. Existing deck cards are excluded."
+        "Suggestions load after the initial report so the first analysis returns faster."
     };
 
     const estimate = estimateBracket({
