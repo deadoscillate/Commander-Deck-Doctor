@@ -36,6 +36,7 @@ afterEach(() => {
   vi.resetModules();
   vi.unmock("@/lib/scryfall");
   vi.unmock("@/lib/analyzeTelemetryStore");
+  vi.unmock("@/lib/analyzeRuntime");
 });
 
 describe("POST /api/analyze", () => {
@@ -238,6 +239,8 @@ describe("POST /api/analyze", () => {
     expect(responseTwo.status).toBe(200);
     expect(responseOne.headers.get("x-analyze-cache")).toBe("miss");
     expect(responseTwo.headers.get("x-analyze-cache")).toBe("hit");
+    expect(responseOne.headers.get("x-analyze-cold-start")).toBe("1");
+    expect(responseTwo.headers.get("x-analyze-cold-start")).toBe("0");
     expect(responseOne.headers.get("x-analyze-lookup-ms")).toBeTruthy();
     expect(responseOne.headers.get("x-analyze-compute-ms")).toBeTruthy();
     expect(responseOne.headers.get("x-analyze-serialize-ms")).toBeTruthy();
@@ -314,6 +317,7 @@ describe("POST /api/analyze", () => {
     expect(recordAnalyzeTelemetryMock.mock.calls[0]?.[0]).toEqual(
       expect.objectContaining({
         cache: "miss",
+        coldStart: true,
         deckPriceMode: "decklist-set",
         setOverrideCount: 1,
         commanderSelected: true,
@@ -328,6 +332,7 @@ describe("POST /api/analyze", () => {
     expect(recordAnalyzeTelemetryMock.mock.calls[1]?.[0]).toEqual(
       expect.objectContaining({
         cache: "hit",
+        coldStart: false,
         deckPriceMode: "decklist-set",
         setOverrideCount: 1,
         commanderSelected: true,

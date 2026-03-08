@@ -1,0 +1,80 @@
+name: Warm Prod
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+  workflow_run:
+    workflows:
+      - CI
+    types:
+      - completed
+
+permissions:
+  contents: read
+
+jobs:
+  warm:
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' && github.event.workflow_run.head_branch == 'main')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      PROD_BASE_URL: ${{ vars.PROD_BASE_URL }}
+      PROD_WARMUP_TOKEN: ${{ secrets.PROD_WARMUP_TOKEN }}
+      VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+    steps:
+      - name: Select production URL
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE_URL="${PROD_BASE_URL:-https://commander-deck-doctor.vercel.app}"
+          echo "BASE_URL=$BASE_URL" >> "$GITHUB_ENV"
+          echo "Using BASE_URL=$BASE_URL"
+
+      - name: Wait for deployment readiness
+        shell: bash
+        run: |
+          set -euo pipefail
+          auth_args=()
+          probe_url="$BASE_URL/"
+          if [ -n "${VERCEL_AUTOMATION_BYPASS_SECRET:-}" ]; then
+            probe_url="${probe_url}?x-vercel-protection-bypass=${VERCEL_AUTOMATION_BYPASS_SECRET}"
+            auth_args+=(-H "x-vercel-protection-bypass: $VERCEL_AUTOMATION_BYPASS_SECRET")
+            auth_args+=(-H "x-vercel-set-bypass-cookie: true")
+          fi
+
+          for attempt in {1..20}; do
+            status=$(curl -sS -L -o /dev/null -w "%{http_code}" "${auth_args[@]}" "$probe_url")
+            if [ "$status" = "200" ]; then
+              echo "Production deployment is reachable."
+              exit 0
+            fi
+            echo "Attempt $attempt/20: homepage status $status (retrying in 10s)"
+            sleep 10
+          done
+
+          echo "Timed out waiting for production deployment."
+          exit 1
+
+      - name: Warm analyze runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          auth_args=()
+          target_url="$BASE_URL/api/warmup"
+
+          if [ -n "${VERCEL_AUTOMATION_BYPASS_SECRET:-}" ]; then
+            target_url="${target_url}?x-vercel-protection-bypass=${VERCEL_AUTOMATION_BYPASS_SECRET}"
+            auth_args+=(-H "x-vercel-protection-bypass: $VERCEL_AUTOMATION_BYPASS_SECRET")
+            auth_args+=(-H "x-vercel-set-bypass-cookie: true")
+          fi
+
+          if [ -n "${PROD_WARMUP_TOKEN:-}" ]; then
+            auth_args+=(-H "authorization: Bearer $PROD_WARMUP_TOKEN")
+          fi
+
+          body="$(mktemp)"
+          status=$(curl -sS -o "$body" -w "%{http_code}" "${auth_args[@]}" "$target_url")
+          test "$status" = "200"
+          grep -q '"ok":true' "$body"
+          cat "$body"

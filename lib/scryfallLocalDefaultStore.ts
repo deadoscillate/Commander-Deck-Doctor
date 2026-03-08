@@ -100,3 +100,9 @@ export function getLocalDefaultCardsByNames(names: string[]): Map<string, Scryfa
 
   return rows;
 }
+
+export function prewarmLocalDefaultCardStore(): { cardCount: number } {
+  return {
+    cardCount: loadCardsByName().size
+  };
+}

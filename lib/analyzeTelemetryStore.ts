@@ -4,6 +4,7 @@ import type { DeckPriceMode, ExpectedWinTurn } from "@/lib/contracts";
 export type AnalyzeTelemetryRecord = {
   requestId: string;
   cache: "hit" | "miss";
+  coldStart: boolean;
   totalMs: number;
   parseMs?: number;
   lookupMs?: number;
@@ -143,6 +144,7 @@ async function ensureTable(): Promise<void> {
           created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
           request_id TEXT NOT NULL,
           cache_status TEXT NOT NULL,
+          cold_start BOOLEAN NOT NULL DEFAULT FALSE,
           total_ms DOUBLE PRECISION NOT NULL,
           parse_ms DOUBLE PRECISION,
           lookup_ms DOUBLE PRECISION,
@@ -166,6 +168,12 @@ async function ensureTable(): Promise<void> {
       );
       await getPool().query(
         `
+        ALTER TABLE analyze_telemetry
+        ADD COLUMN IF NOT EXISTS cold_start BOOLEAN NOT NULL DEFAULT FALSE
+      `
+      );
+      await getPool().query(
+        `
         CREATE INDEX IF NOT EXISTS idx_analyze_telemetry_created_at
           ON analyze_telemetry (created_at DESC)
       `
@@ -174,6 +182,12 @@ async function ensureTable(): Promise<void> {
         `
         CREATE INDEX IF NOT EXISTS idx_analyze_telemetry_cache_status
           ON analyze_telemetry (cache_status, created_at DESC)
+      `
+      );
+      await getPool().query(
+        `
+        CREATE INDEX IF NOT EXISTS idx_analyze_telemetry_cold_start
+          ON analyze_telemetry (cold_start, created_at DESC)
       `
       );
     })().catch((error) => {
@@ -239,6 +253,7 @@ export async function recordAnalyzeTelemetry(record: AnalyzeTelemetryRecord): Pr
       INSERT INTO analyze_telemetry (
         request_id,
         cache_status,
+        cold_start,
         total_ms,
         parse_ms,
         lookup_ms,
@@ -260,12 +275,13 @@ export async function recordAnalyzeTelemetry(record: AnalyzeTelemetryRecord): Pr
       )
       VALUES (
         $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
-        $11, $12, $13, $14, $15, $16, $17, $18, $19, $20
+        $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21
       )
     `,
       [
         record.requestId,
         record.cache,
+        record.coldStart,
         record.totalMs,
         toFiniteNumber(record.parseMs),
         toFiniteNumber(record.lookupMs),

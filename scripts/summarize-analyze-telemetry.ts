@@ -28,6 +28,15 @@ type PricingModeRow = {
   p95_compute_ms: string | null;
 };
 
+type ColdStartRow = {
+  cold_start: boolean;
+  requests: string;
+  avg_total_ms: string | null;
+  p50_total_ms: string | null;
+  p95_total_ms: string | null;
+  p95_lookup_ms: string | null;
+};
+
 type SlowShapeRow = {
   deck_price_mode: string;
   set_override_count: string | null;
@@ -249,7 +258,7 @@ async function main(): Promise<void> {
   });
 
   try {
-    const [cacheMix, byPricingMode, slowShapes, dailyTrend, totals] = await Promise.all([
+    const [cacheMix, byPricingMode, coldStartMisses, slowShapes, dailyTrend, totals] = await Promise.all([
       pool.query<CacheMixRow>(
         `
         ${filtered.sql}
@@ -279,6 +288,23 @@ async function main(): Promise<void> {
         from filtered
         group by deck_price_mode, cache_status
         order by deck_price_mode, cache_status
+      `,
+        filtered.params
+      ),
+      pool.query<ColdStartRow>(
+        `
+        ${filtered.sql}
+        select
+          cold_start,
+          count(*) as requests,
+          round(avg(total_ms)::numeric, 1) as avg_total_ms,
+          round(percentile_cont(0.5) within group (order by total_ms)::numeric, 1) as p50_total_ms,
+          round(percentile_cont(0.95) within group (order by total_ms)::numeric, 1) as p95_total_ms,
+          round(percentile_cont(0.95) within group (order by lookup_ms)::numeric, 1) as p95_lookup_ms
+        from filtered
+        where cache_status = 'miss'
+        group by cold_start
+        order by cold_start desc
       `,
         filtered.params
       ),
@@ -355,6 +381,14 @@ async function main(): Promise<void> {
           `| ${row.deck_price_mode} | ${row.cache_status} | ${toDisplayInt(row.requests)} | ${toDisplayNumber(row.p50_total_ms)} | ${toDisplayNumber(row.p95_total_ms)} | ${toDisplayNumber(row.p95_lookup_ms)} | ${toDisplayNumber(row.p95_compute_ms)} |`
       ),
       ``,
+      `## Cold Start Misses`,
+      `| Cold Start | Requests | Avg Total (ms) | P50 Total (ms) | P95 Total (ms) | P95 Lookup (ms) |`,
+      `| --- | ---: | ---: | ---: | ---: | ---: |`,
+      ...coldStartMisses.rows.map(
+        (row) =>
+          `| ${row.cold_start ? "yes" : "no"} | ${toDisplayInt(row.requests)} | ${toDisplayNumber(row.avg_total_ms)} | ${toDisplayNumber(row.p50_total_ms)} | ${toDisplayNumber(row.p95_total_ms)} | ${toDisplayNumber(row.p95_lookup_ms)} |`
+      ),
+      ``,
       `## Slow Miss Shapes`,
       `| Pricing Mode | Set Overrides | Deck Size | Commander Source | Requests | Avg Total (ms) | P95 Total (ms) |`,
       `| --- | ---: | ---: | --- | ---: | ---: | ---: |`,
@@ -385,6 +419,7 @@ async function main(): Promise<void> {
         totals: totalRow,
         cacheMix: cacheMix.rows,
         byPricingMode: byPricingMode.rows,
+        coldStartMisses: coldStartMisses.rows,
         slowShapes: slowShapes.rows,
         dailyTrend: dailyTrend.rows
       },

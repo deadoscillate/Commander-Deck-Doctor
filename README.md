@@ -136,13 +136,14 @@ Current sync includes:
 - Shared report persistence uses Neon Postgres (`POSTGRES_URL` or `DATABASE_URL`).
 - Sampled analyzer performance telemetry can be stored in Postgres for production `/api/analyze` requests.
 - `/api/analyze` runs on Node runtime and loads local compiled Scryfall data.
+- `/api/warmup` can pre-initialize the analyze runtime on a fresh instance before user traffic hits it.
 - Security headers are configured at the framework level (XFO, XCTO, Referrer-Policy, Permissions-Policy, CSP, HSTS).
 - All public API routes use scoped rate limiting.
 
 ### Analyze Telemetry
 
 - Purpose: capture real production timing data for `/api/analyze` so lookup/computation bottlenecks can be optimized with live evidence.
-- Stored fields are operational only: cache hit/miss, timing stages, response size, deck size, known/unknown counts, pricing mode, commander-selection metadata, and related request-shape flags.
+- Stored fields are operational only: cache hit/miss, cold-start flag, timing stages, response size, deck size, known/unknown counts, pricing mode, commander-selection metadata, and related request-shape flags.
 - Raw decklists are intentionally excluded from this telemetry dataset.
 - Environment controls:
   - `ANALYZE_TELEMETRY_ENABLED=1` to force-enable telemetry outside production, `0` to disable.
@@ -156,6 +157,10 @@ Current sync includes:
   - manual runs now support `days`, `since`, and `last` inputs so post-deploy reports can be sliced precisely
   - publishes `latest.md` and `latest.json` to the `telemetry-reports` branch
   - also uploads a workflow artifact for backup
+- Warmup Action: `.github/workflows/warm-prod.yml`
+  - scheduled every 15 minutes
+  - also runs after successful `main` CI completion and on manual dispatch
+  - hits `GET /api/warmup` to keep the analyzer runtime hot
 - Codex review flow:
   - trigger the workflow
   - for a new deploy, prefer `since=<deploy timestamp>` and optionally `last=<N>`
@@ -164,6 +169,10 @@ Current sync includes:
   - secret: `PROD_DATABASE_URL` (recommended) or `DATABASE_URL`
   - optional repo variable: `TELEMETRY_REPORT_DAYS`
   - optional repo variable: `TELEMETRY_REPORT_BRANCH`
+- Warmup configuration:
+  - optional app env: `ANALYZE_WARMUP_TOKEN`
+  - optional repo secret: `PROD_WARMUP_TOKEN`
+  - if a token is configured in the app, the workflow should send the same value as a bearer token
 
 ## Branch Flow
 
@@ -182,6 +191,7 @@ Recommended flow:
 - `POST /api/improvement-suggestions`
 - `POST /api/share-report`
 - `POST /api/simulate`
+- `GET /api/warmup`
 - `GET /api/card-printings`
 
 ## Current Scope
@@ -254,6 +264,7 @@ Current product standards for ethical operation:
 8. Completed: improvement suggestions were moved off the initial analyze path into `POST /api/improvement-suggestions`, removing the largest compute-phase hotspot from first-report latency.
 9. Completed: mobile layout hardening added overflow guards, stacked export actions, and more reliable tab scrolling for narrow screens.
 10. Ongoing: continue lowering `lookup` stage time, with focus now narrowed to the remaining `oracle-default` cold-miss path.
+11. Started: explicit cold-start telemetry and scheduled runtime warmup now exist so cold-instance latency can be separated from normal miss-path latency in prod.
 
 ### Phase 1 Benchmark Snapshot (March 8, 2026)
 

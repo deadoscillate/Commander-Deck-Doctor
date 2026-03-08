@@ -10,13 +10,18 @@ import {
 import { CardDatabase } from "@/engine/cards/CardDatabase";
 import type { CardDefinition } from "@/engine/core/types";
 import { getCachedScryfallCards, saveCachedScryfallCards } from "./scryfallCardCacheStore";
-import { getLocalDefaultCardByName, getLocalDefaultCardsByNames } from "./scryfallLocalDefaultStore";
+import {
+  getLocalDefaultCardByName,
+  getLocalDefaultCardsByNames,
+  prewarmLocalDefaultCardStore
+} from "./scryfallLocalDefaultStore";
 import {
   getLocalPrintCardById,
   getLocalPrintCardByNameSet,
   getLocalPrintCardBySetCollector,
   type LocalPrintCardRecord
 } from "./scryfallLocalPrintIndexStore";
+import { prewarmSqlitePrintStore } from "./scryfallLocalPrintSqliteStore";
 
 /**
  * Scryfall integration for card lookups.
@@ -1074,4 +1079,20 @@ export async function fetchDeckCards(
   }
 
   return { knownCards, unknownCards };
+}
+
+export async function prewarmScryfallRuntime(): Promise<{
+  oracleCardCount: number;
+  defaultCardCount: number;
+  sqliteAvailable: boolean;
+}> {
+  const oracleDb = getLocalOracleDatabase();
+  const defaultStore = prewarmLocalDefaultCardStore();
+  const sqlite = await prewarmSqlitePrintStore();
+
+  return {
+    oracleCardCount: oracleDb.cardCount(),
+    defaultCardCount: defaultStore.cardCount,
+    sqliteAvailable: sqlite.available
+  };
 }

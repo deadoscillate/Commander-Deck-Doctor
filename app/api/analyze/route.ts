@@ -1,5 +1,4 @@
 import { computeDeckSummary, computeRoleBreakdown, computeRoleCounts, computeTutorSummary } from "@/lib/analysis";
-import type { EngineApi } from "@/engine";
 import { computeDeckArchetypes } from "@/lib/archetypes";
 import {
   buildBracketExplanation,
@@ -8,6 +7,7 @@ import {
   computeMassLandDenial,
   estimateBracket
 } from "@/lib/brackets";
+import { getAnalyzerEngine, getDetectCombosInDeck } from "@/lib/analyzeRuntime";
 import type { AnalyzeRequest, DeckPriceMode, DeckPriceSummary, ExpectedWinTurn } from "@/lib/contracts";
 import { buildDeckHealthReport } from "@/lib/deckHealth";
 import { parseDecklistWithCommander } from "@/lib/decklist";
@@ -21,6 +21,7 @@ import type { ScryfallCard } from "@/lib/types";
 import { apiJson, getRequestId, parseJsonBody } from "@/lib/api/http";
 import { buildRateLimitHeaders, checkRateLimit } from "@/lib/api/rateLimit";
 import { reportApiError } from "@/lib/api/monitoring";
+import { consumeRuntimeColdStart } from "@/lib/runtimeWarmState";
 
 export const runtime = "nodejs";
 
@@ -40,14 +41,12 @@ type AnalyzeCacheEntry = {
   payload: unknown;
 };
 
-type DetectCombosInDeckFn = typeof import("@/lib/combos").detectCombosInDeck;
-
-let analyzerEnginePromise: Promise<EngineApi> | null = null;
-let detectCombosInDeckFn: DetectCombosInDeckFn | null = null;
 const analyzeResponseCache = new Map<string, AnalyzeCacheEntry>();
 
 type AnalyzeMetricsInput = {
   cache: "hit" | "miss";
+  coldStart?: boolean;
+  instanceUptimeMs?: number;
   totalMs: number;
   parseMs?: number;
   lookupMs?: number;
@@ -72,6 +71,13 @@ function buildAnalyzeMetricsHeaders(metrics: AnalyzeMetricsInput): Record<string
     "x-analyze-cache": metrics.cache,
     "x-analyze-total-ms": toMetricValue(metrics.totalMs) ?? "0"
   };
+
+  if (typeof metrics.coldStart === "boolean") {
+    headers["x-analyze-cold-start"] = metrics.coldStart ? "1" : "0";
+  }
+
+  const instanceUptimeMs = toMetricValue(metrics.instanceUptimeMs);
+  if (instanceUptimeMs) headers["x-analyze-instance-uptime-ms"] = instanceUptimeMs;
 
   const parseMs = toMetricValue(metrics.parseMs);
   if (parseMs) headers["x-analyze-parse-ms"] = parseMs;
@@ -113,39 +119,6 @@ function maybeLogAnalyzeProfile(requestId: string, metrics: AnalyzeMetricsInput)
     requestId,
     ...metrics
   });
-}
-
-async function getAnalyzerEngine(): Promise<EngineApi> {
-  if (!analyzerEnginePromise) {
-    analyzerEnginePromise = (async () => {
-      const engineModule = await import("@/engine");
-
-      try {
-        return engineModule.createEngine();
-      } catch {
-        return engineModule.createEngine({
-          cardDatabase: engineModule.CardDatabase.createWithEngineSet()
-        });
-      }
-    })();
-  }
-
-  try {
-    return await analyzerEnginePromise;
-  } catch (error) {
-    analyzerEnginePromise = null;
-    throw error;
-  }
-}
-
-async function getDetectCombosInDeck(): Promise<DetectCombosInDeckFn> {
-  if (detectCombosInDeckFn) {
-    return detectCombosInDeckFn;
-  }
-
-  const combosModule = await import("@/lib/combos");
-  detectCombosInDeckFn = combosModule.detectCombosInDeck;
-  return detectCombosInDeckFn;
 }
 
 /**
@@ -494,6 +467,7 @@ function buildDeckPriceSummary(
 export async function POST(request: Request) {
   const requestStartedAt = performance.now();
   const requestId = getRequestId(request);
+  const runtimeWarmSnapshot = consumeRuntimeColdStart();
   const rateLimit = await checkRateLimit(request, ANALYZE_RATE_LIMIT);
   const rateLimitHeaders = buildRateLimitHeaders(rateLimit);
   if (!rateLimit.allowed) {
@@ -566,6 +540,8 @@ export async function POST(request: Request) {
       const serializeCompletedAt = performance.now();
       const metrics = {
         cache: "hit" as const,
+        coldStart: runtimeWarmSnapshot.coldStart,
+        instanceUptimeMs: runtimeWarmSnapshot.instanceUptimeMs,
         totalMs: performance.now() - requestStartedAt,
         parseMs: parseCompletedAt - parseStartedAt,
         serializeMs: serializeCompletedAt - serializeStartedAt,
@@ -578,6 +554,7 @@ export async function POST(request: Request) {
         ...metrics,
         deckPriceMode,
         setOverrideCount: setOverridesByCardName.size,
+        coldStart: runtimeWarmSnapshot.coldStart,
         commanderSelected: Boolean(selectedCommanderForCache),
         commanderSource,
         targetBracket,
@@ -924,6 +901,8 @@ export async function POST(request: Request) {
     const serializeCompletedAt = performance.now();
     const metrics = {
       cache: "miss" as const,
+      coldStart: runtimeWarmSnapshot.coldStart,
+      instanceUptimeMs: runtimeWarmSnapshot.instanceUptimeMs,
       totalMs: performance.now() - requestStartedAt,
       parseMs: parseCompletedAt - parseStartedAt,
       lookupMs: lookupCompletedAt - lookupStartedAt,
@@ -940,6 +919,7 @@ export async function POST(request: Request) {
       ...metrics,
       deckPriceMode,
       setOverrideCount: setOverridesByCardName.size,
+      coldStart: runtimeWarmSnapshot.coldStart,
       commanderSelected: Boolean(selectedCommanderName),
       commanderSource,
       targetBracket,

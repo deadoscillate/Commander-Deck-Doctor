@@ -544,3 +544,13 @@ export async function getSqlitePrintCardsByNameSets(
 
   return results;
 }
+
+export async function prewarmSqlitePrintStore(): Promise<{ available: boolean }> {
+  const database = await ensureDb();
+  if (!database) {
+    return { available: false };
+  }
+
+  await Promise.all([getByIdStatement(), getBySetCollectorStatement(), getByNameSetStatement()]);
+  return { available: true };
+}
