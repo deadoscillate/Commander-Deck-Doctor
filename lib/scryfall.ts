@@ -7,7 +7,16 @@ import {
   ScryfallPurchaseUris,
   ScryfallPrices
 } from "./types";
+import { CardDatabase } from "@/engine/cards/CardDatabase";
+import type { CardDefinition } from "@/engine/core/types";
 import { getCachedScryfallCards, saveCachedScryfallCards } from "./scryfallCardCacheStore";
+import { getLocalDefaultCardByName, getLocalDefaultCardsByNames } from "./scryfallLocalDefaultStore";
+import {
+  getLocalPrintCardById,
+  getLocalPrintCardByNameSet,
+  getLocalPrintCardBySetCollector,
+  type LocalPrintCardRecord
+} from "./scryfallLocalPrintIndexStore";
 
 /**
  * Scryfall integration for card lookups.
@@ -25,6 +34,7 @@ const SCRYFALL_HEADERS = {
 } as const;
 // Promise cache deduplicates repeated lookups for identical identifiers.
 const cardCache = new Map<string, Promise<ScryfallCard | null>>();
+let localOracleDatabase: CardDatabase | null = null;
 
 type DeckPriceMode = "oracle-default" | "decklist-set";
 type BatchLookupMode = "precise" | "name";
@@ -65,6 +75,12 @@ type BatchLookupMaps = {
   bySetCollector: Map<string, ScryfallCard>;
   byNameSet: Map<string, ScryfallCard>;
   byName: Map<string, ScryfallCard>;
+};
+
+type LocalPrintLookupMaps = {
+  byId: Map<string, ScryfallCard>;
+  bySetCollector: Map<string, ScryfallCard>;
+  byNameSet: Map<string, ScryfallCard>;
 };
 
 function normalizeScryfallCard(data: ScryfallApiCard): ScryfallCard {
@@ -170,6 +186,110 @@ function createEmptyBatchLookupMaps(): BatchLookupMaps {
   };
 }
 
+function createEmptyLocalPrintLookupMaps(): LocalPrintLookupMaps {
+  return {
+    byId: new Map<string, ScryfallCard>(),
+    bySetCollector: new Map<string, ScryfallCard>(),
+    byNameSet: new Map<string, ScryfallCard>()
+  };
+}
+
+function getLocalOracleDatabase(): CardDatabase {
+  if (!localOracleDatabase) {
+    try {
+      localOracleDatabase = CardDatabase.loadFromCompiledFile();
+    } catch {
+      localOracleDatabase = CardDatabase.createWithEngineSet();
+    }
+  }
+
+  return localOracleDatabase;
+}
+
+function toLocalScryfallCard(card: CardDefinition): ScryfallCard {
+  return {
+    oracle_id: card.oracleId,
+    name: card.name,
+    type_line: card.typeLine,
+    cmc: card.mv,
+    mana_cost: card.manaCost ?? "",
+    colors: [...card.colors],
+    color_identity: [...card.colorIdentity],
+    oracle_text: card.oracleText ?? "",
+    keywords: [...card.keywords],
+    image_uris: null,
+    card_faces: card.faces.map((face) => ({
+      oracle_text: face.oracleText ?? "",
+      mana_cost: face.manaCost ?? undefined
+    })),
+    prices: null,
+    purchase_uris: null
+  };
+}
+
+function toScryfallCardFromLocalPrintRecord(record: LocalPrintCardRecord): ScryfallCard | null {
+  const db = getLocalOracleDatabase();
+  const oracleCard = db.getCardByOracleId(record.oracle_id) ?? db.getCardByName(record.name);
+  if (!oracleCard) {
+    return null;
+  }
+
+  const faceImagesByName = new Map(
+    record.card_faces
+      .filter((face) => typeof face?.name === "string" && face.name.trim().length > 0)
+      .map((face) => [normalizeLookupName(face.name ?? ""), face.image_uris ?? undefined] as const)
+  );
+
+  return {
+    id: record.id,
+    oracle_id: record.oracle_id,
+    set: record.set,
+    collector_number: record.collector_number,
+    name: oracleCard.name,
+    type_line: oracleCard.typeLine,
+    cmc: oracleCard.mv,
+    mana_cost: oracleCard.manaCost ?? "",
+    colors: [...oracleCard.colors],
+    color_identity: [...oracleCard.colorIdentity],
+    oracle_text: oracleCard.oracleText ?? "",
+    keywords: [...oracleCard.keywords],
+    image_uris: record.image_uris ?? null,
+    card_faces: oracleCard.faces.map((face) => ({
+      oracle_text: face.oracleText ?? "",
+      mana_cost: face.manaCost ?? undefined,
+      image_uris: faceImagesByName.get(normalizeLookupName(face.name)) ?? undefined
+    })),
+    prices: record.prices ?? null,
+    purchase_uris: record.purchase_uris ?? null
+  };
+}
+
+function getLocalOracleFallbackCardsByNames(names: string[]): Map<string, ScryfallCard> {
+  const db = getLocalOracleDatabase();
+  const rows = new Map<string, ScryfallCard>();
+
+  for (const name of names) {
+    const trimmed = typeof name === "string" ? name.trim() : "";
+    if (!trimmed) {
+      continue;
+    }
+
+    const key = buildNameKey(trimmed);
+    if (rows.has(key)) {
+      continue;
+    }
+
+    const card = db.getCardByName(trimmed);
+    if (!card) {
+      continue;
+    }
+
+    rows.set(key, toLocalScryfallCard(card));
+  }
+
+  return rows;
+}
+
 function buildCacheEntriesForCard(card: ScryfallCard): Array<{ key: string; card: ScryfallCard }> {
   const rows = new Map<string, ScryfallCard>();
   rows.set(buildNameKey(card.name), card);
@@ -217,6 +337,28 @@ function applyCardToLookupMaps(lookups: BatchLookupMaps, card: ScryfallCard): vo
   }
   if (card.id) {
     lookups.byId.set(buildPrintingIdKey(card.id), card);
+  }
+}
+
+function applyCardToLocalPrintLookupMaps(
+  lookups: LocalPrintLookupMaps,
+  entry: ParsedDeckEntry,
+  card: ScryfallCard
+): void {
+  if (card.id) {
+    lookups.byId.set(buildPrintingIdKey(card.id), card);
+  }
+
+  const setCode = typeof entry.setCode === "string" ? entry.setCode.trim().toLowerCase() : "";
+  const collectorNumber =
+    typeof entry.collectorNumber === "string" ? entry.collectorNumber.trim() : "";
+
+  if (setCode && collectorNumber) {
+    lookups.bySetCollector.set(buildSetCollectorKey(setCode, collectorNumber), card);
+  }
+
+  if (setCode) {
+    lookups.byNameSet.set(buildNameSetKey(entry.name, setCode), card);
   }
 }
 
@@ -386,6 +528,51 @@ async function fetchCardsByBatchIdentifiers(
   return resolved;
 }
 
+function getLocalPrintLookupMaps(parsedDeck: ParsedDeckEntry[]): LocalPrintLookupMaps {
+  const lookups = createEmptyLocalPrintLookupMaps();
+  const persistedCards: ScryfallCard[] = [];
+
+  for (const entry of parsedDeck) {
+    let card: ScryfallCard | null = null;
+    const printingId = typeof entry.printingId === "string" ? entry.printingId.trim() : "";
+    const setCode = typeof entry.setCode === "string" ? entry.setCode.trim().toLowerCase() : "";
+    const collectorNumber =
+      typeof entry.collectorNumber === "string" ? entry.collectorNumber.trim() : "";
+
+    if (printingId) {
+      const record = getLocalPrintCardById(printingId);
+      if (record) {
+        card = toScryfallCardFromLocalPrintRecord(record);
+      }
+    }
+
+    if (!card && setCode && collectorNumber) {
+      const record = getLocalPrintCardBySetCollector(setCode, collectorNumber);
+      if (record && normalizeLookupName(record.name) === normalizeLookupName(entry.name)) {
+        card = toScryfallCardFromLocalPrintRecord(record);
+      }
+    }
+
+    if (!card && setCode) {
+      const record = getLocalPrintCardByNameSet(entry.name, setCode);
+      if (record && (!collectorNumber || collectorNumberMatches(collectorNumber, record.collector_number))) {
+        card = toScryfallCardFromLocalPrintRecord(record);
+      }
+    }
+
+    if (!card) {
+      continue;
+    }
+
+    applyCardToLocalPrintLookupMaps(lookups, entry, card);
+    primeMemoryCache(card);
+    persistedCards.push(card);
+  }
+
+  persistCards(persistedCards);
+  return lookups;
+}
+
 async function fetchNamedCard(
   key: "exact" | "fuzzy",
   name: string,
@@ -485,6 +672,12 @@ export async function getCardByName(name: string): Promise<ScryfallCard | null> 
     return cached.get(key) ?? null;
   }
 
+  const localDefault = getLocalDefaultCardByName(name);
+  if (localDefault) {
+    primeMemoryCache(localDefault);
+    return localDefault;
+  }
+
   const pending = (async () => {
     const exact = await fetchNamedCard("exact", name);
     if (exact) {
@@ -517,6 +710,16 @@ export async function getCardById(printingId: string): Promise<ScryfallCard | nu
     return cached.get(key) ?? null;
   }
 
+  const localPrint = getLocalPrintCardById(normalizedId);
+  if (localPrint) {
+    const localCard = toScryfallCardFromLocalPrintRecord(localPrint);
+    if (localCard) {
+      primeMemoryCache(localCard);
+      persistCards([localCard]);
+      return localCard;
+    }
+  }
+
   const pending = (async () => {
     const card = await fetchCardById(normalizedId);
     if (card) {
@@ -542,6 +745,22 @@ export async function getCardByNameWithSet(name: string, setCode: string): Promi
     return cached.get(key) ?? null;
   }
 
+  const localPrint = getLocalPrintCardByNameSet(name, normalizedSet);
+  if (localPrint) {
+    const localCard = toScryfallCardFromLocalPrintRecord(localPrint);
+    if (localCard) {
+      primeMemoryCache(localCard);
+      persistCards([localCard]);
+      return localCard;
+    }
+  }
+
+  const localDefault = getLocalDefaultCardByName(name);
+  if (localDefault?.set === normalizedSet) {
+    primeMemoryCache(localDefault);
+    return localDefault;
+  }
+
   const pending = (async () => {
     const exact = await fetchNamedCard("exact", name, { setCode: normalizedSet });
     if (exact) {
@@ -555,7 +774,16 @@ export async function getCardByNameWithSet(name: string, setCode: string): Promi
       primeMemoryCache(fuzzy);
       persistCards([fuzzy]);
     }
-    return fuzzy;
+    if (fuzzy) {
+      return fuzzy;
+    }
+
+    if (localDefault) {
+      primeMemoryCache(localDefault);
+      return localDefault;
+    }
+
+    return null;
   })();
 
   cardCache.set(key, pending);
@@ -578,6 +806,16 @@ async function getCardBySetAndCollector(
     return cached.get(key) ?? null;
   }
 
+  const localPrint = getLocalPrintCardBySetCollector(normalizedSet, normalizedCollector);
+  if (localPrint) {
+    const localCard = toScryfallCardFromLocalPrintRecord(localPrint);
+    if (localCard) {
+      primeMemoryCache(localCard);
+      persistCards([localCard]);
+      return localCard;
+    }
+  }
+
   const pending = (async () => {
     const card = await fetchCardBySetAndCollector(normalizedSet, normalizedCollector);
     if (card) {
@@ -589,6 +827,42 @@ async function getCardBySetAndCollector(
 
   cardCache.set(key, pending);
   return pending;
+}
+
+function resolveCardFromLocalPrintLookups(
+  entry: ParsedDeckEntry,
+  lookups: LocalPrintLookupMaps
+): ScryfallCard | null {
+  const printingId =
+    typeof entry.printingId === "string" && entry.printingId.trim() ? entry.printingId : null;
+  const setCode = typeof entry.setCode === "string" && entry.setCode.trim() ? entry.setCode : null;
+  const collectorNumber =
+    typeof entry.collectorNumber === "string" && entry.collectorNumber.trim()
+      ? entry.collectorNumber
+      : null;
+
+  if (printingId) {
+    const byId = lookups.byId.get(buildPrintingIdKey(printingId));
+    if (byId) {
+      return byId;
+    }
+  }
+
+  if (setCode && collectorNumber) {
+    const byCollector = lookups.bySetCollector.get(buildSetCollectorKey(setCode, collectorNumber));
+    if (byCollector) {
+      return byCollector;
+    }
+  }
+
+  if (setCode) {
+    const byNameSet = lookups.byNameSet.get(buildNameSetKey(entry.name, setCode));
+    if (byNameSet) {
+      return byNameSet;
+    }
+  }
+
+  return null;
 }
 
 function resolveCardFromBatchLookups(
@@ -668,14 +942,39 @@ export async function fetchDeckCards(
   options?: { deckPriceMode?: DeckPriceMode }
 ): Promise<{ knownCards: DeckCard[]; unknownCards: string[] }> {
   const mode = options?.deckPriceMode ?? "oracle-default";
-  const preciseLookups = await fetchCardsByBatchIdentifiers(parsedDeck, {
-    lookupMode: mode === "decklist-set" ? "precise" : "name"
-  });
-  let nameLookups: BatchLookupMaps | null = mode === "oracle-default" ? preciseLookups : null;
+  let localDefaultLookups = new Map<string, ScryfallCard>();
+  let localPrintLookups = createEmptyLocalPrintLookupMaps();
+  let preciseLookups = createEmptyBatchLookupMaps();
+  let nameLookups: BatchLookupMaps | null = null;
+
+  if (mode === "oracle-default") {
+    localDefaultLookups = getLocalDefaultCardsByNames(parsedDeck.map((entry) => entry.name));
+    const unresolvedForNetwork = parsedDeck.filter(
+      (entry) => !localDefaultLookups.has(buildNameKey(entry.name))
+    );
+    if (unresolvedForNetwork.length > 0) {
+      preciseLookups = await fetchCardsByBatchIdentifiers(unresolvedForNetwork, {
+        lookupMode: "name"
+      });
+      nameLookups = preciseLookups;
+    }
+  } else {
+    localPrintLookups = getLocalPrintLookupMaps(parsedDeck);
+    const unresolvedForPreciseBatch = parsedDeck.filter(
+      (entry) => !resolveCardFromLocalPrintLookups(entry, localPrintLookups)
+    );
+    if (unresolvedForPreciseBatch.length > 0) {
+      preciseLookups = await fetchCardsByBatchIdentifiers(unresolvedForPreciseBatch, {
+        lookupMode: "precise"
+      });
+    }
+  }
 
   if (mode === "decklist-set") {
     const unresolvedForNameBatch = parsedDeck.filter(
-      (entry) => !resolveCardFromBatchLookups(entry, mode, preciseLookups, null)
+      (entry) =>
+        !resolveCardFromLocalPrintLookups(entry, localPrintLookups) &&
+        !resolveCardFromBatchLookups(entry, mode, preciseLookups, null)
     );
     if (unresolvedForNameBatch.length > 0) {
       nameLookups = await fetchCardsByBatchIdentifiers(unresolvedForNameBatch, {
@@ -684,6 +983,30 @@ export async function fetchDeckCards(
     }
   }
 
+  if (mode === "decklist-set") {
+    const unresolvedForLocalDefault = parsedDeck.filter(
+      (entry) =>
+        !resolveCardFromLocalPrintLookups(entry, localPrintLookups) &&
+        !resolveCardFromBatchLookups(entry, mode, preciseLookups, nameLookups)
+    );
+    if (unresolvedForLocalDefault.length > 0) {
+      localDefaultLookups = getLocalDefaultCardsByNames(
+        unresolvedForLocalDefault.map((entry) => entry.name)
+      );
+    }
+  }
+
+  const localOracleFallbacks = getLocalOracleFallbackCardsByNames(
+    parsedDeck
+      .filter((entry) => {
+        const resolvedFromLocalPrint = resolveCardFromLocalPrintLookups(entry, localPrintLookups);
+        const resolvedFromBatch = resolveCardFromBatchLookups(entry, mode, preciseLookups, nameLookups);
+        const resolvedFromDefault = localDefaultLookups.get(buildNameKey(entry.name)) ?? null;
+        return !resolvedFromLocalPrint && !resolvedFromBatch && !resolvedFromDefault;
+      })
+      .map((entry) => entry.name)
+  );
+
   const lookedUp = await mapWithConcurrency(parsedDeck, Math.max(1, concurrency), async (entry) => {
     const setCode = typeof entry.setCode === "string" && entry.setCode.trim() ? entry.setCode : null;
     const collectorNumber =
@@ -691,7 +1014,13 @@ export async function fetchDeckCards(
         ? entry.collectorNumber
         : null;
     const batchByName = nameLookups?.byName.get(buildNameKey(entry.name)) ?? null;
-    let card: ScryfallCard | null = resolveCardFromBatchLookups(entry, mode, preciseLookups, nameLookups);
+    const localDefault = localDefaultLookups.get(buildNameKey(entry.name)) ?? null;
+    const localFallback = localOracleFallbacks.get(buildNameKey(entry.name)) ?? null;
+    const localPrint = resolveCardFromLocalPrintLookups(entry, localPrintLookups);
+    let card: ScryfallCard | null =
+      mode === "oracle-default"
+        ? localDefault ?? resolveCardFromBatchLookups(entry, mode, preciseLookups, nameLookups)
+        : localPrint ?? resolveCardFromBatchLookups(entry, mode, preciseLookups, nameLookups);
 
     if (mode === "decklist-set" && !card && setCode) {
       card = await getCardByNameWithSet(entry.name, setCode);
@@ -701,8 +1030,12 @@ export async function fetchDeckCards(
       card = await getCardBySetAndCollector(setCode, collectorNumber);
     }
 
+    if (mode === "decklist-set" && !card) {
+      card = localDefault ?? localFallback;
+    }
+
     if (!card) {
-      card = batchByName ?? (await getCardByName(entry.name));
+      card = batchByName ?? localFallback ?? (await getCardByName(entry.name));
     }
 
     return { entry, card };

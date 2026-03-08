@@ -48,6 +48,9 @@ Notes:
 The app/engine read from the local compiled Oracle file:
 
 - `data/scryfall/oracle-cards.compiled.json`
+- `data/scryfall/default-cards.compiled.json.gz`
+- `data/scryfall/print-index/manifest.compiled.json.gz`
+- `data/scryfall/print-index/shards/*.json.gz`
 
 Update pipeline:
 
@@ -60,6 +63,8 @@ This runs download + compile. Build also verifies compiled data exists.
 Notes:
 
 - Raw Oracle downloads are ignored by git.
+- `oracle-default` analysis now uses local default-print card data first, which includes prices and image metadata without blocking on live Scryfall for common miss-path requests.
+- `decklist-set` print-aware lookup now uses a bucketed local print index for exact `id`, `set+collector`, and `name+set` resolution before falling back to live Scryfall.
 - Engine/tests do not require Scryfall network access at runtime.
 
 ## Combo Data (Commander Spellbook Snapshot)
@@ -237,7 +242,9 @@ Current product standards for ethical operation:
 3. Completed: cache-hit/miss and response-size instrumentation is regression-tested.
 4. Completed: UI interaction smoke coverage now includes analyze flow, commander re-selection, report tabs, and printing modal UX (desktop/mobile viewport test included).
 5. Completed: miss-path card resolution now uses a two-pass strategy (`precise identifiers` -> unresolved `name batch`) plus a persistent resolved-card cache to reduce repeated live Scryfall work.
-6. Ongoing: continue lowering `lookup` stage time for slow external conditions using additional fallback/caching strategies and broader local-data usage.
+6. Completed: `oracle-default` resolution now uses a local default-print Scryfall snapshot first, with live Scryfall only as fallback for missing or set-specific print lookups.
+7. Completed: `decklist-set` print-aware resolution now uses a bucketed local print index for exact print lookups without paying the parse cost of one monolithic print dataset.
+8. Ongoing: continue lowering `lookup` stage time for slow external conditions using additional fallback/caching strategies and broader local-data usage.
 
 ### Phase 1 Benchmark Snapshot (March 8, 2026)
 
@@ -252,6 +259,12 @@ Deck used: `tests/fixtures/kentaro-benchmark.decklist.txt` (74 non-empty lines, 
 - Current warmed miss with persistent card cache available:
   - `decklist-set` miss: ~1384.1ms total (`parse 2.1ms`, `lookup 869.5ms`, `compute 505.3ms`, `serialize 0.2ms`)
   - `oracle-default` miss: ~1291.6ms total (`parse 2.0ms`, `lookup 782.0ms`, `compute 501.3ms`, `serialize 0.2ms`)
+- Current cold miss after local default-print enrichment:
+  - `oracle-default` miss: ~1922.3ms total (`parse 1.8ms`, `lookup 1390.0ms`, `compute 523.6ms`, `serialize 0.4ms`)
+  - `decklist-set` miss: ~2266.4ms total (`parse 1.8ms`, `lookup 1707.3ms`, `compute 550.5ms`, `serialize 0.3ms`)
+- Current cold miss after trimmed local data payloads + bucketed print index:
+  - `oracle-default` miss: ~1748.3ms total (`parse 3.9ms`, `lookup 1236.5ms`, `compute 501.3ms`, `serialize 0.3ms`)
+  - `decklist-set` miss: ~2212.3ms total (`parse 1.9ms`, `lookup 1690.8ms`, `compute 511.3ms`, `serialize 0.3ms`)
 - Cache hits for repeated identical requests remain ~1-2ms total.
 
 Reproduce:

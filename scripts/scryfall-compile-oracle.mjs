@@ -1,32 +1,91 @@
 import fs from "node:fs/promises";
 import path from "node:path";
+import zlib from "node:zlib";
 
 const OUTPUT_DIR = path.resolve("data/scryfall");
-const RAW_PATH = path.join(OUTPUT_DIR, "oracle-cards.raw.json");
-const COMPILED_PATH = path.join(OUTPUT_DIR, "oracle-cards.compiled.json");
+const PRINT_INDEX_DIR = path.join(OUTPUT_DIR, "print-index");
+const PRINT_INDEX_MANIFEST_PATH = path.join(PRINT_INDEX_DIR, "manifest.compiled.json.gz");
+const PRINT_INDEX_SHARD_DIR = path.join(PRINT_INDEX_DIR, "shards");
+const PRINT_INDEX_BUCKET_COUNT = 256;
+const DATASETS = [
+  {
+    rawPath: path.join(OUTPUT_DIR, "oracle-cards.raw.json"),
+    compiledPath: path.join(OUTPUT_DIR, "oracle-cards.compiled.json"),
+    label: "oracle-cards",
+    compileCard: compileOracleCard,
+    dedupeByNormalizedName: false
+  },
+  {
+    rawPath: path.join(OUTPUT_DIR, "default-cards.raw.json"),
+    compiledPath: path.join(OUTPUT_DIR, "default-cards.compiled.json.gz"),
+    label: "default-cards",
+    compileCard: compileDefaultCard,
+    dedupeByNormalizedName: true,
+    gzipOutput: true
+  }
+];
 
 function fail(message) {
   throw new Error(message);
 }
 
-function pickFace(face) {
-  if (!face || typeof face !== "object") {
+function normalizeLookupName(name) {
+  return String(name)
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "");
+}
+
+function pickImageUris(source, fields = ["small", "normal", "large", "png", "art_crop", "border_crop"]) {
+  if (!source || typeof source !== "object") {
+    return undefined;
+  }
+
+  const imageUris = {};
+  for (const field of fields) {
+    if (typeof source[field] === "string" && source[field]) {
+      imageUris[field] = source[field];
+    }
+  }
+
+  return Object.keys(imageUris).length > 0 ? imageUris : undefined;
+}
+
+function pickCardFaces(card, options = { includeImages: false }) {
+  if (!Array.isArray(card.card_faces)) {
     return null;
   }
 
-  return {
-    name: typeof face.name === "string" ? face.name : undefined,
-    mana_cost: typeof face.mana_cost === "string" ? face.mana_cost : undefined,
-    type_line: typeof face.type_line === "string" ? face.type_line : undefined,
-    oracle_text: typeof face.oracle_text === "string" ? face.oracle_text : undefined,
-    power: typeof face.power === "string" ? face.power : undefined,
-    toughness: typeof face.toughness === "string" ? face.toughness : undefined,
-    loyalty: typeof face.loyalty === "string" ? face.loyalty : undefined,
-    colors: Array.isArray(face.colors) ? face.colors.filter((value) => typeof value === "string") : undefined
-  };
+  const faces = card.card_faces
+    .map((face) => {
+      if (!face || typeof face !== "object") {
+        return null;
+      }
+
+      const next = {
+        name: typeof face.name === "string" ? face.name : undefined,
+        mana_cost: typeof face.mana_cost === "string" ? face.mana_cost : undefined,
+        type_line: typeof face.type_line === "string" ? face.type_line : undefined,
+        oracle_text: typeof face.oracle_text === "string" ? face.oracle_text : undefined,
+        power: typeof face.power === "string" ? face.power : undefined,
+        toughness: typeof face.toughness === "string" ? face.toughness : undefined,
+        loyalty: typeof face.loyalty === "string" ? face.loyalty : undefined,
+        colors: Array.isArray(face.colors) ? face.colors.filter((value) => typeof value === "string") : undefined
+      };
+
+      if (options.includeImages) {
+        next.image_uris = pickImageUris(face.image_uris, ["normal", "art_crop"]);
+      }
+
+      return Object.fromEntries(Object.entries(next).filter(([, value]) => value !== undefined));
+    })
+    .filter(Boolean);
+
+  return faces.length > 0 ? faces : null;
 }
 
-function toCompiledCard(card) {
+function baseCompiledCard(card) {
   if (!card || typeof card !== "object") {
     return null;
   }
@@ -43,12 +102,6 @@ function toCompiledCard(card) {
       : typeof card.cmc === "number" && Number.isFinite(card.cmc)
         ? card.cmc
         : undefined;
-
-  const cardFaces = Array.isArray(card.card_faces)
-    ? card.card_faces
-        .map((face) => pickFace(face))
-        .filter((face) => Boolean(face))
-    : null;
 
   return {
     oracle_id: oracleId,
@@ -75,32 +128,309 @@ function toCompiledCard(card) {
     power: typeof card.power === "string" ? card.power : undefined,
     toughness: typeof card.toughness === "string" ? card.toughness : undefined,
     loyalty: typeof card.loyalty === "string" ? card.loyalty : undefined,
-    layout: typeof card.layout === "string" ? card.layout : undefined,
-    card_faces: cardFaces
+    layout: typeof card.layout === "string" ? card.layout : undefined
   };
 }
 
-async function main() {
-  try {
-    await fs.access(RAW_PATH);
-  } catch {
-    fail(`Missing raw Oracle file: ${RAW_PATH}. Run: npm run scryfall:download`);
+function compactRecord(record) {
+  return Object.fromEntries(Object.entries(record).filter(([, value]) => value !== undefined));
+}
+
+function compileOracleCard(card) {
+  const compiled = baseCompiledCard(card);
+  if (!compiled) {
+    return null;
   }
 
-  const rawText = await fs.readFile(RAW_PATH, "utf8");
+  return compactRecord({
+    ...compiled,
+    card_faces: pickCardFaces(card) ?? []
+  });
+}
+
+function compileDefaultCard(card) {
+  const compiled = baseCompiledCard(card);
+  if (!compiled) {
+    return null;
+  }
+
+  const prices =
+    card.prices && typeof card.prices === "object"
+      ? {
+          usd: typeof card.prices.usd === "string" || card.prices.usd === null ? card.prices.usd : null,
+          usd_foil:
+            typeof card.prices.usd_foil === "string" || card.prices.usd_foil === null
+              ? card.prices.usd_foil
+              : null,
+          usd_etched:
+            typeof card.prices.usd_etched === "string" || card.prices.usd_etched === null
+              ? card.prices.usd_etched
+              : null,
+          tix: typeof card.prices.tix === "string" || card.prices.tix === null ? card.prices.tix : null
+        }
+      : undefined;
+
+  const purchaseUris =
+    card.purchase_uris && typeof card.purchase_uris === "object"
+      ? {
+          tcgplayer:
+            typeof card.purchase_uris.tcgplayer === "string" ? card.purchase_uris.tcgplayer : undefined,
+          cardkingdom:
+            typeof card.purchase_uris.cardkingdom === "string" ? card.purchase_uris.cardkingdom : undefined
+        }
+      : undefined;
+
+  return compactRecord({
+    ...compiled,
+    id: typeof card.id === "string" ? card.id : undefined,
+    set: typeof card.set === "string" ? card.set.toLowerCase() : undefined,
+    collector_number: typeof card.collector_number === "string" ? card.collector_number : undefined,
+    image_uris: pickImageUris(card.image_uris, ["normal", "art_crop"]) ?? null,
+    card_faces: pickCardFaces(card, { includeImages: true }) ?? [],
+    prices: prices ?? null,
+    purchase_uris: purchaseUris ?? null
+  });
+}
+
+function normalizeCollectorNumber(value) {
+  return String(value ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/^#+/, "")
+    .replace(/[\u2605\u2606]/g, "");
+}
+
+function collectorSortValue(value) {
+  const normalized = normalizeCollectorNumber(value);
+  const match = normalized.match(/^(\d+)(.*)$/);
+  if (!match) {
+    return {
+      rank: Number.MAX_SAFE_INTEGER,
+      suffix: normalized
+    };
+  }
+
+  return {
+    rank: Number.parseInt(match[1], 10),
+    suffix: match[2]
+  };
+}
+
+function comparePrintPreference(left, right) {
+  const leftCollector = collectorSortValue(left.collector_number);
+  const rightCollector = collectorSortValue(right.collector_number);
+  if (leftCollector.rank !== rightCollector.rank) {
+    return leftCollector.rank - rightCollector.rank;
+  }
+
+  if (leftCollector.suffix !== rightCollector.suffix) {
+    return leftCollector.suffix.localeCompare(rightCollector.suffix);
+  }
+
+  return left.id.localeCompare(right.id);
+}
+
+function getPrintIndexBucketId(setCode) {
+  const normalized = String(setCode ?? "").trim().toLowerCase();
+  let hash = 2166136261;
+  for (let index = 0; index < normalized.length; index += 1) {
+    hash ^= normalized.charCodeAt(index);
+    hash = Math.imul(hash, 16777619) >>> 0;
+  }
+
+  const bucket = hash % PRINT_INDEX_BUCKET_COUNT;
+  return bucket.toString(16).padStart(2, "0");
+}
+
+function compilePrintIndexCard(card) {
+  const name = typeof card?.name === "string" ? card.name : "";
+  const oracleId = typeof card?.oracle_id === "string" ? card.oracle_id : "";
+  const setCode = typeof card?.set === "string" ? card.set.toLowerCase() : "";
+  const collectorNumber = typeof card?.collector_number === "string" ? card.collector_number : "";
+  const id = typeof card?.id === "string" ? card.id : "";
+  if (!name || !oracleId || !setCode || !collectorNumber || !id) {
+    return null;
+  }
+
+  const prices =
+    card.prices && typeof card.prices === "object"
+      ? {
+          usd: typeof card.prices.usd === "string" || card.prices.usd === null ? card.prices.usd : null,
+          usd_foil:
+            typeof card.prices.usd_foil === "string" || card.prices.usd_foil === null
+              ? card.prices.usd_foil
+              : null,
+          usd_etched:
+            typeof card.prices.usd_etched === "string" || card.prices.usd_etched === null
+              ? card.prices.usd_etched
+              : null,
+          tix: typeof card.prices.tix === "string" || card.prices.tix === null ? card.prices.tix : null
+        }
+      : undefined;
+
+  const purchaseUris =
+    card.purchase_uris && typeof card.purchase_uris === "object"
+      ? {
+          tcgplayer:
+            typeof card.purchase_uris.tcgplayer === "string" ? card.purchase_uris.tcgplayer : undefined,
+          cardkingdom:
+            typeof card.purchase_uris.cardkingdom === "string" ? card.purchase_uris.cardkingdom : undefined
+        }
+      : undefined;
+
+  const cardFaces = Array.isArray(card.card_faces)
+    ? card.card_faces
+        .map((face) => {
+          if (!face || typeof face !== "object") {
+            return null;
+          }
+
+          return compactRecord({
+            name: typeof face.name === "string" ? face.name : undefined,
+            image_uris: pickImageUris(face.image_uris, ["normal", "art_crop"]) ?? undefined
+          });
+        })
+        .filter(Boolean)
+    : [];
+
+  return compactRecord({
+    id,
+    oracle_id: oracleId,
+    name,
+    set: setCode,
+    collector_number: collectorNumber,
+    image_uris: pickImageUris(card.image_uris, ["normal", "art_crop"]) ?? null,
+    card_faces: cardFaces,
+    prices: prices ?? null,
+    purchase_uris: purchaseUris ?? null
+  });
+}
+
+async function compilePrintIndexArtifacts() {
+  const rawPath = path.join(OUTPUT_DIR, "default-cards.raw.json");
+  try {
+    await fs.access(rawPath);
+  } catch {
+    fail(`Missing raw Scryfall file: ${rawPath}. Run: npm run scryfall:download`);
+  }
+
+  const raw = JSON.parse(await fs.readFile(rawPath, "utf8"));
+  if (!Array.isArray(raw)) {
+    fail("Unexpected print-index source format: expected top-level array");
+  }
+
+  await fs.rm(PRINT_INDEX_DIR, { recursive: true, force: true });
+  await fs.mkdir(PRINT_INDEX_SHARD_DIR, { recursive: true });
+
+  const bucketStates = new Map();
+  const manifest = { byId: {} };
+  let recordCount = 0;
+
+  for (const card of raw) {
+    const record = compilePrintIndexCard(card);
+    if (!record) {
+      continue;
+    }
+
+    const bucketId = getPrintIndexBucketId(record.set);
+    if (!bucketStates.has(bucketId)) {
+      bucketStates.set(bucketId, {
+        records: [],
+        byId: {},
+        bySetCollector: {},
+        byNameSetCandidates: new Map()
+      });
+    }
+
+    const bucket = bucketStates.get(bucketId);
+    const index = bucket.records.length;
+    bucket.records.push(record);
+    bucket.byId[`id:${record.id.toLowerCase()}`] = index;
+    bucket.bySetCollector[
+      `set:${record.set}|collector:${normalizeCollectorNumber(record.collector_number)}`
+    ] = index;
+
+    const nameSetKey = `name:${normalizeLookupName(record.name)}|set:${record.set}`;
+    const existingIndex = bucket.byNameSetCandidates.get(nameSetKey);
+    if (typeof existingIndex !== "number") {
+      bucket.byNameSetCandidates.set(nameSetKey, index);
+    } else {
+      const existingRecord = bucket.records[existingIndex];
+      if (comparePrintPreference(record, existingRecord) < 0) {
+        bucket.byNameSetCandidates.set(nameSetKey, index);
+      }
+    }
+
+    manifest.byId[`id:${record.id.toLowerCase()}`] = bucketId;
+    recordCount += 1;
+  }
+
+  const shardWrites = [];
+  for (const [bucketId, bucket] of bucketStates.entries()) {
+    const byNameSet = {};
+    for (const [key, index] of bucket.byNameSetCandidates.entries()) {
+      byNameSet[key] = index;
+    }
+
+    shardWrites.push(
+      fs.writeFile(
+        path.join(PRINT_INDEX_SHARD_DIR, `${bucketId}.json.gz`),
+        zlib.gzipSync(
+          JSON.stringify({
+            records: bucket.records,
+            byId: bucket.byId,
+            bySetCollector: bucket.bySetCollector,
+            byNameSet
+          })
+        )
+      )
+    );
+  }
+
+  await Promise.all(shardWrites);
+  await fs.writeFile(PRINT_INDEX_MANIFEST_PATH, zlib.gzipSync(JSON.stringify(manifest)));
+  console.log(
+    `Compiled ${recordCount} print-index records across ${bucketStates.size} shards to: ${PRINT_INDEX_DIR}`
+  );
+}
+
+async function compileDataset(dataset) {
+  try {
+    await fs.access(dataset.rawPath);
+  } catch {
+    fail(`Missing raw Scryfall file: ${dataset.rawPath}. Run: npm run scryfall:download`);
+  }
+
+  const rawText = await fs.readFile(dataset.rawPath, "utf8");
   const raw = JSON.parse(rawText);
   if (!Array.isArray(raw)) {
-    fail("Unexpected oracle-cards format: expected top-level array");
+    fail(`Unexpected ${dataset.label} format: expected top-level array`);
   }
 
-  const compiled = raw
-    .map((card) => toCompiledCard(card))
-    .filter((card) => Boolean(card));
+  const finalized = dataset.compileDataset
+    ? dataset.compileDataset(raw)
+    : (() => {
+        const compiled = raw.map((card) => dataset.compileCard(card)).filter(Boolean);
+        return dataset.dedupeByNormalizedName
+          ? [...new Map(compiled.map((card) => [normalizeLookupName(card.name), card])).values()]
+          : compiled;
+      })();
+  const json = JSON.stringify(finalized);
+  if (dataset.gzipOutput) {
+    await fs.writeFile(dataset.compiledPath, zlib.gzipSync(json));
+  } else {
+    await fs.writeFile(dataset.compiledPath, json, "utf8");
+  }
+  const recordCount = Array.isArray(finalized) ? finalized.length : finalized.records.length;
+  console.log(`Compiled ${recordCount} ${dataset.label} records to: ${dataset.compiledPath}`);
+}
 
+async function main() {
   await fs.mkdir(OUTPUT_DIR, { recursive: true });
-  await fs.writeFile(COMPILED_PATH, JSON.stringify(compiled), "utf8");
-
-  console.log(`Compiled ${compiled.length} cards to: ${COMPILED_PATH}`);
+  for (const dataset of DATASETS) {
+    await compileDataset(dataset);
+  }
+  await compilePrintIndexArtifacts();
 }
 
 main().catch((error) => {

@@ -3,8 +3,18 @@ import path from "node:path";
 
 const BULK_DATA_URL = "https://api.scryfall.com/bulk-data";
 const OUTPUT_DIR = path.resolve("data/scryfall");
-const RAW_PATH = path.join(OUTPUT_DIR, "oracle-cards.raw.json");
-const META_PATH = path.join(OUTPUT_DIR, "oracle-cards.meta.json");
+const BULK_DOWNLOADS = [
+  {
+    type: "oracle_cards",
+    rawPath: path.join(OUTPUT_DIR, "oracle-cards.raw.json"),
+    metaPath: path.join(OUTPUT_DIR, "oracle-cards.meta.json")
+  },
+  {
+    type: "default_cards",
+    rawPath: path.join(OUTPUT_DIR, "default-cards.raw.json"),
+    metaPath: path.join(OUTPUT_DIR, "default-cards.meta.json")
+  }
+];
 
 function fail(message) {
   throw new Error(message);
@@ -27,33 +37,35 @@ async function main() {
     fail("Unexpected bulk-data response: expected object with data[]");
   }
 
-  const oracle = bulk.data.find((entry) => entry && entry.type === "oracle_cards");
-  if (!oracle || typeof oracle.download_uri !== "string" || oracle.download_uri.length === 0) {
-    fail("Could not find oracle_cards download_uri in Scryfall bulk-data response");
+  for (const target of BULK_DOWNLOADS) {
+    const entry = bulk.data.find((row) => row && row.type === target.type);
+    if (!entry || typeof entry.download_uri !== "string" || entry.download_uri.length === 0) {
+      fail(`Could not find ${target.type} download_uri in Scryfall bulk-data response`);
+    }
+
+    const downloadResponse = await fetch(entry.download_uri);
+    if (!downloadResponse.ok) {
+      fail(`${target.type} download failed (${downloadResponse.status}) for ${entry.download_uri}`);
+    }
+
+    const text = await downloadResponse.text();
+    JSON.parse(text);
+    await fs.writeFile(target.rawPath, text, "utf8");
+
+    const metadata = {
+      downloaded_at: new Date().toISOString(),
+      updated_at: entry.updated_at ?? null,
+      download_uri: entry.download_uri,
+      compressed_size: entry.compressed_size ?? null,
+      content_type: entry.content_type ?? null,
+      content_encoding: entry.content_encoding ?? null
+    };
+
+    await fs.writeFile(target.metaPath, `${JSON.stringify(metadata, null, 2)}\n`, "utf8");
+
+    console.log(`Downloaded ${target.type} to: ${target.rawPath}`);
+    console.log(`Wrote metadata to: ${target.metaPath}`);
   }
-
-  const downloadResponse = await fetch(oracle.download_uri);
-  if (!downloadResponse.ok) {
-    fail(`Oracle cards download failed (${downloadResponse.status}) for ${oracle.download_uri}`);
-  }
-
-  const text = await downloadResponse.text();
-  JSON.parse(text);
-  await fs.writeFile(RAW_PATH, text, "utf8");
-
-  const metadata = {
-    downloaded_at: new Date().toISOString(),
-    updated_at: oracle.updated_at ?? null,
-    download_uri: oracle.download_uri,
-    compressed_size: oracle.compressed_size ?? null,
-    content_type: oracle.content_type ?? null,
-    content_encoding: oracle.content_encoding ?? null
-  };
-
-  await fs.writeFile(META_PATH, `${JSON.stringify(metadata, null, 2)}\n`, "utf8");
-
-  console.log(`Downloaded Oracle Cards to: ${RAW_PATH}`);
-  console.log(`Wrote metadata to: ${META_PATH}`);
 }
 
 main().catch((error) => {

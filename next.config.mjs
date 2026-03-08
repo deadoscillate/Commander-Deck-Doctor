@@ -17,8 +17,16 @@ const contentSecurityPolicy = [
 const nextConfig = {
   reactStrictMode: true,
   outputFileTracingIncludes: {
-    "/api/analyze": ["./data/scryfall/oracle-cards.compiled.json"],
-    "/api/**/*": ["./data/scryfall/oracle-cards.compiled.json"]
+    "/api/analyze": [
+      "./data/scryfall/oracle-cards.compiled.json",
+      "./data/scryfall/default-cards.compiled.json.gz",
+      "./data/scryfall/print-index/**/*"
+    ],
+    "/api/**/*": [
+      "./data/scryfall/oracle-cards.compiled.json",
+      "./data/scryfall/default-cards.compiled.json.gz",
+      "./data/scryfall/print-index/**/*"
+    ]
   },
   typescript: {
     tsconfigPath: "./tsconfig.build.json"
