@@ -61,6 +61,10 @@ function formatTurn(value: unknown): string {
   return `Turn ${value.toFixed(1)}`;
 }
 
+function formatFixedNumber(value: unknown, digits: number, fallback = "N/A"): string {
+  return typeof value === "number" && Number.isFinite(value) ? value.toFixed(digits) : fallback;
+}
+
 /**
  * Generates share-friendly plaintext for clipboard export.
  */
@@ -202,7 +206,7 @@ export function buildPlaintextReport(result: AnalyzeResponse): string {
     `- Commander: ${result.commander.selectedName ?? "Not selected"}`,
     `- Deck Size: ${result.summary.deckSize}`,
     `- Unique Cards: ${result.summary.uniqueCards}`,
-    `- Avg Mana Value: ${result.summary.averageManaValue.toFixed(2)}`,
+    `- Avg Mana Value: ${formatFixedNumber(result.summary.averageManaValue, 2)}`,
     `- Colors: ${result.summary.colors.length > 0 ? result.summary.colors.join(", ") : "Colorless"}`,
     `- Deck Price (USD): ${formatUsd(result.deckPrice?.totals.usd)}`,
     `- Deck Price (Foil): ${formatUsd(result.deckPrice?.totals.usdFoil)}`,

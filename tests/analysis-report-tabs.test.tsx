@@ -5,6 +5,7 @@ import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { AnalysisReport } from "@/components/AnalysisReport";
+import type { AnalyzeResponse } from "@/lib/contracts";
 import { createAnalyzeResponseFixture } from "@/tests/fixtures/analyzeResponseFixture";
 
 describe("analysis report tab smoke", () => {
@@ -57,5 +58,32 @@ describe("analysis report tab smoke", () => {
     expect(document.documentElement.classList.contains("has-commander-page-art")).toBe(false);
     expect(document.body.classList.contains("has-commander-page-art")).toBe(false);
     expect(document.documentElement.style.getPropertyValue("--commander-page-art")).toBe("");
+  });
+
+  it("renders nullable summary and simulation metrics without crashing", async () => {
+    const result = createAnalyzeResponseFixture();
+    const unsafeResult = result as unknown as {
+      summary: { averageManaValue: number | null };
+      openingHandSimulation: {
+        playablePct: number | null;
+        deadPct: number | null;
+        rampInOpeningPct: number | null;
+        averageFirstSpellTurn: number | null;
+        estimatedCommanderCastTurn: number | null;
+      };
+    };
+
+    unsafeResult.summary.averageManaValue = null;
+    unsafeResult.openingHandSimulation.playablePct = null;
+    unsafeResult.openingHandSimulation.deadPct = null;
+    unsafeResult.openingHandSimulation.rampInOpeningPct = null;
+    unsafeResult.openingHandSimulation.averageFirstSpellTurn = null;
+    unsafeResult.openingHandSimulation.estimatedCommanderCastTurn = null;
+
+    render(<AnalysisReport result={result as AnalyzeResponse} />);
+
+    expect(screen.getByRole("heading", { name: "Player Snapshot" })).toBeTruthy();
+    await userEvent.click(screen.getByRole("tab", { name: "Simulations" }));
+    expect(screen.getAllByText("N/A").length).toBeGreaterThan(0);
   });
 });

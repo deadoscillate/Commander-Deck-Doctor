@@ -32,17 +32,22 @@ type SimulationsApiError = {
   error?: string;
 };
 
-function percent(value: number): string {
-  return `${value.toFixed(1)}%`;
+function percent(value: number | null | undefined): string {
+  return typeof value === "number" && Number.isFinite(value) ? `${value.toFixed(1)}%` : "N/A";
 }
 
-function barWidth(value: number): string {
-  const safe = Math.max(0, Math.min(100, value));
+function barWidth(value: number | null | undefined): string {
+  const safe =
+    typeof value === "number" && Number.isFinite(value) ? Math.max(0, Math.min(100, value)) : 0;
   return `${safe}%`;
 }
 
-function asTurn(value: number | null): string {
-  return value === null ? "N/A" : `Turn ${value.toFixed(1)}`;
+function asTurn(value: number | null | undefined): string {
+  return typeof value === "number" && Number.isFinite(value) ? `Turn ${value.toFixed(1)}` : "N/A";
+}
+
+function asFixed(value: number | null | undefined, digits: number): string {
+  return typeof value === "number" && Number.isFinite(value) ? value.toFixed(digits) : "N/A";
 }
 
 function createSeed(): string {
@@ -232,7 +237,7 @@ export function SimulationsSection({ deck, commanderName, initialSummary = null 
           </div>
           <div className="summary-card">
             <span>Avg Lands in Opening</span>
-            <strong>{openingResult.avgLandsInOpening.toFixed(2)}</strong>
+            <strong>{asFixed(openingResult.avgLandsInOpening, 2)}</strong>
           </div>
           {goldfishResult ? (
             <>
@@ -246,7 +251,7 @@ export function SimulationsSection({ deck, commanderName, initialSummary = null 
               </div>
               <div className="summary-card">
                 <span>Avg Mana by Turn 3</span>
-                <strong>{goldfishResult.avgManaByTurn3.toFixed(2)}</strong>
+                <strong>{asFixed(goldfishResult.avgManaByTurn3, 2)}</strong>
               </div>
             </>
           ) : null}

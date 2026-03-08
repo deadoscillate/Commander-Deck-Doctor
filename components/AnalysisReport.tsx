@@ -112,6 +112,10 @@ function formatTix(value: number | null): string {
   return `${value.toFixed(2)} tix`;
 }
 
+function formatFixedNumber(value: unknown, digits: number, fallback = "N/A"): string {
+  return typeof value === "number" && Number.isFinite(value) ? value.toFixed(digits) : fallback;
+}
+
 function cardKingdomSearchUrl(cardName: string): string | null {
   const trimmed = cardName.trim();
   if (!trimmed) {
@@ -855,7 +859,7 @@ export function AnalysisReport({ result, onOpenPrintingPicker }: AnalysisReportP
               </div>
               <div className="summary-card">
                 <span>Avg Mana Value</span>
-                <strong>{result.summary.averageManaValue.toFixed(2)}</strong>
+                <strong>{formatFixedNumber(result.summary.averageManaValue, 2)}</strong>
               </div>
               <div className="summary-card">
                 <span>Colors</span>
