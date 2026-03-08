@@ -3,7 +3,9 @@ import path from "node:path";
 import { Pool } from "pg";
 
 type SummaryOptions = {
-  days: number;
+  days?: number;
+  since?: string;
+  last?: number;
   output?: string;
   jsonOutput?: string;
 };
@@ -44,9 +46,7 @@ type DailyTrendRow = {
 };
 
 function parseArgs(argv: string[]): SummaryOptions {
-  const options: SummaryOptions = {
-    days: 7
-  };
+  const options: SummaryOptions = {};
 
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
@@ -61,6 +61,33 @@ function parseArgs(argv: string[]): SummaryOptions {
         throw new Error("--days must be a positive number.");
       }
       options.days = Math.max(1, Math.floor(value));
+      index += 1;
+      continue;
+    }
+
+    if (arg === "--since") {
+      const value = argv[index + 1];
+      if (!value) {
+        throw new Error("--since requires an ISO-8601 timestamp.");
+      }
+
+      const parsed = new Date(value);
+      if (Number.isNaN(parsed.getTime())) {
+        throw new Error("--since must be a valid ISO-8601 timestamp.");
+      }
+
+      options.since = parsed.toISOString();
+      index += 1;
+      continue;
+    }
+
+    if (arg === "--last") {
+      const value = Number(argv[index + 1]);
+      if (!Number.isFinite(value) || value <= 0) {
+        throw new Error("--last must be a positive number.");
+      }
+
+      options.last = Math.max(1, Math.floor(value));
       index += 1;
       continue;
     }
@@ -86,6 +113,10 @@ function parseArgs(argv: string[]): SummaryOptions {
     throw new Error(`Unknown argument: ${arg}`);
   }
 
+  if (options.days === undefined && !options.since && options.last === undefined) {
+    options.days = 7;
+  }
+
   return options;
 }
 
@@ -93,7 +124,9 @@ function printHelp(): void {
   console.log(`Usage: npm run telemetry:summary -- [options]
 
 Options:
-  --days <n>          Report window in days (default: 7)
+  --days <n>          Report window in days (default: 7 when no other filter is provided)
+  --since <iso>       Only include requests at or after the given ISO-8601 timestamp
+  --last <n>          Only include the most recent n requests (applied after --since when both are used)
   --output <path>     Write markdown report to a file
   --json-output <path> Write raw JSON summary to a file
   --help              Show this help
@@ -145,6 +178,56 @@ function toDisplayInt(value: string | null | undefined): string {
   return Number.isFinite(parsed) ? String(Math.round(parsed)) : value;
 }
 
+function describeWindow(options: SummaryOptions): string {
+  const parts: string[] = [];
+  if (options.days !== undefined) {
+    parts.push(`last ${options.days} day(s)`);
+  }
+
+  if (options.since) {
+    parts.push(`since ${options.since}`);
+  }
+
+  if (options.last !== undefined) {
+    parts.push(`last ${options.last} request(s)`);
+  }
+
+  return parts.length > 0 ? parts.join(", ") : "unbounded";
+}
+
+function buildFilteredTelemetryQuery(options: SummaryOptions): { sql: string; params: string[] } {
+  const whereClauses: string[] = [];
+  const params: string[] = [];
+
+  if (options.days !== undefined) {
+    params.push(String(options.days));
+    whereClauses.push(`created_at >= now() - ($${params.length}::text || ' days')::interval`);
+  }
+
+  if (options.since) {
+    params.push(options.since);
+    whereClauses.push(`created_at >= $${params.length}::timestamptz`);
+  }
+
+  const whereClause = whereClauses.length > 0 ? `where ${whereClauses.join(" and ")}` : "";
+  const orderAndLimit =
+    options.last !== undefined
+      ? `order by created_at desc limit ${Math.max(1, Math.floor(options.last))}`
+      : "";
+
+  return {
+    sql: `
+      with filtered as (
+        select *
+        from analyze_telemetry
+        ${whereClause}
+        ${orderAndLimit}
+      )
+    `,
+    params
+  };
+}
+
 async function writeIfRequested(filePath: string | undefined, content: string): Promise<void> {
   if (!filePath) {
     return;
@@ -158,6 +241,8 @@ async function writeIfRequested(filePath: string | undefined, content: string): 
 async function main(): Promise<void> {
   const options = parseArgs(process.argv.slice(2));
   const generatedAt = new Date().toISOString();
+  const windowLabel = describeWindow(options);
+  const filtered = buildFilteredTelemetryQuery(options);
   const pool = new Pool({
     connectionString: getConnectionString(),
     max: 1
@@ -167,21 +252,22 @@ async function main(): Promise<void> {
     const [cacheMix, byPricingMode, slowShapes, dailyTrend, totals] = await Promise.all([
       pool.query<CacheMixRow>(
         `
+        ${filtered.sql}
         select
           cache_status,
           count(*) as requests,
           round(avg(total_ms)::numeric, 1) as avg_total_ms,
           round(percentile_cont(0.5) within group (order by total_ms)::numeric, 1) as p50_total_ms,
           round(percentile_cont(0.95) within group (order by total_ms)::numeric, 1) as p95_total_ms
-        from analyze_telemetry
-        where created_at >= now() - ($1::text || ' days')::interval
+        from filtered
         group by cache_status
         order by cache_status
       `,
-        [String(options.days)]
+        filtered.params
       ),
       pool.query<PricingModeRow>(
         `
+        ${filtered.sql}
         select
           deck_price_mode,
           cache_status,
@@ -190,15 +276,15 @@ async function main(): Promise<void> {
           round(percentile_cont(0.95) within group (order by total_ms)::numeric, 1) as p95_total_ms,
           round(percentile_cont(0.95) within group (order by lookup_ms)::numeric, 1) as p95_lookup_ms,
           round(percentile_cont(0.95) within group (order by compute_ms)::numeric, 1) as p95_compute_ms
-        from analyze_telemetry
-        where created_at >= now() - ($1::text || ' days')::interval
+        from filtered
         group by deck_price_mode, cache_status
         order by deck_price_mode, cache_status
       `,
-        [String(options.days)]
+        filtered.params
       ),
       pool.query<SlowShapeRow>(
         `
+        ${filtered.sql}
         select
           deck_price_mode,
           set_override_count,
@@ -207,40 +293,39 @@ async function main(): Promise<void> {
           count(*) as requests,
           round(avg(total_ms)::numeric, 1) as avg_total_ms,
           round(percentile_cont(0.95) within group (order by total_ms)::numeric, 1) as p95_total_ms
-        from analyze_telemetry
-        where created_at >= now() - ($1::text || ' days')::interval
-          and cache_status = 'miss'
+        from filtered
+        where cache_status = 'miss'
         group by deck_price_mode, set_override_count, deck_size, commander_source
         having count(*) >= 3
         order by p95_total_ms desc
         limit 20
       `,
-        [String(options.days)]
+        filtered.params
       ),
       pool.query<DailyTrendRow>(
         `
+        ${filtered.sql}
         select
           to_char(date_trunc('day', created_at), 'YYYY-MM-DD') as day,
           count(*) as requests,
           round(percentile_cont(0.95) within group (order by total_ms)::numeric, 1) as p95_total_ms,
           round(percentile_cont(0.95) within group (order by lookup_ms)::numeric, 1) as p95_lookup_ms
-        from analyze_telemetry
-        where created_at >= now() - ($1::text || ' days')::interval
+        from filtered
         group by 1
         order by 1 desc
       `,
-        [String(options.days)]
+        filtered.params
       ),
       pool.query<{ requests: string; first_seen: string | null; last_seen: string | null }>(
         `
+        ${filtered.sql}
         select
           count(*) as requests,
           to_char(min(created_at), 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as first_seen,
           to_char(max(created_at), 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as last_seen
-        from analyze_telemetry
-        where created_at >= now() - ($1::text || ' days')::interval
+        from filtered
       `,
-        [String(options.days)]
+        filtered.params
       )
     ]);
 
@@ -249,7 +334,7 @@ async function main(): Promise<void> {
       `# Analyze Telemetry Summary`,
       ``,
       `Generated at: ${generatedAt}`,
-      `Window: last ${options.days} day(s)`,
+      `Window: ${windowLabel}`,
       `Requests sampled: ${toDisplayInt(totalRow.requests)}`,
       `First sample: ${totalRow.first_seen ?? "n/a"}`,
       `Last sample: ${totalRow.last_seen ?? "n/a"}`,
@@ -291,7 +376,12 @@ async function main(): Promise<void> {
     const json = JSON.stringify(
       {
         generatedAt,
-        windowDays: options.days,
+        window: {
+          days: options.days ?? null,
+          since: options.since ?? null,
+          last: options.last ?? null,
+          label: windowLabel
+        },
         totals: totalRow,
         cacheMix: cacheMix.rows,
         byPricingMode: byPricingMode.rows,

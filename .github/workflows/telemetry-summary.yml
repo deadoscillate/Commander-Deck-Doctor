@@ -9,6 +9,14 @@ on:
         description: "Lookback window in days"
         required: false
         default: "7"
+      since:
+        description: "Only include requests at or after this ISO-8601 timestamp"
+        required: false
+        default: ""
+      last:
+        description: "Only include the most recent N requests"
+        required: false
+        default: ""
 
 permissions:
   contents: write
@@ -24,6 +32,8 @@ jobs:
     env:
       DATABASE_URL: ${{ secrets.PROD_DATABASE_URL || secrets.DATABASE_URL || secrets.POSTGRES_URL }}
       INPUT_DAYS: ${{ github.event.inputs.days }}
+      INPUT_SINCE: ${{ github.event.inputs.since }}
+      INPUT_LAST: ${{ github.event.inputs.last }}
       TELEMETRY_REPORT_DAYS: ${{ vars.TELEMETRY_REPORT_DAYS }}
       TELEMETRY_REPORT_BRANCH: ${{ vars.TELEMETRY_REPORT_BRANCH }}
     steps:
@@ -35,6 +45,8 @@ jobs:
         run: |
           set -euo pipefail
           REPORT_DAYS="${INPUT_DAYS:-${TELEMETRY_REPORT_DAYS:-7}}"
+          REPORT_SINCE="${INPUT_SINCE:-}"
+          REPORT_LAST="${INPUT_LAST:-}"
           REPORT_BRANCH="${TELEMETRY_REPORT_BRANCH:-telemetry-reports}"
 
           if [ -z "${DATABASE_URL:-}" ]; then
@@ -43,6 +55,8 @@ jobs:
           fi
 
           echo "REPORT_DAYS=$REPORT_DAYS" >> "$GITHUB_ENV"
+          echo "REPORT_SINCE=$REPORT_SINCE" >> "$GITHUB_ENV"
+          echo "REPORT_LAST=$REPORT_LAST" >> "$GITHUB_ENV"
           echo "REPORT_BRANCH=$REPORT_BRANCH" >> "$GITHUB_ENV"
 
       - name: Setup Node
@@ -55,12 +69,26 @@ jobs:
         run: npm ci
 
       - name: Generate telemetry summary
+        shell: bash
         run: |
+          set -euo pipefail
           mkdir -p telemetry-output
-          npm run telemetry:summary -- \
-            --days "$REPORT_DAYS" \
-            --output telemetry-output/latest.md \
-            --json-output telemetry-output/latest.json
+          CMD=(npm run telemetry:summary --)
+
+          if [ -n "${REPORT_DAYS:-}" ]; then
+            CMD+=(--days "$REPORT_DAYS")
+          fi
+
+          if [ -n "${REPORT_SINCE:-}" ]; then
+            CMD+=(--since "$REPORT_SINCE")
+          fi
+
+          if [ -n "${REPORT_LAST:-}" ]; then
+            CMD+=(--last "$REPORT_LAST")
+          fi
+
+          CMD+=(--output telemetry-output/latest.md --json-output telemetry-output/latest.json)
+          "${CMD[@]}"
 
       - name: Add workflow summary
         run: cat telemetry-output/latest.md >> "$GITHUB_STEP_SUMMARY"

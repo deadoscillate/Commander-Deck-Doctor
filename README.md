@@ -149,13 +149,16 @@ Current sync includes:
   - `ANALYZE_TELEMETRY_SAMPLE_RATE` to adjust capture rate (default `1`).
   - `ANALYZE_TELEMETRY_RETENTION_DAYS` to tune retention (default `30`).
 - `npm run telemetry:summary -- --days 7` prints a markdown telemetry summary from Postgres.
+- `npm run telemetry:summary -- --since 2026-03-08T21:42:39Z --last 10` isolates the most recent post-deploy requests.
 - GitHub Action: `.github/workflows/telemetry-summary.yml`
   - scheduled daily via cron
   - manual `workflow_dispatch`
+  - manual runs now support `days`, `since`, and `last` inputs so post-deploy reports can be sliced precisely
   - publishes `latest.md` and `latest.json` to the `telemetry-reports` branch
   - also uploads a workflow artifact for backup
 - Codex review flow:
   - trigger the workflow
+  - for a new deploy, prefer `since=<deploy timestamp>` and optionally `last=<N>`
   - then ask: `fetch telemetry-reports and read latest.md`
 - GitHub configuration for the workflow:
   - secret: `PROD_DATABASE_URL` (recommended) or `DATABASE_URL`
