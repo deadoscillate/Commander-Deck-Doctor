@@ -12,6 +12,7 @@
     "test:coverage": "vitest run --coverage",
     "test:watch": "vitest",
     "bench:analyze": "tsx scripts/benchmark-analyze.ts",
+    "telemetry:summary": "tsx scripts/summarize-analyze-telemetry.ts",
     "scryfall:download": "node scripts/scryfall-download-oracle.mjs",
     "scryfall:compile": "node scripts/scryfall-compile-oracle.mjs",
     "scryfall:verify": "node scripts/scryfall-verify-compiled.mjs",

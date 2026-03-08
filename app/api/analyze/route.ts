@@ -17,6 +17,7 @@ import { computePlayerHeuristics } from "@/lib/playerHeuristics";
 import { buildRoleSuggestions } from "@/lib/suggestions";
 import { evaluateCommanderRules } from "@/lib/rulesEngine";
 import { fetchDeckCards, getCardById, getCardByName, getCardByNameWithSet } from "@/lib/scryfall";
+import { recordAnalyzeTelemetry } from "@/lib/analyzeTelemetryStore";
 import type { ScryfallCard } from "@/lib/types";
 import { apiJson, getRequestId, parseJsonBody } from "@/lib/api/http";
 import { buildRateLimitHeaders, checkRateLimit } from "@/lib/api/rateLimit";
@@ -570,6 +571,11 @@ export async function POST(request: Request) {
 
     const setOverridesByCardName = parseSetOverrides(payload.setOverrides);
     const selectedCommanderForCache = commanderFromSection ?? manualCommanderName ?? null;
+    const commanderSource = commanderFromSection
+      ? "section"
+      : manualCommanderName
+        ? "manual"
+        : "none";
     const cacheKey = buildAnalyzeCacheKey({
       decklist,
       deckPriceMode,
@@ -580,6 +586,7 @@ export async function POST(request: Request) {
       userHighPowerNoGCFlag,
       setOverrides: setOverridesByCardName
     });
+    const inputDeckSize = parsedDeck.reduce((sum, card) => sum + card.qty, 0);
     const cachedPayload = getCachedAnalyzePayload(cacheKey);
     if (cachedPayload) {
       const parseCompletedAt = performance.now();
@@ -591,9 +598,22 @@ export async function POST(request: Request) {
         totalMs: performance.now() - requestStartedAt,
         parseMs: parseCompletedAt - parseStartedAt,
         serializeMs: serializeCompletedAt - serializeStartedAt,
-        responseBytes
+        responseBytes,
+        deckSize: inputDeckSize
       };
       maybeLogAnalyzeProfile(requestId, metrics);
+      void recordAnalyzeTelemetry({
+        requestId,
+        ...metrics,
+        deckPriceMode,
+        setOverrideCount: setOverridesByCardName.size,
+        commanderSelected: Boolean(selectedCommanderForCache),
+        commanderSource,
+        targetBracket,
+        expectedWinTurn,
+        userCedhFlag,
+        userHighPowerNoGCFlag
+      });
       return apiJson(cachedPayload, {
         status: 200,
         requestId,
@@ -624,7 +644,6 @@ export async function POST(request: Request) {
       };
     });
 
-    const inputDeckSize = effectiveParsedDeck.reduce((sum, card) => sum + card.qty, 0);
     const requestedSetCodeByCardName = new Map(
       effectiveParsedDeck.map((entry) => [entry.name.toLowerCase(), entry.setCode?.toLowerCase() ?? null])
     );
@@ -705,11 +724,6 @@ export async function POST(request: Request) {
 
     const selectedCommanderName =
       commanderFromSection ?? (!commanderFromSection && manualCommanderName ? manualCommanderName : null);
-    const commanderSource = commanderFromSection
-      ? "section"
-      : manualCommanderName
-        ? "manual"
-        : "none";
     const selectedCommanderOverride = selectedCommanderName
       ? setOverridesByCardName.get(normalizeLookupName(selectedCommanderName)) ?? null
       : null;
@@ -1038,6 +1052,18 @@ export async function POST(request: Request) {
       unknownCards: unknownCards.length
     };
     maybeLogAnalyzeProfile(requestId, metrics);
+    void recordAnalyzeTelemetry({
+      requestId,
+      ...metrics,
+      deckPriceMode,
+      setOverrideCount: setOverridesByCardName.size,
+      commanderSelected: Boolean(selectedCommanderName),
+      commanderSource,
+      targetBracket,
+      expectedWinTurn,
+      userCedhFlag,
+      userHighPowerNoGCFlag
+    });
 
     return apiJson(responsePayload, {
       status: 200,

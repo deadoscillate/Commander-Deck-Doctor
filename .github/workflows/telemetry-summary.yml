@@ -1,0 +1,82 @@
+name: Telemetry Summary
+
+on:
+  schedule:
+    - cron: "17 14 * * *"
+  workflow_dispatch:
+    inputs:
+      days:
+        description: "Lookback window in days"
+        required: false
+        default: "7"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: telemetry-summary
+  cancel-in-progress: false
+
+jobs:
+  summarize:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      DATABASE_URL: ${{ secrets.PROD_DATABASE_URL || secrets.DATABASE_URL || secrets.POSTGRES_URL }}
+      INPUT_DAYS: ${{ github.event.inputs.days }}
+      TELEMETRY_REPORT_DAYS: ${{ vars.TELEMETRY_REPORT_DAYS }}
+      TELEMETRY_REPORT_BRANCH: ${{ vars.TELEMETRY_REPORT_BRANCH }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Resolve report settings
+        shell: bash
+        run: |
+          set -euo pipefail
+          REPORT_DAYS="${INPUT_DAYS:-${TELEMETRY_REPORT_DAYS:-7}}"
+          REPORT_BRANCH="${TELEMETRY_REPORT_BRANCH:-telemetry-reports}"
+
+          if [ -z "${DATABASE_URL:-}" ]; then
+            echo "Missing PROD_DATABASE_URL / DATABASE_URL / POSTGRES_URL secret for telemetry summary." >&2
+            exit 1
+          fi
+
+          echo "REPORT_DAYS=$REPORT_DAYS" >> "$GITHUB_ENV"
+          echo "REPORT_BRANCH=$REPORT_BRANCH" >> "$GITHUB_ENV"
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate telemetry summary
+        run: |
+          mkdir -p telemetry-output
+          npm run telemetry:summary -- \
+            --days "$REPORT_DAYS" \
+            --output telemetry-output/latest.md \
+            --json-output telemetry-output/latest.json
+
+      - name: Add workflow summary
+        run: cat telemetry-output/latest.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload report artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: analyze-telemetry-summary
+          path: telemetry-output/
+          if-no-files-found: error
+
+      - name: Publish report branch
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./telemetry-output
+          publish_branch: ${{ env.REPORT_BRANCH }}
+          enable_jekyll: false
+          force_orphan: true

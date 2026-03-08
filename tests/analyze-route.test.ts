@@ -34,6 +34,7 @@ afterEach(() => {
   vi.clearAllMocks();
   vi.resetModules();
   vi.unmock("@/lib/scryfall");
+  vi.unmock("@/lib/analyzeTelemetryStore");
 });
 
 describe("POST /api/analyze", () => {
@@ -244,6 +245,95 @@ describe("POST /api/analyze", () => {
     expect(responseTwo.headers.get("x-analyze-serialize-ms")).toBeTruthy();
     expect(responseOne.headers.get("x-analyze-total-ms")).toBeTruthy();
     expect(responseTwo.headers.get("x-analyze-total-ms")).toBeTruthy();
+    expect(fetchDeckCardsMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("records sampled analyze telemetry payloads for miss and cache-hit responses", async () => {
+    const fetchDeckCardsMock = vi.fn(async () => ({
+      knownCards: [
+        {
+          name: "Sol Ring",
+          qty: 1,
+          card: buildCard({
+            name: "Sol Ring",
+            set: "cmm",
+            type_line: "Artifact",
+            cmc: 1,
+            mana_cost: "{1}",
+            oracle_text: "{T}: Add {C}{C}."
+          })
+        },
+        {
+          name: "Arcane Signet",
+          qty: 1,
+          card: buildCard({
+            name: "Arcane Signet",
+            set: "clb",
+            type_line: "Artifact",
+            cmc: 2,
+            mana_cost: "{2}",
+            oracle_text: "{T}: Add one mana of any color in your commander's color identity."
+          })
+        }
+      ],
+      unknownCards: []
+    }));
+    const recordAnalyzeTelemetryMock = vi.fn(async () => {});
+
+    vi.doMock("@/lib/scryfall", () => ({
+      fetchDeckCards: fetchDeckCardsMock,
+      getCardById: vi.fn(async () => null),
+      getCardByName: vi.fn(async () => null),
+      getCardByNameWithSet: vi.fn(async () => null)
+    }));
+    vi.doMock("@/lib/analyzeTelemetryStore", () => ({
+      recordAnalyzeTelemetry: recordAnalyzeTelemetryMock
+    }));
+
+    const { POST } = await import("@/app/api/analyze/route");
+    const payload = {
+      decklist: "1 Sol Ring\n1 Arcane Signet",
+      deckPriceMode: "decklist-set",
+      commanderName: "Atraxa, Praetors' Voice",
+      targetBracket: 3,
+      expectedWinTurn: "6-7",
+      userCedhFlag: false,
+      userHighPowerNoGCFlag: true,
+      setOverrides: {
+        "Sol Ring": "CMM"
+      }
+    };
+
+    const responseOne = await POST(buildRequest(payload));
+    const responseTwo = await POST(buildRequest(payload));
+
+    expect(responseOne.status).toBe(200);
+    expect(responseTwo.status).toBe(200);
+    expect(recordAnalyzeTelemetryMock).toHaveBeenCalledTimes(2);
+    expect(recordAnalyzeTelemetryMock.mock.calls[0]?.[0]).toEqual(
+      expect.objectContaining({
+        cache: "miss",
+        deckPriceMode: "decklist-set",
+        setOverrideCount: 1,
+        commanderSelected: true,
+        commanderSource: "manual",
+        targetBracket: 3,
+        expectedWinTurn: "6-7",
+        userCedhFlag: false,
+        userHighPowerNoGCFlag: true,
+        deckSize: 2
+      })
+    );
+    expect(recordAnalyzeTelemetryMock.mock.calls[1]?.[0]).toEqual(
+      expect.objectContaining({
+        cache: "hit",
+        deckPriceMode: "decklist-set",
+        setOverrideCount: 1,
+        commanderSelected: true,
+        commanderSource: "manual",
+        deckSize: 2
+      })
+    );
     expect(fetchDeckCardsMock).toHaveBeenCalledTimes(1);
   });
 

@@ -1,0 +1,316 @@
+import fs from "node:fs/promises";
+import path from "node:path";
+import { Pool } from "pg";
+
+type SummaryOptions = {
+  days: number;
+  output?: string;
+  jsonOutput?: string;
+};
+
+type CacheMixRow = {
+  cache_status: string;
+  requests: string;
+  avg_total_ms: string | null;
+  p50_total_ms: string | null;
+  p95_total_ms: string | null;
+};
+
+type PricingModeRow = {
+  deck_price_mode: string;
+  cache_status: string;
+  requests: string;
+  p50_total_ms: string | null;
+  p95_total_ms: string | null;
+  p95_lookup_ms: string | null;
+  p95_compute_ms: string | null;
+};
+
+type SlowShapeRow = {
+  deck_price_mode: string;
+  set_override_count: string | null;
+  deck_size: string | null;
+  commander_source: string;
+  requests: string;
+  avg_total_ms: string | null;
+  p95_total_ms: string | null;
+};
+
+type DailyTrendRow = {
+  day: string;
+  requests: string;
+  p95_total_ms: string | null;
+  p95_lookup_ms: string | null;
+};
+
+function parseArgs(argv: string[]): SummaryOptions {
+  const options: SummaryOptions = {
+    days: 7
+  };
+
+  for (let index = 0; index < argv.length; index += 1) {
+    const arg = argv[index];
+    if (arg === "--help" || arg === "-h") {
+      printHelp();
+      process.exit(0);
+    }
+
+    if (arg === "--days") {
+      const value = Number(argv[index + 1]);
+      if (!Number.isFinite(value) || value <= 0) {
+        throw new Error("--days must be a positive number.");
+      }
+      options.days = Math.max(1, Math.floor(value));
+      index += 1;
+      continue;
+    }
+
+    if (arg === "--output") {
+      options.output = argv[index + 1];
+      if (!options.output) {
+        throw new Error("--output requires a file path.");
+      }
+      index += 1;
+      continue;
+    }
+
+    if (arg === "--json-output") {
+      options.jsonOutput = argv[index + 1];
+      if (!options.jsonOutput) {
+        throw new Error("--json-output requires a file path.");
+      }
+      index += 1;
+      continue;
+    }
+
+    throw new Error(`Unknown argument: ${arg}`);
+  }
+
+  return options;
+}
+
+function printHelp(): void {
+  console.log(`Usage: npm run telemetry:summary -- [options]
+
+Options:
+  --days <n>          Report window in days (default: 7)
+  --output <path>     Write markdown report to a file
+  --json-output <path> Write raw JSON summary to a file
+  --help              Show this help
+
+Environment:
+  DATABASE_URL / POSTGRES_URL / POSTGRES_URL_NON_POOLING
+`);
+}
+
+function normalizePostgresConnectionString(value: string): string {
+  try {
+    const parsed = new URL(value);
+    const sslMode = parsed.searchParams.get("sslmode");
+    const useLibpqCompat = parsed.searchParams.get("uselibpqcompat");
+    if (!useLibpqCompat && (sslMode === "prefer" || sslMode === "require" || sslMode === "verify-ca")) {
+      parsed.searchParams.set("sslmode", "verify-full");
+    }
+
+    return parsed.toString();
+  } catch {
+    return value;
+  }
+}
+
+function getConnectionString(): string {
+  const raw = process.env.DATABASE_URL ?? process.env.POSTGRES_URL ?? process.env.POSTGRES_URL_NON_POOLING;
+  if (!raw) {
+    throw new Error("Missing DATABASE_URL or POSTGRES_URL for telemetry summary.");
+  }
+
+  return normalizePostgresConnectionString(raw);
+}
+
+function toDisplayNumber(value: string | null | undefined): string {
+  if (!value) {
+    return "n/a";
+  }
+
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed.toFixed(1) : value;
+}
+
+function toDisplayInt(value: string | null | undefined): string {
+  if (!value) {
+    return "0";
+  }
+
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? String(Math.round(parsed)) : value;
+}
+
+async function writeIfRequested(filePath: string | undefined, content: string): Promise<void> {
+  if (!filePath) {
+    return;
+  }
+
+  const absolutePath = path.resolve(filePath);
+  await fs.mkdir(path.dirname(absolutePath), { recursive: true });
+  await fs.writeFile(absolutePath, content, "utf8");
+}
+
+async function main(): Promise<void> {
+  const options = parseArgs(process.argv.slice(2));
+  const generatedAt = new Date().toISOString();
+  const pool = new Pool({
+    connectionString: getConnectionString(),
+    max: 1
+  });
+
+  try {
+    const [cacheMix, byPricingMode, slowShapes, dailyTrend, totals] = await Promise.all([
+      pool.query<CacheMixRow>(
+        `
+        select
+          cache_status,
+          count(*) as requests,
+          round(avg(total_ms)::numeric, 1) as avg_total_ms,
+          round(percentile_cont(0.5) within group (order by total_ms)::numeric, 1) as p50_total_ms,
+          round(percentile_cont(0.95) within group (order by total_ms)::numeric, 1) as p95_total_ms
+        from analyze_telemetry
+        where created_at >= now() - ($1::text || ' days')::interval
+        group by cache_status
+        order by cache_status
+      `,
+        [String(options.days)]
+      ),
+      pool.query<PricingModeRow>(
+        `
+        select
+          deck_price_mode,
+          cache_status,
+          count(*) as requests,
+          round(percentile_cont(0.5) within group (order by total_ms)::numeric, 1) as p50_total_ms,
+          round(percentile_cont(0.95) within group (order by total_ms)::numeric, 1) as p95_total_ms,
+          round(percentile_cont(0.95) within group (order by lookup_ms)::numeric, 1) as p95_lookup_ms,
+          round(percentile_cont(0.95) within group (order by compute_ms)::numeric, 1) as p95_compute_ms
+        from analyze_telemetry
+        where created_at >= now() - ($1::text || ' days')::interval
+        group by deck_price_mode, cache_status
+        order by deck_price_mode, cache_status
+      `,
+        [String(options.days)]
+      ),
+      pool.query<SlowShapeRow>(
+        `
+        select
+          deck_price_mode,
+          set_override_count,
+          deck_size,
+          commander_source,
+          count(*) as requests,
+          round(avg(total_ms)::numeric, 1) as avg_total_ms,
+          round(percentile_cont(0.95) within group (order by total_ms)::numeric, 1) as p95_total_ms
+        from analyze_telemetry
+        where created_at >= now() - ($1::text || ' days')::interval
+          and cache_status = 'miss'
+        group by deck_price_mode, set_override_count, deck_size, commander_source
+        having count(*) >= 3
+        order by p95_total_ms desc
+        limit 20
+      `,
+        [String(options.days)]
+      ),
+      pool.query<DailyTrendRow>(
+        `
+        select
+          to_char(date_trunc('day', created_at), 'YYYY-MM-DD') as day,
+          count(*) as requests,
+          round(percentile_cont(0.95) within group (order by total_ms)::numeric, 1) as p95_total_ms,
+          round(percentile_cont(0.95) within group (order by lookup_ms)::numeric, 1) as p95_lookup_ms
+        from analyze_telemetry
+        where created_at >= now() - ($1::text || ' days')::interval
+        group by 1
+        order by 1 desc
+      `,
+        [String(options.days)]
+      ),
+      pool.query<{ requests: string; first_seen: string | null; last_seen: string | null }>(
+        `
+        select
+          count(*) as requests,
+          to_char(min(created_at), 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as first_seen,
+          to_char(max(created_at), 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as last_seen
+        from analyze_telemetry
+        where created_at >= now() - ($1::text || ' days')::interval
+      `,
+        [String(options.days)]
+      )
+    ]);
+
+    const totalRow = totals.rows[0] ?? { requests: "0", first_seen: null, last_seen: null };
+    const markdown = [
+      `# Analyze Telemetry Summary`,
+      ``,
+      `Generated at: ${generatedAt}`,
+      `Window: last ${options.days} day(s)`,
+      `Requests sampled: ${toDisplayInt(totalRow.requests)}`,
+      `First sample: ${totalRow.first_seen ?? "n/a"}`,
+      `Last sample: ${totalRow.last_seen ?? "n/a"}`,
+      ``,
+      `## Cache Mix`,
+      `| Cache | Requests | Avg Total (ms) | P50 Total (ms) | P95 Total (ms) |`,
+      `| --- | ---: | ---: | ---: | ---: |`,
+      ...cacheMix.rows.map(
+        (row) =>
+          `| ${row.cache_status} | ${toDisplayInt(row.requests)} | ${toDisplayNumber(row.avg_total_ms)} | ${toDisplayNumber(row.p50_total_ms)} | ${toDisplayNumber(row.p95_total_ms)} |`
+      ),
+      ``,
+      `## By Pricing Mode`,
+      `| Pricing Mode | Cache | Requests | P50 Total (ms) | P95 Total (ms) | P95 Lookup (ms) | P95 Compute (ms) |`,
+      `| --- | --- | ---: | ---: | ---: | ---: | ---: |`,
+      ...byPricingMode.rows.map(
+        (row) =>
+          `| ${row.deck_price_mode} | ${row.cache_status} | ${toDisplayInt(row.requests)} | ${toDisplayNumber(row.p50_total_ms)} | ${toDisplayNumber(row.p95_total_ms)} | ${toDisplayNumber(row.p95_lookup_ms)} | ${toDisplayNumber(row.p95_compute_ms)} |`
+      ),
+      ``,
+      `## Slow Miss Shapes`,
+      `| Pricing Mode | Set Overrides | Deck Size | Commander Source | Requests | Avg Total (ms) | P95 Total (ms) |`,
+      `| --- | ---: | ---: | --- | ---: | ---: | ---: |`,
+      ...slowShapes.rows.map(
+        (row) =>
+          `| ${row.deck_price_mode} | ${toDisplayInt(row.set_override_count)} | ${toDisplayInt(row.deck_size)} | ${row.commander_source} | ${toDisplayInt(row.requests)} | ${toDisplayNumber(row.avg_total_ms)} | ${toDisplayNumber(row.p95_total_ms)} |`
+      ),
+      ``,
+      `## Daily Trend`,
+      `| Day | Requests | P95 Total (ms) | P95 Lookup (ms) |`,
+      `| --- | ---: | ---: | ---: |`,
+      ...dailyTrend.rows.map(
+        (row) =>
+          `| ${row.day} | ${toDisplayInt(row.requests)} | ${toDisplayNumber(row.p95_total_ms)} | ${toDisplayNumber(row.p95_lookup_ms)} |`
+      ),
+      ``
+    ].join("\n");
+
+    const json = JSON.stringify(
+      {
+        generatedAt,
+        windowDays: options.days,
+        totals: totalRow,
+        cacheMix: cacheMix.rows,
+        byPricingMode: byPricingMode.rows,
+        slowShapes: slowShapes.rows,
+        dailyTrend: dailyTrend.rows
+      },
+      null,
+      2
+    );
+
+    console.log(markdown);
+    await writeIfRequested(options.output, markdown);
+    await writeIfRequested(options.jsonOutput, json);
+  } finally {
+    await pool.end();
+  }
+}
+
+main().catch((error) => {
+  console.error(error instanceof Error ? error.message : String(error));
+  process.exit(1);
+});

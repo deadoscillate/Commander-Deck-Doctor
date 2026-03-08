@@ -126,9 +126,33 @@ Current sync includes:
 
 - Vercel hosts the app.
 - Shared report persistence uses Neon Postgres (`POSTGRES_URL` or `DATABASE_URL`).
+- Sampled analyzer performance telemetry can be stored in Postgres for production `/api/analyze` requests.
 - `/api/analyze` runs on Node runtime and loads local compiled Scryfall data.
 - Security headers are configured at the framework level (XFO, XCTO, Referrer-Policy, Permissions-Policy, CSP, HSTS).
 - All public API routes use scoped rate limiting.
+
+### Analyze Telemetry
+
+- Purpose: capture real production timing data for `/api/analyze` so lookup/computation bottlenecks can be optimized with live evidence.
+- Stored fields are operational only: cache hit/miss, timing stages, response size, deck size, known/unknown counts, pricing mode, commander-selection metadata, and related request-shape flags.
+- Raw decklists are intentionally excluded from this telemetry dataset.
+- Environment controls:
+  - `ANALYZE_TELEMETRY_ENABLED=1` to force-enable telemetry outside production, `0` to disable.
+  - `ANALYZE_TELEMETRY_SAMPLE_RATE` to adjust sampling (default `0.15`).
+  - `ANALYZE_TELEMETRY_RETENTION_DAYS` to tune retention (default `30`).
+- `npm run telemetry:summary -- --days 7` prints a markdown telemetry summary from Postgres.
+- GitHub Action: `.github/workflows/telemetry-summary.yml`
+  - scheduled daily via cron
+  - manual `workflow_dispatch`
+  - publishes `latest.md` and `latest.json` to the `telemetry-reports` branch
+  - also uploads a workflow artifact for backup
+- Codex review flow:
+  - trigger the workflow
+  - then ask: `fetch telemetry-reports and read latest.md`
+- GitHub configuration for the workflow:
+  - secret: `PROD_DATABASE_URL` (recommended) or `DATABASE_URL`
+  - optional repo variable: `TELEMETRY_REPORT_DAYS`
+  - optional repo variable: `TELEMETRY_REPORT_BRANCH`
 
 ## Branch Flow
 
@@ -184,6 +208,26 @@ Minimum standards to treat the app as production-ready for regular player usage:
    - Deploy flow remains `staging` -> validate -> `main`.
    - Preview/prod smoke checks confirm API baseline behavior and required security headers.
 
+## Ethics Checklist
+
+Current product standards for ethical operation:
+
+1. Data minimization
+   - Keep saved decks local by default.
+   - Do not store raw decklists in telemetry datasets.
+2. Transparency
+   - Clearly disclose what is local-only, what is processed server-side, and what is persisted for share links or telemetry.
+3. User control
+   - Shared reports should be intentionally created, not automatic.
+   - Retention and deletion behavior should be documented.
+4. Honest outputs
+   - Legality is deterministic where possible.
+   - Archetype, combo, speed, and Rule 0 outputs are heuristics and should be framed that way.
+5. Accessibility and inclusion
+   - Desktop/mobile parity, keyboard support, readable contrast, and non-hover-only critical information remain required.
+6. Operational responsibility
+   - Production performance telemetry exists to improve reliability, not to profile users.
+
 ## Development Roadmap
 
 ### Phase 1: Reliability + Speed (Highest Priority)
@@ -211,7 +255,7 @@ npm run bench:analyze -- --file tests/fixtures/kentaro-benchmark.decklist.txt --
 
 ### Phase 2: Analyzer Quality
 
-1. Expand archetype detection taxonomy and weighting to reduce false positives.
+1. Started: archetype detection now uses weighted signals, per-archetype thresholds, and broader taxonomy coverage (`Cascade`, `Topdeck Matters`, `Clues/Food/Blood`, `Spells From Exile`) to reduce one-card false positives.
 2. Grow combo database breadth, including more common infinite lines and commander-specific packages.
 3. Improve cut/add recommendation ranking (curve pressure, redundancy, protection density, strategy lock-ins).
 
@@ -223,7 +267,8 @@ npm run bench:analyze -- --file tests/fixtures/kentaro-benchmark.decklist.txt --
 
 ### Phase 4: Productization
 
-1. Add persistent telemetry/error tracking dashboards for real-world usage patterns.
-2. Define release gates (tests, lint, build, smoke checks) before production deploy.
-3. Improve user-facing guidance text for Rule 0 interpretation and recommendation confidence.
-4. Add a release checklist with explicit go/no-go thresholds (latency, error rate, test pass, accessibility pass).
+1. Started: sampled `/api/analyze` timing telemetry is now persisted for production profiling without storing raw decklists.
+2. Add persistent dashboards/queries on top of telemetry and error tracking for real-world usage patterns.
+3. Define release gates (tests, lint, build, smoke checks) before production deploy.
+4. Improve user-facing guidance text for Rule 0 interpretation and recommendation confidence.
+5. Add a release checklist with explicit go/no-go thresholds (latency, error rate, test pass, accessibility pass).

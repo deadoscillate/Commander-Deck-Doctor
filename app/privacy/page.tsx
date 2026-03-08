@@ -10,13 +10,17 @@ export default function PrivacyPage() {
   return (
     <main className="legal-page">
       <h1>Privacy Policy</h1>
-      <p className="muted">Last updated: March 6, 2026</p>
+      <p className="muted">Last updated: March 8, 2026</p>
 
       <section>
         <h2>What We Store</h2>
         <ul>
           <li>Saved Decks are stored in your browser local storage only.</li>
           <li>Analyze Deck sends your submitted decklist to server endpoints for processing.</li>
+          <li>
+            We may store sampled analyzer performance telemetry such as timing, deck size, cache status, and pricing
+            mode to improve speed and reliability. Raw decklists are not stored in this telemetry dataset.
+          </li>
           <li>Share Deck Report stores a decklist + report snapshot in our database to generate share links.</li>
         </ul>
       </section>

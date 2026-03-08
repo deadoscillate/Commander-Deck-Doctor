@@ -561,15 +561,18 @@ export function AnalysisReport({ result, onOpenPrintingPicker }: AnalysisReportP
     const body = document.body;
     const pageArtUrl = commanderInfo.artUrl ?? commanderInfo.cardImageUrl;
     if (!pageArtUrl) {
+      root.classList.remove("has-commander-page-art");
       body.classList.remove("has-commander-page-art");
       root.style.removeProperty("--commander-page-art");
       return;
     }
 
     root.style.setProperty("--commander-page-art", `url("${pageArtUrl}")`);
+    root.classList.add("has-commander-page-art");
     body.classList.add("has-commander-page-art");
 
     return () => {
+      root.classList.remove("has-commander-page-art");
       body.classList.remove("has-commander-page-art");
       root.style.removeProperty("--commander-page-art");
     };

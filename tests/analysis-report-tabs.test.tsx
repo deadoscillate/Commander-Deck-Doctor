@@ -41,4 +41,21 @@ describe("analysis report tab smoke", () => {
     expect(screen.getByRole("heading", { name: "Combo Detection" })).toBeTruthy();
     expect(screen.getByRole("tab", { name: /Live Combos/i })).toBeTruthy();
   });
+
+  it("applies and cleans up the commander page art styling hooks", () => {
+    const result = createAnalyzeResponseFixture();
+    const { unmount } = render(<AnalysisReport result={result} />);
+
+    expect(document.documentElement.classList.contains("has-commander-page-art")).toBe(true);
+    expect(document.body.classList.contains("has-commander-page-art")).toBe(true);
+    expect(document.documentElement.style.getPropertyValue("--commander-page-art")).toContain(
+      "https://img.test/atraxa-art.jpg"
+    );
+
+    unmount();
+
+    expect(document.documentElement.classList.contains("has-commander-page-art")).toBe(false);
+    expect(document.body.classList.contains("has-commander-page-art")).toBe(false);
+    expect(document.documentElement.style.getPropertyValue("--commander-page-art")).toBe("");
+  });
 });
