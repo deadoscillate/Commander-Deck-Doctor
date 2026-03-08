@@ -8,7 +8,7 @@ on:
       days:
         description: "Lookback window in days"
         required: false
-        default: "7"
+        default: ""
       since:
         description: "Only include requests at or after this ISO-8601 timestamp"
         required: false
@@ -44,10 +44,14 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          REPORT_DAYS="${INPUT_DAYS:-${TELEMETRY_REPORT_DAYS:-7}}"
+          REPORT_DAYS="${INPUT_DAYS:-}"
           REPORT_SINCE="${INPUT_SINCE:-}"
           REPORT_LAST="${INPUT_LAST:-}"
           REPORT_BRANCH="${TELEMETRY_REPORT_BRANCH:-telemetry-reports}"
+
+          if [ -z "$REPORT_DAYS" ] && [ -z "$REPORT_SINCE" ] && [ -z "$REPORT_LAST" ]; then
+            REPORT_DAYS="${TELEMETRY_REPORT_DAYS:-7}"
+          fi
 
           if [ -z "${DATABASE_URL:-}" ]; then
             echo "Missing PROD_DATABASE_URL / DATABASE_URL / POSTGRES_URL secret for telemetry summary." >&2
