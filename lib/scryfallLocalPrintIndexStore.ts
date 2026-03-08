@@ -2,6 +2,11 @@ import fs from "node:fs";
 import path from "node:path";
 import zlib from "node:zlib";
 import type { ScryfallCardFace, ScryfallImageUris, ScryfallPrices, ScryfallPurchaseUris } from "./types";
+import {
+  getSqlitePrintCardById,
+  getSqlitePrintCardByNameSet,
+  getSqlitePrintCardBySetCollector
+} from "./scryfallLocalPrintSqliteStore";
 
 export type LocalPrintCardFace = ScryfallCardFace & {
   name?: string;
@@ -164,7 +169,12 @@ function resolveRecord(store: PrintIndexShardStore, index: number | undefined): 
   return store.records[index] ?? null;
 }
 
-export function getLocalPrintCardById(printingId: string): LocalPrintCardRecord | null {
+export async function getLocalPrintCardById(printingId: string): Promise<LocalPrintCardRecord | null> {
+  const sqliteCard = await getSqlitePrintCardById(printingId);
+  if (sqliteCard) {
+    return normalizeRecord(sqliteCard);
+  }
+
   const key = buildIdKey(printingId);
   const bucketId = loadManifest().get(key);
   if (!bucketId) {
@@ -175,16 +185,29 @@ export function getLocalPrintCardById(printingId: string): LocalPrintCardRecord 
   return resolveRecord(store, store.byId.get(key));
 }
 
-export function getLocalPrintCardBySetCollector(
+export async function getLocalPrintCardBySetCollector(
   setCode: string,
   collectorNumber: string
-): LocalPrintCardRecord | null {
+): Promise<LocalPrintCardRecord | null> {
+  const sqliteCard = await getSqlitePrintCardBySetCollector(setCode, collectorNumber);
+  if (sqliteCard) {
+    return normalizeRecord(sqliteCard);
+  }
+
   const store = loadShard(getPrintIndexBucketId(setCode));
   const key = buildSetCollectorKey(setCode, collectorNumber);
   return resolveRecord(store, store.bySetCollector.get(key));
 }
 
-export function getLocalPrintCardByNameSet(name: string, setCode: string): LocalPrintCardRecord | null {
+export async function getLocalPrintCardByNameSet(
+  name: string,
+  setCode: string
+): Promise<LocalPrintCardRecord | null> {
+  const sqliteCard = await getSqlitePrintCardByNameSet(name, setCode);
+  if (sqliteCard) {
+    return normalizeRecord(sqliteCard);
+  }
+
   const store = loadShard(getPrintIndexBucketId(setCode));
   const key = buildNameSetKey(name, setCode);
   return resolveRecord(store, store.byNameSet.get(key));

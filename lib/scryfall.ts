@@ -528,7 +528,7 @@ async function fetchCardsByBatchIdentifiers(
   return resolved;
 }
 
-function getLocalPrintLookupMaps(parsedDeck: ParsedDeckEntry[]): LocalPrintLookupMaps {
+async function getLocalPrintLookupMaps(parsedDeck: ParsedDeckEntry[]): Promise<LocalPrintLookupMaps> {
   const lookups = createEmptyLocalPrintLookupMaps();
   const persistedCards: ScryfallCard[] = [];
 
@@ -540,21 +540,21 @@ function getLocalPrintLookupMaps(parsedDeck: ParsedDeckEntry[]): LocalPrintLooku
       typeof entry.collectorNumber === "string" ? entry.collectorNumber.trim() : "";
 
     if (printingId) {
-      const record = getLocalPrintCardById(printingId);
+      const record = await getLocalPrintCardById(printingId);
       if (record) {
         card = toScryfallCardFromLocalPrintRecord(record);
       }
     }
 
     if (!card && setCode && collectorNumber) {
-      const record = getLocalPrintCardBySetCollector(setCode, collectorNumber);
+      const record = await getLocalPrintCardBySetCollector(setCode, collectorNumber);
       if (record && normalizeLookupName(record.name) === normalizeLookupName(entry.name)) {
         card = toScryfallCardFromLocalPrintRecord(record);
       }
     }
 
     if (!card && setCode) {
-      const record = getLocalPrintCardByNameSet(entry.name, setCode);
+      const record = await getLocalPrintCardByNameSet(entry.name, setCode);
       if (record && (!collectorNumber || collectorNumberMatches(collectorNumber, record.collector_number))) {
         card = toScryfallCardFromLocalPrintRecord(record);
       }
@@ -710,7 +710,7 @@ export async function getCardById(printingId: string): Promise<ScryfallCard | nu
     return cached.get(key) ?? null;
   }
 
-  const localPrint = getLocalPrintCardById(normalizedId);
+  const localPrint = await getLocalPrintCardById(normalizedId);
   if (localPrint) {
     const localCard = toScryfallCardFromLocalPrintRecord(localPrint);
     if (localCard) {
@@ -745,7 +745,7 @@ export async function getCardByNameWithSet(name: string, setCode: string): Promi
     return cached.get(key) ?? null;
   }
 
-  const localPrint = getLocalPrintCardByNameSet(name, normalizedSet);
+  const localPrint = await getLocalPrintCardByNameSet(name, normalizedSet);
   if (localPrint) {
     const localCard = toScryfallCardFromLocalPrintRecord(localPrint);
     if (localCard) {
@@ -806,7 +806,7 @@ async function getCardBySetAndCollector(
     return cached.get(key) ?? null;
   }
 
-  const localPrint = getLocalPrintCardBySetCollector(normalizedSet, normalizedCollector);
+  const localPrint = await getLocalPrintCardBySetCollector(normalizedSet, normalizedCollector);
   if (localPrint) {
     const localCard = toScryfallCardFromLocalPrintRecord(localPrint);
     if (localCard) {
@@ -959,7 +959,7 @@ export async function fetchDeckCards(
       nameLookups = preciseLookups;
     }
   } else {
-    localPrintLookups = getLocalPrintLookupMaps(parsedDeck);
+    localPrintLookups = await getLocalPrintLookupMaps(parsedDeck);
     const unresolvedForPreciseBatch = parsedDeck.filter(
       (entry) => !resolveCardFromLocalPrintLookups(entry, localPrintLookups)
     );

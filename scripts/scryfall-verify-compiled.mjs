@@ -16,6 +16,12 @@ const DATASETS = [
     label: "default-cards"
   },
   {
+    compiledPath: path.resolve("data/scryfall/prints.compiled.sqlite"),
+    minRecords: 10000,
+    label: "print-sqlite",
+    payloadType: "sqlite"
+  },
+  {
     manifestPath: path.resolve("data/scryfall/print-index/manifest.compiled.json.gz"),
     shardDir: path.resolve("data/scryfall/print-index/shards"),
     requiredFields: ["oracle_id", "id", "name", "set", "collector_number"],
@@ -30,6 +36,10 @@ function fail(message) {
 }
 
 async function verifyDataset(dataset) {
+  if (dataset.payloadType === "sqlite") {
+    return verifySqliteDataset(dataset);
+  }
+
   if (dataset.payloadType === "sharded") {
     return verifyShardedDataset(dataset);
   }
@@ -72,6 +82,28 @@ async function verifyDataset(dataset) {
   }
 
   console.log(`Verified compiled Scryfall file: ${dataset.compiledPath} (${records.length} cards)`);
+}
+
+async function verifySqliteDataset(dataset) {
+  try {
+    await fs.access(dataset.compiledPath);
+  } catch {
+    fail(`Missing compiled ${dataset.label} file: ${dataset.compiledPath}. Run: npm run scryfall:update`);
+  }
+
+  const { DatabaseSync } = await import("node:sqlite");
+  const database = new DatabaseSync(dataset.compiledPath, { readOnly: true });
+  try {
+    const row = database.prepare("SELECT COUNT(*) AS count FROM print_cards").get();
+    const count = Number(row?.count ?? 0);
+    if (count < dataset.minRecords) {
+      fail(`Compiled ${dataset.label} file looks incomplete (${count} rows). Re-run: npm run scryfall:update`);
+    }
+
+    console.log(`Verified compiled SQLite Scryfall file: ${dataset.compiledPath} (${count} print rows)`);
+  } finally {
+    database.close();
+  }
 }
 
 async function verifyShardedDataset(dataset) {

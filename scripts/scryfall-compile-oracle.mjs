@@ -3,6 +3,7 @@ import path from "node:path";
 import zlib from "node:zlib";
 
 const OUTPUT_DIR = path.resolve("data/scryfall");
+const PRINT_SQLITE_PATH = path.join(OUTPUT_DIR, "prints.compiled.sqlite");
 const PRINT_INDEX_DIR = path.join(OUTPUT_DIR, "print-index");
 const PRINT_INDEX_MANIFEST_PATH = path.join(PRINT_INDEX_DIR, "manifest.compiled.json.gz");
 const PRINT_INDEX_SHARD_DIR = path.join(PRINT_INDEX_DIR, "shards");
@@ -394,6 +395,126 @@ async function compilePrintIndexArtifacts() {
   );
 }
 
+async function compilePrintSqliteArtifact() {
+  const rawPath = path.join(OUTPUT_DIR, "default-cards.raw.json");
+  try {
+    await fs.access(rawPath);
+  } catch {
+    fail(`Missing raw Scryfall file: ${rawPath}. Run: npm run scryfall:download`);
+  }
+
+  const raw = JSON.parse(await fs.readFile(rawPath, "utf8"));
+  if (!Array.isArray(raw)) {
+    fail("Unexpected print SQLite source format: expected top-level array");
+  }
+
+  const { DatabaseSync } = await import("node:sqlite");
+  await fs.rm(PRINT_SQLITE_PATH, { force: true });
+
+  const database = new DatabaseSync(PRINT_SQLITE_PATH);
+  try {
+    database.exec(`
+      PRAGMA journal_mode = OFF;
+      PRAGMA synchronous = OFF;
+      PRAGMA temp_store = MEMORY;
+
+      CREATE TABLE print_cards (
+        printing_id TEXT PRIMARY KEY,
+        set_code TEXT NOT NULL,
+        collector_number TEXT NOT NULL,
+        normalized_collector_number TEXT NOT NULL,
+        normalized_name TEXT NOT NULL,
+        collector_sort_rank INTEGER NOT NULL,
+        collector_sort_suffix TEXT NOT NULL,
+        oracle_id TEXT NOT NULL,
+        name TEXT NOT NULL,
+        image_normal TEXT,
+        image_art_crop TEXT,
+        price_usd TEXT,
+        price_usd_foil TEXT,
+        price_usd_etched TEXT,
+        tcgplayer_url TEXT,
+        card_faces_json TEXT
+      ) WITHOUT ROWID;
+
+      CREATE INDEX idx_print_cards_set_collector
+        ON print_cards (set_code, normalized_collector_number);
+
+      CREATE INDEX idx_print_cards_set_name_rank
+        ON print_cards (set_code, normalized_name, collector_sort_rank, collector_sort_suffix, printing_id);
+    `);
+
+    const insert = database.prepare(`
+      INSERT OR REPLACE INTO print_cards (
+        printing_id,
+        set_code,
+        collector_number,
+        normalized_collector_number,
+        normalized_name,
+        collector_sort_rank,
+        collector_sort_suffix,
+        oracle_id,
+        name,
+        image_normal,
+        image_art_crop,
+        price_usd,
+        price_usd_foil,
+        price_usd_etched,
+        tcgplayer_url,
+        card_faces_json
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+
+    let recordCount = 0;
+    database.exec("BEGIN");
+    for (const card of raw) {
+      const compiled = compilePrintIndexCard(card);
+      if (!compiled) {
+        continue;
+      }
+
+      const collectorSort = collectorSortValue(compiled.collector_number);
+      const facesPayload =
+        Array.isArray(compiled.card_faces) && compiled.card_faces.length > 0
+          ? JSON.stringify(compiled.card_faces)
+          : null;
+
+      insert.run(
+        compiled.id.toLowerCase(),
+        compiled.set,
+        compiled.collector_number,
+        normalizeCollectorNumber(compiled.collector_number),
+        normalizeLookupName(compiled.name),
+        collectorSort.rank,
+        collectorSort.suffix,
+        compiled.oracle_id,
+        compiled.name,
+        compiled.image_uris?.normal ?? null,
+        compiled.image_uris?.art_crop ?? null,
+        compiled.prices?.usd ?? null,
+        compiled.prices?.usd_foil ?? null,
+        compiled.prices?.usd_etched ?? null,
+        compiled.purchase_uris?.tcgplayer ?? null,
+        facesPayload
+      );
+      recordCount += 1;
+    }
+    database.exec("COMMIT");
+    database.exec("VACUUM");
+
+    console.log(`Compiled ${recordCount} print rows to SQLite: ${PRINT_SQLITE_PATH}`);
+  } catch (error) {
+    try {
+      database.exec("ROLLBACK");
+    } catch {
+      // ignore rollback failures
+    }
+    throw error;
+  } finally {
+    database.close();
+  }
+}
+
 async function compileDataset(dataset) {
   try {
     await fs.access(dataset.rawPath);
@@ -431,6 +552,7 @@ async function main() {
     await compileDataset(dataset);
   }
   await compilePrintIndexArtifacts();
+  await compilePrintSqliteArtifact();
 }
 
 main().catch((error) => {

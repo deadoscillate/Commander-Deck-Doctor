@@ -20,11 +20,13 @@ const nextConfig = {
     "/api/analyze": [
       "./data/scryfall/oracle-cards.compiled.json",
       "./data/scryfall/default-cards.compiled.json.gz",
+      "./data/scryfall/prints.compiled.sqlite",
       "./data/scryfall/print-index/**/*"
     ],
     "/api/**/*": [
       "./data/scryfall/oracle-cards.compiled.json",
       "./data/scryfall/default-cards.compiled.json.gz",
+      "./data/scryfall/prints.compiled.sqlite",
       "./data/scryfall/print-index/**/*"
     ]
   },
