@@ -29,15 +29,6 @@ const ANALYZE_REQUEST_MAX_BYTES = 500_000;
 const ANALYZE_DECKLIST_MAX_CHARS = 50_000;
 const ANALYZE_CACHE_TTL_MS = 10 * 60 * 1000;
 const ANALYZE_CACHE_MAX_ENTRIES = 120;
-const DEFAULT_ANALYZE_SIMULATION_RUNS = 250;
-const ANALYZE_SIMULATION_RUNS = (() => {
-  const parsed = Number(process.env.ANALYZE_SIMULATION_RUNS ?? "");
-  if (!Number.isFinite(parsed)) {
-    return DEFAULT_ANALYZE_SIMULATION_RUNS;
-  }
-
-  return Math.max(100, Math.floor(parsed));
-})();
 const ANALYZE_RATE_LIMIT = {
   scope: "analyze" as const,
   limit: 45,
@@ -404,25 +395,6 @@ function buildCardKingdomSearchUrl(cardName: string | null | undefined): string 
   }
 
   return `https://www.cardkingdom.com/catalog/search?search=header&filter[name]=${encodeURIComponent(trimmed)}`;
-}
-
-function stableSimulationSeed(
-  parsedDeck: Array<{ name: string; qty: number; resolvedName: string | null }>,
-  commanderName: string | null
-): string {
-  const normalized = parsedDeck
-    .map((entry) => `${entry.qty}x:${(entry.resolvedName ?? entry.name).trim().toLowerCase()}`)
-    .sort((a, b) => a.localeCompare(b))
-    .join("|");
-  const input = `${normalized}|commander:${(commanderName ?? "none").trim().toLowerCase()}`;
-
-  let hash = 2166136261;
-  for (let i = 0; i < input.length; i += 1) {
-    hash ^= input.charCodeAt(i);
-    hash = Math.imul(hash, 16777619);
-  }
-
-  return `analyze-${(hash >>> 0).toString(16)}`;
 }
 
 function buildDeckPriceSummary(
@@ -831,70 +803,6 @@ export async function POST(request: Request) {
         cardMetadataLookup: comboMetadataLookup
       }
     );
-    const simulationDeck = parsedDeckView.map((entry) => ({
-      name: entry.resolvedName ?? entry.name,
-      qty: entry.qty
-    }));
-    const simulationSeed = stableSimulationSeed(
-      parsedDeckView,
-      selectedCommanderCard?.name ?? selectedCommanderName
-    );
-    const simulationCommander = selectedCommanderCard?.name ?? selectedCommanderName ?? undefined;
-    const openingSimulation = analyzer.simulate({
-      type: "OPENING_HAND",
-      deck: simulationDeck,
-      runs: ANALYZE_SIMULATION_RUNS,
-      seed: simulationSeed,
-      commander: simulationCommander
-    });
-    const goldfishSimulation = analyzer.simulate({
-      type: "GOLDFISH",
-      deck: simulationDeck,
-      runs: ANALYZE_SIMULATION_RUNS,
-      seed: simulationSeed,
-      commander: simulationCommander
-    });
-    const knownCardQty = knownCards.reduce((sum, entry) => sum + entry.qty, 0);
-    const manaRocks = knownCards.reduce((sum, entry) => {
-      const engineCard = engineCardByName(entry.card.name);
-      const behaviorId = engineCard?.behaviorId ?? "";
-      const typeLine = (engineCard?.typeLine ?? entry.card.type_line).toLowerCase();
-      const text = (engineCard?.oracleText ?? entry.card.oracle_text).toLowerCase();
-      const manaRockLike =
-        !typeLine.includes("land") &&
-        typeLine.includes("artifact") &&
-        (behaviorId.startsWith("TAP_ADD_") ||
-          /\{t\}:\s*add\s+\{[wubrgc]/.test(text) ||
-          /\badd\b[\s\S]{0,50}\bmana\b/.test(text));
-      return manaRockLike ? sum + entry.qty : sum;
-    }, 0);
-    const openingHandSimulation =
-      openingSimulation.type === "OPENING_HAND" && goldfishSimulation.type === "GOLDFISH"
-        ? {
-            simulations: openingSimulation.runs,
-            playableHands: openingSimulation.playableHands,
-            deadHands: openingSimulation.deadHands,
-            rampInOpening: Math.max(
-              0,
-              Math.round((openingSimulation.rampInOpeningPct / 100) * openingSimulation.runs)
-            ),
-            playablePct: openingSimulation.playableHandsPct,
-            deadPct: openingSimulation.deadHandsPct,
-            rampInOpeningPct: openingSimulation.rampInOpeningPct,
-            averageFirstSpellTurn: goldfishSimulation.avgFirstSpellTurn,
-            estimatedCommanderCastTurn: goldfishSimulation.avgCommanderCastTurn,
-            cardCounts: {
-              lands: roundedSummary.types.land,
-              rampCards: roles.ramp,
-              manaRocks: manaRocks
-            },
-            totalDeckSize: inputDeckSize,
-            unknownCardCount: Math.max(0, inputDeckSize - knownCardQty),
-            disclaimer:
-              "Deterministic seeded engine simulation (opening hand + simplified goldfish). " +
-              "Cards outside current behavior templates use metadata-level approximations."
-          }
-        : null;
     const ruleZero = computePlayerHeuristics({
       deckCards: knownCards,
       averageManaValue: roundedSummary.averageManaValue,
@@ -904,22 +812,8 @@ export async function POST(request: Request) {
       tutorCount: roles.tutors,
       comboDetectedCount: comboReport.detected.length,
       commanderCard: selectedCommanderCard,
-      openingHand:
-        openingSimulation.type === "OPENING_HAND"
-          ? {
-              playableHandsPct: openingSimulation.playableHandsPct,
-              deadHandsPct: openingSimulation.deadHandsPct,
-              rampInOpeningPct: openingSimulation.rampInOpeningPct
-            }
-          : null,
-      goldfish:
-        goldfishSimulation.type === "GOLDFISH"
-          ? {
-              avgFirstSpellTurn: goldfishSimulation.avgFirstSpellTurn,
-              avgCommanderCastTurn: goldfishSimulation.avgCommanderCastTurn,
-              avgManaByTurn3: goldfishSimulation.avgManaByTurn3
-            }
-          : null
+      openingHand: null,
+      goldfish: null
     });
 
     const suggestionColorIdentity =
@@ -1025,7 +919,6 @@ export async function POST(request: Request) {
       rulesEngine,
       deckHealth,
       deckPrice,
-      openingHandSimulation,
       archetypeReport,
       comboReport,
       ruleZero,

@@ -183,6 +183,12 @@ export function SimulationsSection({ deck, commanderName, initialSummary = null 
         </>
       ) : null}
 
+      {!openingResult && !initialSummary ? (
+        <p className="muted">
+          Simulations are now on-demand. Run them here when you want opening-hand and goldfish estimates.
+        </p>
+      ) : null}
+
       <div className="sim-controls">
         <label htmlFor="sim-runs">Runs</label>
         <select id="sim-runs" value={runs} onChange={(event) => setRuns(Number(event.target.value))}>

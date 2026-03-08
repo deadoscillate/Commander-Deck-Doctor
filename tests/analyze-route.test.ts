@@ -338,7 +338,7 @@ describe("POST /api/analyze", () => {
     expect(fetchDeckCardsMock).toHaveBeenCalledTimes(1);
   });
 
-  it("returns opening hand simulation metrics", async () => {
+  it("does not precompute opening hand simulation metrics in analyze responses", async () => {
     vi.doMock("@/lib/scryfall", () => ({
       fetchDeckCards: vi.fn(async () => ({
         knownCards: [
@@ -412,16 +412,7 @@ describe("POST /api/analyze", () => {
     };
 
     expect(response.status).toBe(200);
-    expect(body.openingHandSimulation).toBeDefined();
-    expect(body.openingHandSimulation?.simulations).toBeGreaterThanOrEqual(100);
-    expect(body.openingHandSimulation?.playablePct).toBeGreaterThanOrEqual(0);
-    expect(body.openingHandSimulation?.playablePct).toBeLessThanOrEqual(100);
-    expect(body.openingHandSimulation?.deadPct).toBeGreaterThanOrEqual(0);
-    expect(body.openingHandSimulation?.deadPct).toBeLessThanOrEqual(100);
-    expect(body.openingHandSimulation?.rampInOpeningPct).toBeGreaterThanOrEqual(0);
-    expect(body.openingHandSimulation?.rampInOpeningPct).toBeLessThanOrEqual(100);
-    expect(body.openingHandSimulation?.averageFirstSpellTurn).not.toBeNull();
-    expect(body.openingHandSimulation?.estimatedCommanderCastTurn).not.toBeNull();
+    expect(body.openingHandSimulation).toBeUndefined();
   });
 
   it("applies set overrides from UI printing selection before lookup", async () => {
