@@ -418,6 +418,17 @@ async function compilePrintSqliteArtifact() {
       PRAGMA synchronous = OFF;
       PRAGMA temp_store = MEMORY;
 
+      CREATE TABLE oracle_cards (
+        oracle_id TEXT PRIMARY KEY,
+        type_line TEXT,
+        cmc REAL,
+        mana_cost TEXT,
+        colors_json TEXT,
+        color_identity_json TEXT,
+        oracle_text TEXT,
+        keywords_json TEXT
+      ) WITHOUT ROWID;
+
       CREATE TABLE print_cards (
         printing_id TEXT PRIMARY KEY,
         set_code TEXT NOT NULL,
@@ -428,13 +439,6 @@ async function compilePrintSqliteArtifact() {
         collector_sort_suffix TEXT NOT NULL,
         oracle_id TEXT NOT NULL,
         name TEXT NOT NULL,
-        type_line TEXT,
-        cmc REAL,
-        mana_cost TEXT,
-        colors_json TEXT,
-        color_identity_json TEXT,
-        oracle_text TEXT,
-        keywords_json TEXT,
         image_normal TEXT,
         image_art_crop TEXT,
         price_usd TEXT,
@@ -451,6 +455,19 @@ async function compilePrintSqliteArtifact() {
         ON print_cards (set_code, normalized_name, collector_sort_rank, collector_sort_suffix, printing_id);
     `);
 
+    const insertOracle = database.prepare(`
+      INSERT OR REPLACE INTO oracle_cards (
+        oracle_id,
+        type_line,
+        cmc,
+        mana_cost,
+        colors_json,
+        color_identity_json,
+        oracle_text,
+        keywords_json
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+
     const insert = database.prepare(`
       INSERT OR REPLACE INTO print_cards (
         printing_id,
@@ -462,13 +479,6 @@ async function compilePrintSqliteArtifact() {
         collector_sort_suffix,
         oracle_id,
         name,
-        type_line,
-        cmc,
-        mana_cost,
-        colors_json,
-        color_identity_json,
-        oracle_text,
-        keywords_json,
         image_normal,
         image_art_crop,
         price_usd,
@@ -476,7 +486,7 @@ async function compilePrintSqliteArtifact() {
         price_usd_etched,
         tcgplayer_url,
         card_faces_json
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     let recordCount = 0;
@@ -494,6 +504,19 @@ async function compilePrintSqliteArtifact() {
           ? JSON.stringify(pickCardFaces(card, { includeImages: true }))
           : null;
 
+      insertOracle.run(
+        compiled.oracle_id,
+        oracleFields.type_line ?? null,
+        typeof oracleFields.mana_value === "number" && Number.isFinite(oracleFields.mana_value)
+          ? oracleFields.mana_value
+          : null,
+        oracleFields.mana_cost ?? null,
+        Array.isArray(oracleFields.colors) ? JSON.stringify(oracleFields.colors) : null,
+        Array.isArray(oracleFields.color_identity) ? JSON.stringify(oracleFields.color_identity) : null,
+        oracleFields.oracle_text ?? null,
+        Array.isArray(oracleFields.keywords) ? JSON.stringify(oracleFields.keywords) : null
+      );
+
       insert.run(
         compiled.id.toLowerCase(),
         compiled.set,
@@ -504,15 +527,6 @@ async function compilePrintSqliteArtifact() {
         collectorSort.suffix,
         compiled.oracle_id,
         compiled.name,
-        oracleFields.type_line ?? null,
-        typeof oracleFields.mana_value === "number" && Number.isFinite(oracleFields.mana_value)
-          ? oracleFields.mana_value
-          : null,
-        oracleFields.mana_cost ?? null,
-        Array.isArray(oracleFields.colors) ? JSON.stringify(oracleFields.colors) : null,
-        Array.isArray(oracleFields.color_identity) ? JSON.stringify(oracleFields.color_identity) : null,
-        oracleFields.oracle_text ?? null,
-        Array.isArray(oracleFields.keywords) ? JSON.stringify(oracleFields.keywords) : null,
         compiled.image_uris?.normal ?? null,
         compiled.image_uris?.art_crop ?? null,
         compiled.prices?.usd ?? null,

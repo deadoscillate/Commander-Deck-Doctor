@@ -169,6 +169,11 @@ async function ensureDb(): Promise<SqliteDatabase | null> {
     fs.mkdirSync(DATA_DIR, { recursive: true });
     db = new DatabaseSync(DB_PATH);
     db.exec(`
+      PRAGMA journal_mode = WAL;
+      PRAGMA synchronous = NORMAL;
+      PRAGMA busy_timeout = 5000;
+    `);
+    db.exec(`
       CREATE TABLE IF NOT EXISTS scryfall_card_cache (
         cache_key TEXT PRIMARY KEY,
         card_json TEXT NOT NULL,

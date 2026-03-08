@@ -12,7 +12,7 @@ Commander deck analysis app built with Next.js + TypeScript.
   - role composition (ramp/draw/removal/wipes/tutors/protection/finishers)
   - commander/deck checks (size, singleton, color identity, unknown cards)
   - bracket heuristics, archetype signals, combo signals, Rule 0 snapshot (including true tutor cards in table-talk flags)
-  - deterministic simulation summaries
+  - on-demand deterministic simulations
 - Supports set-aware pricing, per-card seller links, and per-card printing selection.
 - Shows card preview tiles across key report sections (detected cards, core composition tagged cards, combo detection, and suggestion cards).
 
@@ -119,12 +119,14 @@ Current sync includes:
 - The `Simulations` tab uses a single interactive simulation panel.
 - Run counts: `100`, `1000`, `5000`.
 - Optional seed toggle for reproducible runs.
-- Rule 0 speed/consistency heuristics consume simulation outputs (opening-hand and goldfish signals) plus deck composition features.
+- Simulations are fetched on demand from `/api/simulate`; they no longer block the initial `/api/analyze` response.
+- Rule 0 speed/consistency heuristics currently use deck composition features during initial analyze and can be compared against the on-demand simulation panel afterward.
 
 ## Suggestions And Combo Views
 
 - Deck Improvement Suggestions include `Suggested Adds` for `LOW` role statuses.
 - Deck Improvement Suggestions include `Suggested Cuts` for `HIGH` role statuses (based on role-tagged cards in your list).
+- Improvement suggestions now load after the initial report from `POST /api/improvement-suggestions` so first analysis returns faster.
 - Combo Detection includes internal tabs: `Live Combos`, `Conditional`, and `Potential`.
 - Combo lists and suggestions use card preview tiles for faster review.
 
@@ -174,6 +176,7 @@ Recommended flow:
 
 - `POST /api/analyze`
 - `POST /api/import-url`
+- `POST /api/improvement-suggestions`
 - `POST /api/share-report`
 - `POST /api/simulate`
 - `GET /api/card-printings`
@@ -188,9 +191,9 @@ Recommended flow:
 
 - Core workflow is live: import/paste decklist -> analyze -> review report sections.
 - Key analysis outputs are present: legality checks, role coverage, archetypes, combos, Rule 0 snapshot, deck price, and simulations.
-- UX is significantly improved, including commander hero/header and desktop/mobile layout parity.
+- UX is significantly improved, including commander hero/header, full-page commander art treatment, and stronger desktop/mobile layout parity.
 - Regression safety is materially improved (CI + smoke + accessibility + coverage gates).
-- Primary remaining gap before broader live rollout: end-to-end analysis speed for larger, print-aware decklists.
+- Primary remaining gap before broader live rollout: cold-miss lookup latency, especially for `oracle-default` analyses on larger real-world lists.
 
 ## Live Product Standards
 
@@ -203,7 +206,7 @@ Minimum standards to treat the app as production-ready for regular player usage:
    - Legality checks remain deterministic and explain failures clearly.
    - Price/preview/combo/archetype outputs degrade gracefully when card data is missing.
 3. Performance
-   - Analyze requests should feel responsive for typical 100-card lists (including set-aware pricing mode).
+   - Initial analyze should feel responsive for typical 100-card lists, with a practical target of about `<=1s` for the first meaningful report and non-blocking enrichment after.
    - Client interactions (tab switch, hover previews, commander changes) should not block the UI.
 4. Test coverage
    - API contract and rules-engine tests green in CI.
@@ -245,7 +248,9 @@ Current product standards for ethical operation:
 5. Completed: miss-path card resolution now uses a two-pass strategy (`precise identifiers` -> unresolved `name batch`) plus a persistent resolved-card cache to reduce repeated live Scryfall work.
 6. Completed: `oracle-default` resolution now uses a local default-print Scryfall snapshot first, with live Scryfall only as fallback for missing or set-specific print lookups.
 7. Completed: `decklist-set` print-aware resolution now uses a lean print-only SQLite store first, with the bucketed local print index retained as fallback.
-8. Ongoing: continue lowering `lookup` stage time for slow external conditions using additional fallback/caching strategies and broader local-data usage.
+8. Completed: improvement suggestions were moved off the initial analyze path into `POST /api/improvement-suggestions`, removing the largest compute-phase hotspot from first-report latency.
+9. Completed: mobile layout hardening added overflow guards, stacked export actions, and more reliable tab scrolling for narrow screens.
+10. Ongoing: continue lowering `lookup` stage time, with focus now narrowed to the remaining `oracle-default` cold-miss path.
 
 ### Phase 1 Benchmark Snapshot (March 8, 2026)
 
@@ -269,6 +274,12 @@ Deck used: `tests/fixtures/kentaro-benchmark.decklist.txt` (74 non-empty lines, 
 - Current cold miss after lean print-only SQLite:
   - `oracle-default` miss: ~1754.1ms total (`parse 1.8ms`, `lookup 1221.1ms`, `compute 524.5ms`, `serialize 0.3ms`)
   - `decklist-set` miss: ~2007.0ms total (`parse 1.8ms`, `lookup 1471.4ms`, `compute 526.6ms`, `serialize 0.2ms`)
+- Current cold miss after deferred improvement suggestions:
+  - `oracle-default` miss: ~1518.2ms total (`parse 1.8ms`, `lookup 1458.8ms`, `compute 50.4ms`, `serialize 0.2ms`)
+  - `decklist-set` miss: ~1657.0ms total (`parse 1.8ms`, `lookup 1586.1ms`, `compute 62.5ms`, `serialize 0.3ms`)
+- Current cold miss after normalized print SQLite + cache SQLite tuning:
+  - `oracle-default` miss: ~1393.1ms total (`parse 1.7ms`, `lookup 1327.6ms`, `compute 56.8ms`, `serialize 0.4ms`)
+  - `decklist-set` miss: ~1123.0ms total (`parse 2.3ms`, `lookup 1051.6ms`, `compute 58.7ms`, `serialize 0.3ms`)
 - Cache hits for repeated identical requests remain ~1-2ms total.
 
 Reproduce:
@@ -282,7 +293,8 @@ npm run bench:analyze -- --file tests/fixtures/kentaro-benchmark.decklist.txt --
 
 1. Started: archetype detection now uses weighted signals, per-archetype thresholds, and broader taxonomy coverage (`Cascade`, `Topdeck Matters`, `Clues/Food/Blood`, `Spells From Exile`) to reduce one-card false positives.
 2. Grow combo database breadth, including more common infinite lines and commander-specific packages.
-3. Improve cut/add recommendation ranking (curve pressure, redundancy, protection density, strategy lock-ins).
+3. Improve cut/add recommendation ranking (curve pressure, redundancy, protection density, strategy lock-ins) now that suggestions can be iterated independently from initial analyze latency.
+4. Tighten commander auto-detection and no-commander fallback behavior, since prod telemetry showed slower request shapes there earlier.
 
 ### Phase 3: Commander Rules Completeness
 
@@ -297,3 +309,4 @@ npm run bench:analyze -- --file tests/fixtures/kentaro-benchmark.decklist.txt --
 3. Define release gates (tests, lint, build, smoke checks) before production deploy.
 4. Improve user-facing guidance text for Rule 0 interpretation and recommendation confidence.
 5. Add a release checklist with explicit go/no-go thresholds (latency, error rate, test pass, accessibility pass).
+6. Keep the privacy/ethics disclosure aligned with telemetry automation and any future debug-capture tooling.

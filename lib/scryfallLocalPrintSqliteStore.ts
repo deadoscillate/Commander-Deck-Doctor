@@ -14,6 +14,7 @@ let byIdStatement: SqliteStatement | null = null;
 let bySetCollectorStatement: SqliteStatement | null = null;
 let byNameSetStatement: SqliteStatement | null = null;
 let printCardsSelectClause: string | null = null;
+let printCardsFromClause = "FROM print_cards";
 
 type PrintRow = {
   printing_id?: string;
@@ -177,7 +178,17 @@ function toLocalPrintCardRecord(row: PrintRow | undefined): LocalPrintCardRecord
   };
 }
 
-function buildSelectClause(database: SqliteDatabase): string {
+function buildQueryParts(database: SqliteDatabase): { selectClause: string; fromClause: string } {
+  const tableRows = database.prepare("SELECT name FROM sqlite_master WHERE type = 'table'").all() as Array<{
+    name?: string;
+  }>;
+  const tableNames = new Set(
+    tableRows
+      .map((row) => (typeof row.name === "string" ? row.name : ""))
+      .filter(Boolean)
+  );
+  const hasOracleTable = tableNames.has("oracle_cards");
+
   const pragmaRows = database.prepare("PRAGMA table_info(print_cards)").all() as Array<{
     name?: string;
   }>;
@@ -187,30 +198,58 @@ function buildSelectClause(database: SqliteDatabase): string {
       .filter(Boolean)
   );
 
-  const selectColumn = (columnName: string, alias = columnName): string =>
-    availableColumns.has(columnName) ? columnName : `NULL AS ${alias}`;
+  const oracleColumns = hasOracleTable
+    ? new Set(
+        (
+          database.prepare("PRAGMA table_info(oracle_cards)").all() as Array<{
+            name?: string;
+          }>
+        )
+          .map((row) => (typeof row.name === "string" ? row.name : ""))
+          .filter(Boolean)
+      )
+    : new Set<string>();
 
-  return [
-    selectColumn("printing_id"),
-    selectColumn("set_code"),
-    selectColumn("collector_number"),
-    selectColumn("oracle_id"),
-    selectColumn("name"),
-    selectColumn("type_line"),
-    selectColumn("cmc"),
-    selectColumn("mana_cost"),
-    selectColumn("colors_json"),
-    selectColumn("color_identity_json"),
-    selectColumn("oracle_text"),
-    selectColumn("keywords_json"),
-    selectColumn("image_normal"),
-    selectColumn("image_art_crop"),
-    selectColumn("price_usd"),
-    selectColumn("price_usd_foil"),
-    selectColumn("price_usd_etched"),
-    selectColumn("tcgplayer_url"),
-    selectColumn("card_faces_json")
-  ].join(", ");
+  const printColumn = (columnName: string, alias = columnName): string =>
+    availableColumns.has(columnName) ? `print_cards.${columnName} AS ${alias}` : `NULL AS ${alias}`;
+  const metadataColumn = (columnName: string, alias = columnName): string => {
+    if (hasOracleTable && oracleColumns.has(columnName)) {
+      return `oracle_cards.${columnName} AS ${alias}`;
+    }
+
+    if (availableColumns.has(columnName)) {
+      return `print_cards.${columnName} AS ${alias}`;
+    }
+
+    return `NULL AS ${alias}`;
+  };
+
+  return {
+    selectClause: [
+      printColumn("printing_id"),
+      printColumn("set_code"),
+      printColumn("collector_number"),
+      printColumn("oracle_id"),
+      printColumn("name"),
+      metadataColumn("type_line"),
+      metadataColumn("cmc"),
+      metadataColumn("mana_cost"),
+      metadataColumn("colors_json"),
+      metadataColumn("color_identity_json"),
+      metadataColumn("oracle_text"),
+      metadataColumn("keywords_json"),
+      printColumn("image_normal"),
+      printColumn("image_art_crop"),
+      printColumn("price_usd"),
+      printColumn("price_usd_foil"),
+      printColumn("price_usd_etched"),
+      printColumn("tcgplayer_url"),
+      printColumn("card_faces_json")
+    ].join(", "),
+    fromClause: hasOracleTable
+      ? "FROM print_cards LEFT JOIN oracle_cards ON oracle_cards.oracle_id = print_cards.oracle_id"
+      : "FROM print_cards"
+  };
 }
 
 async function ensureDb(): Promise<SqliteDatabase | null> {
@@ -238,7 +277,9 @@ async function ensureDb(): Promise<SqliteDatabase | null> {
       byIdStatement = null;
       bySetCollectorStatement = null;
       byNameSetStatement = null;
-      printCardsSelectClause = buildSelectClause(db);
+      const queryParts = buildQueryParts(db);
+      printCardsSelectClause = queryParts.selectClause;
+      printCardsFromClause = queryParts.fromClause;
       return db;
     } catch {
       sqliteUnavailable = true;
@@ -257,11 +298,13 @@ async function getByIdStatement(): Promise<SqliteStatement | null> {
   }
 
   if (!byIdStatement) {
-    const selectClause = printCardsSelectClause ?? buildSelectClause(database);
+    const queryParts = printCardsSelectClause
+      ? { selectClause: printCardsSelectClause, fromClause: printCardsFromClause }
+      : buildQueryParts(database);
     byIdStatement = database.prepare(
       `
-      SELECT ${selectClause}
-      FROM print_cards
+      SELECT ${queryParts.selectClause}
+      ${queryParts.fromClause}
       WHERE printing_id = ?
       LIMIT 1
     `
@@ -278,11 +321,13 @@ async function getBySetCollectorStatement(): Promise<SqliteStatement | null> {
   }
 
   if (!bySetCollectorStatement) {
-    const selectClause = printCardsSelectClause ?? buildSelectClause(database);
+    const queryParts = printCardsSelectClause
+      ? { selectClause: printCardsSelectClause, fromClause: printCardsFromClause }
+      : buildQueryParts(database);
     bySetCollectorStatement = database.prepare(
       `
-      SELECT ${selectClause}
-      FROM print_cards
+      SELECT ${queryParts.selectClause}
+      ${queryParts.fromClause}
       WHERE set_code = ? AND normalized_collector_number = ?
       LIMIT 1
     `
@@ -299,11 +344,13 @@ async function getByNameSetStatement(): Promise<SqliteStatement | null> {
   }
 
   if (!byNameSetStatement) {
-    const selectClause = printCardsSelectClause ?? buildSelectClause(database);
+    const queryParts = printCardsSelectClause
+      ? { selectClause: printCardsSelectClause, fromClause: printCardsFromClause }
+      : buildQueryParts(database);
     byNameSetStatement = database.prepare(
       `
-      SELECT ${selectClause}
-      FROM print_cards
+      SELECT ${queryParts.selectClause}
+      ${queryParts.fromClause}
       WHERE set_code = ? AND normalized_name = ?
       ORDER BY collector_sort_rank ASC, collector_sort_suffix ASC, printing_id ASC
       LIMIT 1
@@ -336,12 +383,14 @@ export async function getSqlitePrintCardsByIds(
   }
 
   const placeholders = normalizedIds.map(() => "?").join(", ");
-  const selectClause = printCardsSelectClause ?? buildSelectClause(database);
+  const queryParts = printCardsSelectClause
+    ? { selectClause: printCardsSelectClause, fromClause: printCardsFromClause }
+    : buildQueryParts(database);
   const rows = database
     .prepare(
       `
-      SELECT ${selectClause}
-      FROM print_cards
+      SELECT ${queryParts.selectClause}
+      ${queryParts.fromClause}
       WHERE printing_id IN (${placeholders})
     `
     )
@@ -401,12 +450,14 @@ export async function getSqlitePrintCardsBySetCollectors(
     .map(() => "(set_code = ? AND normalized_collector_number = ?)")
     .join(" OR ");
   const params = [...deduped.values()].flatMap((lookup) => [lookup.setCode, lookup.collectorNumber]);
-  const selectClause = printCardsSelectClause ?? buildSelectClause(database);
+  const queryParts = printCardsSelectClause
+    ? { selectClause: printCardsSelectClause, fromClause: printCardsFromClause }
+    : buildQueryParts(database);
   const rows = database
     .prepare(
       `
-      SELECT ${selectClause}
-      FROM print_cards
+      SELECT ${queryParts.selectClause}
+      ${queryParts.fromClause}
       WHERE ${where}
     `
     )
@@ -464,12 +515,14 @@ export async function getSqlitePrintCardsByNameSets(
 
   const where = [...deduped.values()].map(() => "(set_code = ? AND normalized_name = ?)").join(" OR ");
   const params = [...deduped.values()].flatMap((lookup) => [lookup.setCode, lookup.normalizedName]);
-  const selectClause = printCardsSelectClause ?? buildSelectClause(database);
+  const queryParts = printCardsSelectClause
+    ? { selectClause: printCardsSelectClause, fromClause: printCardsFromClause }
+    : buildQueryParts(database);
   const rows = database
     .prepare(
       `
-      SELECT ${selectClause}
-      FROM print_cards
+      SELECT ${queryParts.selectClause}
+      ${queryParts.fromClause}
       WHERE ${where}
       ORDER BY set_code ASC, normalized_name ASC, collector_sort_rank ASC, collector_sort_suffix ASC, printing_id ASC
     `
