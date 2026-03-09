@@ -9,6 +9,8 @@ export type ParsedDeckEntry = {
   printingId?: string;
 };
 
+export type PriceMatchQuality = "exact-print" | "set-match" | "name-match" | "fallback";
+
 /**
  * Minimal Scryfall fields needed by this MVP analyzer.
  */
@@ -65,6 +67,7 @@ export type ScryfallCard = {
  */
 export type DeckCard = ParsedDeckEntry & {
   card: ScryfallCard;
+  priceMatch?: PriceMatchQuality;
 };
 
 /**

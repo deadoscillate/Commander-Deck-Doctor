@@ -448,6 +448,133 @@ describe("scryfall set-batch lookup", () => {
     expect(fetchMock).toHaveBeenCalledTimes(0);
   });
 
+  it("prefers exact local print pricing over default-name pricing in oracle-default mode when print tags are present", async () => {
+    const fetchMock = vi.fn(async () =>
+      jsonResponse({ object: "error", code: "unexpected_network_lookup" }, 500)
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    vi.doMock("@/lib/scryfallLocalDefaultStore", () => ({
+      getLocalDefaultCardByName: vi.fn((name: string) =>
+        name === "Sol Ring" ? toCard("Sol Ring", "c20", "241") : null
+      ),
+      getLocalDefaultCardsByNames: vi.fn((names: string[]) => {
+        const rows = new Map();
+        for (const name of names) {
+          if (name === "Sol Ring") {
+            rows.set("name:solring", toCard("Sol Ring", "c20", "241"));
+          }
+        }
+        return rows;
+      })
+    }));
+    vi.doMock("@/lib/scryfallLocalPrintIndexStore", () => ({
+      getLocalPrintCardById: vi.fn(async () => null),
+      getLocalPrintCardByName: vi.fn(async () => null),
+      getLocalPrintCardsByIds: vi.fn(async () => new Map()),
+      getLocalPrintCardBySetCollector: vi.fn(async (setCode: string, collectorNumber: string) =>
+        setCode === "cmm" && collectorNumber === "217"
+          ? {
+              id: "print-sol-ring-cmm-217",
+              oracle_id: "oracle-sol-ring",
+              name: "Sol Ring",
+              set: "cmm",
+              collector_number: "217",
+              image_uris: null,
+              card_faces: [],
+              prices: {
+                usd: "1.99",
+                usd_foil: "8.00",
+                usd_etched: null,
+                tix: null
+              },
+              purchase_uris: {
+                tcgplayer: "https://shop.test/tcgplayer/sol-ring-cmm-217",
+                cardkingdom: "https://shop.test/cardkingdom/sol-ring-cmm-217"
+              }
+            }
+          : null
+      ),
+      getLocalPrintCardsBySetCollectors: vi.fn(async (lookups: Array<{ setCode: string; collectorNumber: string }>) =>
+        new Map(
+          lookups
+            .filter((lookup) => lookup.setCode === "cmm" && lookup.collectorNumber === "217")
+            .map((lookup) => [
+              `set:${lookup.setCode}|collector:${lookup.collectorNumber}`,
+              {
+                id: "print-sol-ring-cmm-217",
+                oracle_id: "oracle-sol-ring",
+                name: "Sol Ring",
+                set: "cmm",
+                collector_number: "217",
+                image_uris: null,
+                card_faces: [],
+                prices: {
+                  usd: "1.99",
+                  usd_foil: "8.00",
+                  usd_etched: null,
+                  tix: null
+                },
+                purchase_uris: {
+                  tcgplayer: "https://shop.test/tcgplayer/sol-ring-cmm-217",
+                  cardkingdom: "https://shop.test/cardkingdom/sol-ring-cmm-217"
+                }
+              }
+            ])
+        )
+      ),
+      getLocalPrintCardByNameSet: vi.fn(async () => null),
+      getLocalPrintCardsByNameSets: vi.fn(async () => new Map())
+    }));
+    vi.doMock("@/engine/cards/CardDatabase", () => ({
+      CardDatabase: {
+        loadFromCompiledFile: vi.fn(() => ({
+          getCardByOracleId: vi.fn((oracleId: string) =>
+            oracleId === "oracle-sol-ring"
+              ? {
+                  oracleId: "oracle-sol-ring",
+                  name: "Sol Ring",
+                  faces: [],
+                  manaCost: "{1}",
+                  mv: 1,
+                  typeLine: "Artifact",
+                  parsedTypeLine: { supertypes: [], types: ["Artifact"], subtypes: [] },
+                  colors: [],
+                  colorIdentity: [],
+                  oracleText: "{T}: Add {C}{C}.",
+                  keywords: [],
+                  power: null,
+                  toughness: null,
+                  loyalty: null,
+                  legalities: { commander: "legal" }
+                }
+              : null
+          ),
+          getCardByName: vi.fn(() => null)
+        })),
+        createWithEngineSet: vi.fn(() => ({
+          getCardByOracleId: vi.fn(() => null),
+          getCardByName: vi.fn(() => null)
+        }))
+      }
+    }));
+
+    const { fetchDeckCards } = await import("@/lib/scryfall");
+    const parsedDeck = [{ name: "Sol Ring", qty: 1, setCode: "cmm", collectorNumber: "217" }];
+
+    const result = await fetchDeckCards(parsedDeck, 8, { deckPriceMode: "oracle-default" });
+
+    expect(result.knownCards).toHaveLength(1);
+    expect(result.knownCards[0]?.card.set).toBe("cmm");
+    expect(result.knownCards[0]?.card.collector_number).toBe("217");
+    expect(result.knownCards[0]?.card.prices?.usd).toBe("1.99");
+    expect(result.knownCards[0]?.card.purchase_uris?.cardkingdom).toBe(
+      "https://shop.test/cardkingdom/sol-ring-cmm-217"
+    );
+    expect(result.knownCards[0]?.priceMatch).toBe("exact-print");
+    expect(result.unknownCards).toHaveLength(0);
+    expect(fetchMock).toHaveBeenCalledTimes(0);
+  });
+
   it("uses collection batch only for oracle-default cards missing from the local default store", async () => {
     mockEmptyLocalPrintIndexStore();
     const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {

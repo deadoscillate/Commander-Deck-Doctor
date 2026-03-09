@@ -10,7 +10,7 @@ export default function PrivacyPage() {
   return (
     <main className="legal-page">
       <h1>Privacy Policy</h1>
-      <p className="muted">Last updated: March 8, 2026</p>
+      <p className="muted">Last updated: March 9, 2026</p>
 
       <section>
         <h2>What We Store</h2>
@@ -41,6 +41,15 @@ export default function PrivacyPage() {
           <li>Error monitoring: Sentry (when enabled by environment configuration).</li>
           <li>Card metadata/images: Scryfall.</li>
           <li>Combo references: Commander Spellbook snapshot data.</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>Pricing and Seller Links</h2>
+        <ul>
+          <li>Deck pricing is informational and may rely on exact-print, set-level, or name-level matches.</li>
+          <li>Seller links do not influence analysis outputs, recommendations, or legality checks.</li>
+          <li>If affiliate links are enabled later, they will be disclosed in-product where the links appear.</li>
         </ul>
       </section>
 

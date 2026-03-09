@@ -1,4 +1,4 @@
-import type { DeckSummary, RoleCounts } from "./types";
+import type { DeckSummary, PriceMatchQuality, RoleCounts } from "./types";
 import type { CountStatus } from "./status";
 import type { CountKey } from "./thresholds";
 import type { DeckArchetypeReport } from "./archetypes";
@@ -34,6 +34,7 @@ export type ParsedDeckCard = {
   qty: number;
   resolvedName: string | null;
   previewImageUrl: string | null;
+  priceMatch?: PriceMatchQuality;
   prices: {
     usd: number | null;
     usdFoil: number | null;
@@ -90,6 +91,13 @@ export type DeckPriceSummary = {
   pricingMode: DeckPriceMode;
   setTaggedCardQty: number;
   setMatchedCardQty: number;
+  matchBreakdown?: {
+    exactPrint: number;
+    setMatch: number;
+    nameMatch: number;
+    fallback: number;
+  };
+  confidence?: "high" | "medium" | "low";
   disclaimer: string;
 };
 

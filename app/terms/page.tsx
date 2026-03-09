@@ -10,7 +10,7 @@ export default function TermsPage() {
   return (
     <main className="legal-page">
       <h1>Terms of Use</h1>
-      <p className="muted">Last updated: March 6, 2026</p>
+      <p className="muted">Last updated: March 9, 2026</p>
 
       <section>
         <h2>Service Scope</h2>
@@ -45,6 +45,15 @@ export default function TermsPage() {
         <ul>
           <li>Features may change, pause, or be removed at any time.</li>
           <li>We may update these terms and the privacy policy as the product evolves.</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>Monetization and Independence</h2>
+        <ul>
+          <li>Seller links are supplementary product links, not gameplay advice.</li>
+          <li>Analysis, legality, archetypes, suggestions, and rankings are not determined by affiliate relationships.</li>
+          <li>If affiliate links are introduced, they will be disclosed where those links appear.</li>
         </ul>
       </section>
 

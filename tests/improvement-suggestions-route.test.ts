@@ -30,6 +30,7 @@ describe("POST /api/improvement-suggestions", () => {
           },
           deckColorIdentity: ["G"],
           archetypes: ["Lands Matter"],
+          commanderNames: ["Aesi, Tyrant of Gyre Strait"],
           manaCurve: {
             "5": 8,
             "6": 5,
@@ -53,6 +54,6 @@ describe("POST /api/improvement-suggestions", () => {
     expect(payload.items[0]?.key).toBe("ramp");
     expect(payload.items[0]?.suggestions.length).toBeGreaterThan(0);
     expect(payload.items[0]?.rationale).toBeTruthy();
-    expect(payload.disclaimer).toContain("curve fit");
+    expect(payload.disclaimer).toContain("commander and archetype fit");
   });
 });

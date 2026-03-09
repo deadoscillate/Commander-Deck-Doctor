@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Checks } from "@/components/Checks";
 import { CardNameHover } from "@/components/CardNameHover";
 import { ColorIdentityIcons } from "@/components/ColorIdentityIcons";
@@ -166,6 +166,13 @@ function normalizeDeckPrice(result: AnalyzeResponse): {
   pricingMode: "oracle-default" | "decklist-set";
   setTaggedCardQty: number;
   setMatchedCardQty: number;
+  matchBreakdown: {
+    exactPrint: number;
+    setMatch: number;
+    nameMatch: number;
+    fallback: number;
+  } | null;
+  confidence: "high" | "medium" | "low" | null;
   disclaimer: string;
 } | null {
   const rawDeckPrice = (result as { deckPrice?: unknown }).deckPrice;
@@ -186,6 +193,10 @@ function normalizeDeckPrice(result: AnalyzeResponse): {
     record.coverage && typeof record.coverage === "object"
       ? (record.coverage as Record<string, unknown>)
       : {};
+  const matchBreakdownRecord =
+    record.matchBreakdown && typeof record.matchBreakdown === "object"
+      ? (record.matchBreakdown as Record<string, unknown>)
+      : null;
 
   return {
     totals: {
@@ -216,6 +227,18 @@ function normalizeDeckPrice(result: AnalyzeResponse): {
     pricingMode: record.pricingMode === "decklist-set" ? "decklist-set" : "oracle-default",
     setTaggedCardQty: Math.max(0, Math.floor(toFiniteNumber(record.setTaggedCardQty, 0))),
     setMatchedCardQty: Math.max(0, Math.floor(toFiniteNumber(record.setMatchedCardQty, 0))),
+    matchBreakdown: matchBreakdownRecord
+      ? {
+          exactPrint: Math.max(0, Math.floor(toFiniteNumber(matchBreakdownRecord.exactPrint, 0))),
+          setMatch: Math.max(0, Math.floor(toFiniteNumber(matchBreakdownRecord.setMatch, 0))),
+          nameMatch: Math.max(0, Math.floor(toFiniteNumber(matchBreakdownRecord.nameMatch, 0))),
+          fallback: Math.max(0, Math.floor(toFiniteNumber(matchBreakdownRecord.fallback, 0)))
+        }
+      : null,
+    confidence:
+      record.confidence === "high" || record.confidence === "medium" || record.confidence === "low"
+        ? record.confidence
+        : null,
     disclaimer:
       typeof record.disclaimer === "string" && record.disclaimer
         ? record.disclaimer
@@ -538,6 +561,15 @@ export function AnalysisReport({
   const roleBreakdown = normalizeRoleBreakdown(result);
   const tutorSummary = normalizeTutorSummary(result);
   const commanderInfo = normalizeCommanderInfo(result);
+  const commanderSuggestionNames = useMemo(
+    () =>
+      Array.isArray(result.commander.selectedNames) && result.commander.selectedNames.length > 0
+        ? result.commander.selectedNames
+        : commanderInfo.name
+          ? [commanderInfo.name]
+          : [],
+    [commanderInfo.name, result.commander.selectedNames]
+  );
   const deckPrice = normalizeDeckPrice(result);
   const simulationDeck = result.parsedDeck.map((entry) => ({
     name: entry.name,
@@ -657,12 +689,11 @@ export function AnalysisReport({
     const existingCardNames = result.parsedDeck.flatMap((entry) =>
       entry.resolvedName ? [entry.name, entry.resolvedName] : [entry.name]
     );
-    const archetypes = [
-      archetypeReport.primary?.archetype ?? null,
-      archetypeReport.secondary?.archetype ?? null
-    ].filter((value): value is string => Boolean(value));
-
-    async function loadImprovementSuggestions() {
+      const archetypes = [
+        archetypeReport.primary?.archetype ?? null,
+        archetypeReport.secondary?.archetype ?? null
+      ].filter((value): value is string => Boolean(value));
+      async function loadImprovementSuggestions() {
       setImprovementSuggestionsLoading(true);
       setImprovementSuggestionsError(null);
 
@@ -678,6 +709,7 @@ export function AnalysisReport({
             deckColorIdentity,
             existingCardNames,
             archetypes,
+            commanderSuggestionNames,
             manaCurve: result.summary.manaCurve,
             averageManaValue: result.summary.averageManaValue,
             limit: 7
@@ -724,6 +756,7 @@ export function AnalysisReport({
     archetypeReport.primary?.archetype,
     archetypeReport.secondary?.archetype,
     commanderInfo.colorIdentity,
+    commanderSuggestionNames,
     onImprovementSuggestionsLoaded,
     result,
     roleBreakdown
@@ -980,16 +1013,26 @@ export function AnalysisReport({
               </div>
             </div>
             {deckPrice ? (
-              <p className="muted deck-price-meta">
-                Foil {formatUsd(deckPrice.totals.usdFoil)} | Etched {formatUsd(deckPrice.totals.usdEtched)} |
-                MTGO {formatTix(deckPrice.totals.tix)} | USD coverage{" "}
-                {Math.round(deckPrice.coverage.usd * 100)}% ({deckPrice.pricedCardQty.usd}/{deckPrice.totalKnownCardQty}
-                {" "}cards priced) | Mode{" "}
-                {deckPrice.pricingMode === "decklist-set" ? "Decklist [SET] tags" : "Oracle default"}
-                {deckPrice.pricingMode === "decklist-set"
-                  ? ` | Set matches ${deckPrice.setMatchedCardQty}/${deckPrice.setTaggedCardQty} tagged cards`
-                  : ""}
-              </p>
+              <>
+                <p className="muted deck-price-meta">
+                  Foil {formatUsd(deckPrice.totals.usdFoil)} | Etched {formatUsd(deckPrice.totals.usdEtched)} |
+                  MTGO {formatTix(deckPrice.totals.tix)} | USD coverage{" "}
+                  {Math.round(deckPrice.coverage.usd * 100)}% ({deckPrice.pricedCardQty.usd}/{deckPrice.totalKnownCardQty}
+                  {" "}cards priced) | Confidence{" "}
+                  {deckPrice.confidence ? deckPrice.confidence.toUpperCase() : "N/A"} | Mode{" "}
+                  {deckPrice.pricingMode === "decklist-set" ? "Decklist [SET] tags" : "Oracle default"}
+                  {deckPrice.pricingMode === "decklist-set"
+                    ? ` | Set matches ${deckPrice.setMatchedCardQty}/${deckPrice.setTaggedCardQty} tagged cards`
+                    : ""}
+                  {deckPrice.matchBreakdown
+                    ? ` | Exact ${deckPrice.matchBreakdown.exactPrint}, Set ${deckPrice.matchBreakdown.setMatch}, Name ${deckPrice.matchBreakdown.nameMatch}, Fallback ${deckPrice.matchBreakdown.fallback}`
+                    : ""}
+                </p>
+                <p className="muted">
+                  Pricing is informational and may use exact print, set, or name-level matches. Seller links do not
+                  affect analysis results. If affiliate links are enabled later, they will be clearly disclosed here.
+                </p>
+              </>
             ) : null}
             {commanderInfo.name ? (
               <p>
@@ -1113,7 +1156,8 @@ export function AnalysisReport({
         <h2>Detected Cards</h2>
         <p className="muted">
           Full preview tile set for resolved deck cards. TCGplayer numbers come from Scryfall price fields;
-          Card Kingdom is linked separately.
+          Card Kingdom is linked separately. Seller links are informational and do not change the analyzer&apos;s
+          recommendations.
         </p>
         <div className="detected-cards-grid">
           {result.parsedDeck.map((entry) => {

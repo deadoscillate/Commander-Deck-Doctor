@@ -1,6 +1,7 @@
 import {
   DeckCard,
   ParsedDeckEntry,
+  PriceMatchQuality,
   ScryfallCard,
   ScryfallCardFace,
   ScryfallImageUris,
@@ -89,6 +90,18 @@ type LocalPrintLookupMaps = {
   byNameSet: Map<string, ScryfallCard>;
 };
 
+type LookupResolutionSource =
+  | "local-print"
+  | "precise-batch"
+  | "local-default"
+  | "name-batch"
+  | "local-print-fallback"
+  | "local-oracle-fallback"
+  | "set-fallback"
+  | "set-collector-fallback"
+  | "printing-id-fallback"
+  | "named-fallback";
+
 function normalizeScryfallCard(data: ScryfallApiCard): ScryfallCard {
   const oracleText =
     data.oracle_text ??
@@ -167,6 +180,76 @@ function collectorNumberMatches(
   }
 
   return false;
+}
+
+function hasRequestedSet(entry: ParsedDeckEntry): boolean {
+  return typeof entry.setCode === "string" && entry.setCode.trim().length > 0;
+}
+
+function hasRequestedExactPrint(entry: ParsedDeckEntry): boolean {
+  return (
+    (typeof entry.printingId === "string" && entry.printingId.trim().length > 0) ||
+    (typeof entry.setCode === "string" &&
+      entry.setCode.trim().length > 0 &&
+      typeof entry.collectorNumber === "string" &&
+      entry.collectorNumber.trim().length > 0)
+  );
+}
+
+function hasRequestedPrintHint(entry: ParsedDeckEntry): boolean {
+  return hasRequestedSet(entry) || hasRequestedExactPrint(entry);
+}
+
+function nameResolvedPriceMatch(source: LookupResolutionSource): boolean {
+  return (
+    source === "local-default" ||
+    source === "name-batch" ||
+    source === "local-print-fallback" ||
+    source === "named-fallback"
+  );
+}
+
+function determinePriceMatchQuality(
+  entry: ParsedDeckEntry,
+  card: ScryfallCard,
+  source: LookupResolutionSource
+): PriceMatchQuality {
+  const requestedSet =
+    typeof entry.setCode === "string" && entry.setCode.trim() ? entry.setCode.trim().toLowerCase() : null;
+  const resolvedSet = typeof card.set === "string" && card.set.trim() ? card.set.trim().toLowerCase() : null;
+  const setMatches = Boolean(requestedSet && resolvedSet && requestedSet === resolvedSet);
+  const requestedPrintingId =
+    typeof entry.printingId === "string" && entry.printingId.trim() ? entry.printingId.trim().toLowerCase() : null;
+  const resolvedPrintingId =
+    typeof card.id === "string" && card.id.trim() ? card.id.trim().toLowerCase() : null;
+
+  if (requestedPrintingId && resolvedPrintingId && requestedPrintingId === resolvedPrintingId) {
+    return "exact-print";
+  }
+
+  if (
+    requestedSet &&
+    setMatches &&
+    typeof entry.collectorNumber === "string" &&
+    entry.collectorNumber.trim() &&
+    collectorNumberMatches(entry.collectorNumber, card.collector_number)
+  ) {
+    return "exact-print";
+  }
+
+  if (requestedSet && setMatches) {
+    return "set-match";
+  }
+
+  if (nameResolvedPriceMatch(source) && !hasRequestedPrintHint(entry)) {
+    return "name-match";
+  }
+
+  if (source === "local-oracle-fallback" && !hasRequestedPrintHint(entry)) {
+    return "fallback";
+  }
+
+  return "fallback";
 }
 
 function chunkArray<T>(rows: T[], chunkSize: number): T[][] {
@@ -1013,6 +1096,36 @@ function resolveCardFromLocalPrintLookups(
   return null;
 }
 
+function resolveCardFromExactBatchLookups(
+  entry: ParsedDeckEntry,
+  lookups: BatchLookupMaps
+): ScryfallCard | null {
+  const printingId = typeof entry.printingId === "string" ? entry.printingId.trim() : "";
+  if (printingId) {
+    return lookups.byId.get(buildPrintingIdKey(printingId)) ?? null;
+  }
+
+  const setCode = typeof entry.setCode === "string" ? entry.setCode.trim().toLowerCase() : "";
+  const collectorNumber =
+    typeof entry.collectorNumber === "string" ? entry.collectorNumber.trim() : "";
+
+  if (setCode && collectorNumber) {
+    const byCollector = lookups.bySetCollector.get(buildSetCollectorKey(setCode, collectorNumber));
+    if (byCollector && normalizeLookupName(byCollector.name) === normalizeLookupName(entry.name)) {
+      return byCollector;
+    }
+  }
+
+  if (setCode) {
+    const byNameSet = lookups.byNameSet.get(buildNameSetKey(entry.name, setCode));
+    if (byNameSet && (!collectorNumber || collectorNumberMatches(collectorNumber, byNameSet.collector_number))) {
+      return byNameSet;
+    }
+  }
+
+  return null;
+}
+
 function resolveCardFromBatchLookups(
   entry: ParsedDeckEntry,
   mode: DeckPriceMode,
@@ -1099,23 +1212,38 @@ export async function fetchDeckCards(
   let localOracleFallbacks = new Map<string, ScryfallCard>();
 
   if (mode === "oracle-default") {
-    localDefaultLookups = getLocalDefaultCardsByNames(parsedDeck.map((entry) => entry.name));
-    const unresolvedForBatch = parsedDeck.filter((entry) => {
+    const exactRequestedEntries = parsedDeck.filter((entry) => hasRequestedPrintHint(entry));
+    if (exactRequestedEntries.length > 0) {
+      localPrintLookups = await getLocalPrintLookupMaps(exactRequestedEntries);
+      const unresolvedForPreciseBatch = exactRequestedEntries.filter(
+        (entry) => !resolveCardFromLocalPrintLookups(entry, localPrintLookups)
+      );
+      if (!localOnly && unresolvedForPreciseBatch.length > 0) {
+        preciseLookups = await fetchCardsByBatchIdentifiers(unresolvedForPreciseBatch, {
+          lookupMode: "precise"
+        });
+      }
+    }
+
+    const unresolvedForDefault = parsedDeck.filter((entry) => {
+      const exactLocal = resolveCardFromLocalPrintLookups(entry, localPrintLookups);
+      const exactBatch = resolveCardFromExactBatchLookups(entry, preciseLookups);
+      return !exactLocal && !exactBatch;
+    });
+    localDefaultLookups = getLocalDefaultCardsByNames(unresolvedForDefault.map((entry) => entry.name));
+
+    const unresolvedForBatch = unresolvedForDefault.filter((entry) => {
       const byDefault = localDefaultLookups.get(buildNameKey(entry.name)) ?? null;
       return !byDefault;
     });
     if (!localOnly && unresolvedForBatch.length > 0) {
-      const batchLookups = await fetchCardsByBatchIdentifiers(unresolvedForBatch, {
+      nameLookups = await fetchCardsByBatchIdentifiers(unresolvedForBatch, {
         lookupMode: "name"
       });
-      for (const card of batchLookups.byName.values()) {
-        applyCardToLookupMaps(preciseLookups, card);
-      }
     }
-    nameLookups = preciseLookups;
 
-    const unresolvedForLocalPrint = parsedDeck.filter((entry) => {
-      const resolvedFromBatch = resolveCardFromBatchLookups(entry, mode, preciseLookups, nameLookups);
+    const unresolvedForLocalPrint = unresolvedForDefault.filter((entry) => {
+      const resolvedFromBatch = nameLookups?.byName.get(buildNameKey(entry.name)) ?? null;
       const resolvedFromDefault = localDefaultLookups.get(buildNameKey(entry.name)) ?? null;
       return !resolvedFromBatch && !resolvedFromDefault;
     });
@@ -1125,8 +1253,8 @@ export async function fetchDeckCards(
       );
     }
 
-    const unresolvedForLocalOracle = parsedDeck.filter((entry) => {
-      const resolvedFromBatch = resolveCardFromBatchLookups(entry, mode, preciseLookups, nameLookups);
+    const unresolvedForLocalOracle = unresolvedForDefault.filter((entry) => {
+      const resolvedFromBatch = nameLookups?.byName.get(buildNameKey(entry.name)) ?? null;
       const resolvedFromDefault = localDefaultLookups.get(buildNameKey(entry.name)) ?? null;
       const resolvedFromLocalPrint = localPrintFallbacks.get(buildNameKey(entry.name)) ?? null;
       return !resolvedFromBatch && !resolvedFromDefault && !resolvedFromLocalPrint;
@@ -1167,31 +1295,101 @@ export async function fetchDeckCards(
       typeof entry.collectorNumber === "string" && entry.collectorNumber.trim()
         ? entry.collectorNumber
         : null;
+    const printingId =
+      typeof entry.printingId === "string" && entry.printingId.trim() ? entry.printingId.trim() : null;
     const batchByName = nameLookups?.byName.get(buildNameKey(entry.name)) ?? null;
     const localDefault = localDefaultLookups.get(buildNameKey(entry.name)) ?? null;
     const localPrintFallback = localPrintFallbacks.get(buildNameKey(entry.name)) ?? null;
     const localFallback = localOracleFallbacks.get(buildNameKey(entry.name)) ?? null;
     const localPrint = resolveCardFromLocalPrintLookups(entry, localPrintLookups);
-    let card: ScryfallCard | null =
-      mode === "oracle-default"
-        ? localDefault ??
-          resolveCardFromBatchLookups(entry, mode, preciseLookups, nameLookups) ??
-          localPrintFallback
-        : localPrint ?? resolveCardFromBatchLookups(entry, mode, preciseLookups, nameLookups);
+    const exactBatch = resolveCardFromExactBatchLookups(entry, preciseLookups);
+    let card: ScryfallCard | null = null;
+    let source: LookupResolutionSource | null = null;
 
-    if (!localOnly && mode === "decklist-set" && !card && setCode) {
-      card = await getCardByNameWithSet(entry.name, setCode);
+    if (mode === "oracle-default") {
+      if (localPrint) {
+        card = localPrint;
+        source = "local-print";
+      } else if (exactBatch) {
+        card = exactBatch;
+        source = "precise-batch";
+      } else {
+        const localDefaultMatch = localDefault
+          ? determinePriceMatchQuality(entry, localDefault, "local-default")
+          : null;
+        if (localDefault && localDefaultMatch === "set-match") {
+          card = localDefault;
+          source = "local-default";
+        }
+
+        if (!card && !localOnly && printingId) {
+          card = await getCardById(printingId);
+          source = card ? "printing-id-fallback" : source;
+        }
+
+        if (!card && !localOnly && setCode && collectorNumber) {
+          card = await getCardBySetAndCollector(setCode, collectorNumber);
+          source = card ? "set-collector-fallback" : source;
+        }
+
+        if (!card && !localOnly && setCode) {
+          card = await getCardByNameWithSet(entry.name, setCode);
+          source = card ? "set-fallback" : source;
+        }
+
+        if (!card && localDefault) {
+          card = localDefault;
+          source = "local-default";
+        }
+
+        if (!card && batchByName) {
+          card = batchByName;
+          source = "name-batch";
+        }
+
+        if (!card && localPrintFallback) {
+          card = localPrintFallback;
+          source = "local-print-fallback";
+        }
+      }
+    } else {
+      if (localPrint) {
+        card = localPrint;
+        source = "local-print";
+      } else if (exactBatch) {
+        card = exactBatch;
+        source = "precise-batch";
+      } else if (batchByName) {
+        card = batchByName;
+        source = "name-batch";
+      }
+
+      if (!card && !localOnly && setCode && collectorNumber) {
+        card = await getCardBySetAndCollector(setCode, collectorNumber);
+        source = card ? "set-collector-fallback" : source;
+      }
+
+      if (!card && !localOnly && setCode) {
+        card = await getCardByNameWithSet(entry.name, setCode);
+        source = card ? "set-fallback" : source;
+      }
     }
 
-    if (!localOnly && mode === "decklist-set" && !card && setCode && collectorNumber) {
-      card = await getCardBySetAndCollector(setCode, collectorNumber);
+    if (!card && localFallback) {
+      card = localFallback;
+      source = "local-oracle-fallback";
     }
 
-    if (!card) {
-      card = batchByName ?? localFallback ?? (!localOnly ? await getCardByName(entry.name) : null);
+    if (!card && !localOnly) {
+      card = await getCardByName(entry.name);
+      source = card ? "named-fallback" : source;
     }
 
-    return { entry, card };
+    return {
+      entry,
+      card,
+      priceMatch: card && source ? determinePriceMatchQuality(entry, card, source) : undefined
+    };
   });
 
   const knownCards: DeckCard[] = [];
@@ -1209,6 +1407,7 @@ export async function fetchDeckCards(
       setCode: row.entry.setCode,
       collectorNumber: row.entry.collectorNumber,
       printingId: row.entry.printingId,
+      priceMatch: row.priceMatch,
       card: row.card
     });
   }

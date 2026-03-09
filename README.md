@@ -41,7 +41,7 @@ npm run telemetry:summary -- --days 7
   - legality checks
   - archetypes and combo detection
   - Rule 0 / table-talk signals
-  - deck pricing and print selection
+  - deck pricing, pricing confidence, and print selection
 - Run simulations on demand from the `Simulations` tab.
 - Review improvement suggestions in `Adds` and `Cuts` tabs.
 - Inspect banned cards directly in the legality panel.
@@ -103,12 +103,22 @@ The precon browser now loads the full synced library, keeps search visible while
 
 - `oracle-default` is the fast name-based pricing path.
 - `[SET]` tags enable set-aware pricing and print selection.
+- Explicit print tags are now honored first even in `oracle-default`, so tagged lists price against the intended print before falling back to default-name pricing.
 - Pre-analyze commander selection now uses commander-eligible candidates only, resolves them from local card data first, and only shows a second selector when the chosen commander has legal pair options.
 - URL import is Archidekt-only for now. Successful imports switch the analyzer to `decklist-set` automatically so pricing and print selection stay aligned with the imported list.
 - Simulations do not block initial analyze.
 - Improvement suggestions load after the initial report from `POST /api/improvement-suggestions`.
-- Card previews, seller links, and print pickers are available in the report UI.
+- Card previews, seller links, pricing confidence, and print pickers are available in the report UI.
 - Matching stock precons load in the report for side-by-side comparison without replacing the current analysis.
+
+## Ethics and Trust
+
+- Analysis outputs are heuristics, not official rulings or tournament policy.
+- Deck pricing is informational and now surfaces confidence based on exact-print, set, name, and fallback matches.
+- Seller links are supplementary and do not affect legality, suggestions, archetypes, or rankings.
+- Raw decklists are not stored in telemetry.
+- Shared reports are explicit user actions and persist server-side only when a user chooses to create a share link.
+- If affiliate links are enabled later, they must be disclosed in-product where those links appear and must remain separate from analysis logic.
 
 ## Deployment And Operations
 
@@ -187,6 +197,7 @@ Current MVP state:
 - Stock-precon comparison is built in for commander-matched decks.
 - Commander pairing flows now support legal pre-analyze pair selection instead of exposing the whole deck as possible pair choices.
 - Legality, archetypes, combos, Rule 0, pricing, and simulations are all present.
+- Pricing now distinguishes exact-print, set-match, name-match, and fallback resolution so users can judge how trustworthy a deck total is.
 - Regression safety is materially better than earlier iterations: CI, smoke coverage, accessibility checks, and telemetry are in place.
 
 Primary remaining gap:
@@ -220,18 +231,19 @@ Practical target:
 - Completed: pre-analyze commander selection now uses commander-eligible candidates instead of scanning the whole list after analyze
 - Completed: separate telemetry and local-only lookup path for `/api/commander-options`
 - Completed: Archidekt import now emits print-aware decklists and switches imported decks into `decklist-set`
+- Completed: pricing now preserves print-level match quality and exact seller links through the local Scryfall pipeline
 - Ongoing: reduce the remaining `oracle-default` cold-miss lookup cost in `/api/analyze`
 
 ### Phase 2: Analyzer Quality
 
-- Started: broader weighted archetype detection
-- Started: refreshed Commander Spellbook combo dataset with better combo ranking
-- Started: smarter add/cut recommendation ranking with short rationales
+- Completed: broader weighted archetype detection
+- Completed: refreshed Commander Spellbook combo dataset with better combo ranking
+- Completed: smarter add/cut recommendation ranking with short rationales
 - Completed: tabbed `Adds` / `Cuts` suggestion UI
 - Completed: synced Commander precon library with print-aware auto-analysis and full-library browse/search
 - Completed: stock-precon comparison for commander-matched decks
 - Completed: commander-options telemetry and local-only lookup path for the pre-analyze commander picker
-- Next: improve suggestion quality with more real deck fixtures and stronger commander-aware ranking
+- Completed: stronger commander-aware suggestion ranking with real commander fixtures
 
 ### Phase 3: Commander Rules Completeness
 
@@ -246,4 +258,6 @@ Practical target:
 - Expand telemetry dashboards and release gates
 - Keep privacy and ethics disclosures aligned with telemetry and sharing behavior
 - Maintain automated dataset refresh workflows
+- Next: add centralized affiliate-link decoration for seller URLs without changing analyzer logic
+- Next: add visible in-product affiliate disclosure once seller-link monetization is enabled
 - Next: add richer stock-vs-current comparison views and release-quality telemetry dashboards

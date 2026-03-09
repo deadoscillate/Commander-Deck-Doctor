@@ -77,6 +77,9 @@ describe("POST /api/analyze", () => {
         {
           name: "Sol Ring",
           qty: 2,
+          setCode: "cmm",
+          collectorNumber: "217",
+          priceMatch: "exact-print",
           card: buildCard({
             name: "Sol Ring",
             set: "cmm",
@@ -95,6 +98,8 @@ describe("POST /api/analyze", () => {
         {
           name: "Arcane Signet",
           qty: 1,
+          setCode: "mh3",
+          priceMatch: "fallback",
           card: buildCard({
             name: "Arcane Signet",
             set: "clb",
@@ -140,6 +145,13 @@ describe("POST /api/analyze", () => {
         pricingMode?: string;
         setTaggedCardQty?: number;
         setMatchedCardQty?: number;
+        matchBreakdown?: {
+          exactPrint?: number;
+          setMatch?: number;
+          nameMatch?: number;
+          fallback?: number;
+        };
+        confidence?: string;
       };
       roleBreakdown?: {
         ramp?: Array<{ name?: string; qty?: number }>;
@@ -173,6 +185,9 @@ describe("POST /api/analyze", () => {
     expect(body.deckPrice?.pricingMode).toBe("decklist-set");
     expect(body.deckPrice?.setTaggedCardQty).toBe(3);
     expect(body.deckPrice?.setMatchedCardQty).toBe(2);
+    expect(body.deckPrice?.matchBreakdown?.exactPrint).toBe(2);
+    expect(body.deckPrice?.matchBreakdown?.fallback).toBe(1);
+    expect(body.deckPrice?.confidence).toBe("low");
     expect(body.roleBreakdown?.ramp?.some((entry) => entry.name === "Sol Ring" && entry.qty === 2)).toBe(true);
     expect(body.roleBreakdown?.ramp?.some((entry) => entry.name === "Arcane Signet" && entry.qty === 1)).toBe(true);
     expect(body.tutorSummary?.trueTutors).toBe(0);
@@ -327,6 +342,8 @@ describe("POST /api/analyze", () => {
         {
           name: "Arcane Signet",
           qty: 1,
+          setCode: "mh3",
+          priceMatch: "fallback",
           card: buildCard({
             name: "Arcane Signet",
             set: "clb",

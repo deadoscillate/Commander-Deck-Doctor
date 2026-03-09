@@ -25,7 +25,7 @@ import {
 } from "@/lib/scryfall";
 import { recordAnalyzeTelemetry } from "@/lib/analyzeTelemetryStore";
 import { deriveCommanderOptions } from "@/lib/commanderOptions";
-import type { ScryfallCard } from "@/lib/types";
+import type { DeckCard, ScryfallCard } from "@/lib/types";
 import { apiJson, getRequestId, parseJsonBody } from "@/lib/api/http";
 import { buildRateLimitHeaders, checkRateLimit } from "@/lib/api/rateLimit";
 import { reportApiError } from "@/lib/api/monitoring";
@@ -453,8 +453,8 @@ function buildCardKingdomSearchUrl(cardName: string | null | undefined): string 
 }
 
 function buildDeckPriceSummary(
-  cards: Array<{ name: string; qty: number; card: ScryfallCard }>,
-  options: { pricingMode: DeckPriceMode; requestedSetCodeByCardName: Map<string, string | null> }
+  cards: DeckCard[],
+  options: { pricingMode: DeckPriceMode }
 ): DeckPriceSummary {
   const totals = {
     usd: 0,
@@ -471,16 +471,38 @@ function buildDeckPriceSummary(
   let totalKnownCardQty = 0;
   let setTaggedCardQty = 0;
   let setMatchedCardQty = 0;
+  const matchBreakdown = {
+    exactPrint: 0,
+    setMatch: 0,
+    nameMatch: 0,
+    fallback: 0
+  };
 
   for (const entry of cards) {
     totalKnownCardQty += entry.qty;
-    const requestedSet = options.requestedSetCodeByCardName.get(entry.name.toLowerCase()) ?? null;
+    const requestedSet =
+      typeof entry.setCode === "string" && entry.setCode.trim() ? entry.setCode.trim().toLowerCase() : null;
     if (requestedSet) {
       setTaggedCardQty += entry.qty;
       const resolvedSet = typeof entry.card.set === "string" ? entry.card.set.toLowerCase() : "";
       if (resolvedSet && resolvedSet === requestedSet.toLowerCase()) {
         setMatchedCardQty += entry.qty;
       }
+    }
+
+    switch (entry.priceMatch) {
+      case "exact-print":
+        matchBreakdown.exactPrint += entry.qty;
+        break;
+      case "set-match":
+        matchBreakdown.setMatch += entry.qty;
+        break;
+      case "name-match":
+        matchBreakdown.nameMatch += entry.qty;
+        break;
+      default:
+        matchBreakdown.fallback += entry.qty;
+        break;
     }
 
     const usd = parsePriceNumber(entry.card.prices?.usd);
@@ -522,6 +544,22 @@ function buildDeckPriceSummary(
     return Number((pricedQty / totalKnownCardQty).toFixed(4));
   }
 
+  const usdCoverage = coverage(pricedCardQty.usd);
+  const exactishShare =
+    totalKnownCardQty > 0
+      ? (matchBreakdown.exactPrint + matchBreakdown.setMatch) / totalKnownCardQty
+      : 0;
+  const resolvedShare =
+    totalKnownCardQty > 0
+      ? (matchBreakdown.exactPrint + matchBreakdown.setMatch + matchBreakdown.nameMatch) / totalKnownCardQty
+      : 0;
+  const confidence =
+    usdCoverage >= 0.95 && exactishShare >= 0.75
+      ? "high"
+      : usdCoverage >= 0.85 && resolvedShare >= 0.8
+        ? "medium"
+        : "low";
+
   return {
     totals: {
       usd: finalizeTotal(totals.usd, pricedCardQty.usd),
@@ -532,7 +570,7 @@ function buildDeckPriceSummary(
     pricedCardQty,
     totalKnownCardQty,
     coverage: {
-      usd: coverage(pricedCardQty.usd),
+      usd: usdCoverage,
       usdFoil: coverage(pricedCardQty.usdFoil),
       usdEtched: coverage(pricedCardQty.usdEtched),
       tix: coverage(pricedCardQty.tix)
@@ -540,10 +578,12 @@ function buildDeckPriceSummary(
     pricingMode: options.pricingMode,
     setTaggedCardQty,
     setMatchedCardQty,
+    matchBreakdown,
+    confidence,
     disclaimer:
       options.pricingMode === "decklist-set"
-        ? "Totals are quantity-weighted Scryfall prices with set-aware lookup when [SET] tags are present. Unmatched tags fall back to named lookup."
-        : "Totals are quantity-weighted Scryfall prices for resolved cards only and may change over time."
+        ? "Totals are quantity-weighted Scryfall prices with exact print matching when printing tags are available. Unmatched print hints fall back to looser resolution."
+        : "Totals are quantity-weighted Scryfall prices for resolved cards only. Explicit print tags are honored first, then default-name pricing is used as fallback."
   };
 }
 
@@ -684,9 +724,6 @@ export async function POST(request: Request) {
       };
     });
 
-    const requestedSetCodeByCardName = new Map(
-      effectiveParsedDeck.map((entry) => [entry.name.toLowerCase(), entry.setCode?.toLowerCase() ?? null])
-    );
     const parseCompletedAt = performance.now();
     // Warm expensive modules while card resolution is in-flight.
     const analyzerPromise = getAnalyzerEngine();
@@ -706,11 +743,12 @@ export async function POST(request: Request) {
     const tutorSummary = computeTutorSummary(knownCards, { engineCardByName, behaviorIdByCardName });
 
     const knownByInputName = new Map(
-      knownCards.map((entry) => [entry.name.toLowerCase(), entry.card])
+      knownCards.map((entry) => [entry.name.toLowerCase(), entry])
     );
 
     const parsedDeckView = effectiveParsedDeck.map((entry) => {
-      const resolvedCard = knownByInputName.get(entry.name.toLowerCase()) ?? null;
+      const resolvedEntry = knownByInputName.get(entry.name.toLowerCase()) ?? null;
+      const resolvedCard = resolvedEntry?.card ?? null;
       const resolvedName = resolvedCard?.name ?? null;
       const matchedGameChanger = findGameChangerName(resolvedName ?? entry.name);
 
@@ -719,6 +757,7 @@ export async function POST(request: Request) {
         qty: entry.qty,
         resolvedName,
         previewImageUrl: getPreferredCardPreviewUrl(resolvedCard),
+        priceMatch: resolvedEntry?.priceMatch,
         prices: {
           usd: parsePriceNumber(resolvedCard?.prices?.usd),
           usdFoil: parsePriceNumber(resolvedCard?.prices?.usd_foil),
@@ -900,8 +939,7 @@ export async function POST(request: Request) {
       unknownCardsCount: unknownCards.length
     });
     const deckPrice = buildDeckPriceSummary(knownCards, {
-      pricingMode: deckPriceMode,
-      requestedSetCodeByCardName
+      pricingMode: deckPriceMode
     });
     const archetypeReport = computeDeckArchetypes(knownCards, inputDeckSize);
     const comboMetadataLookup = (cardName: string) => {

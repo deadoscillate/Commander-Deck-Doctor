@@ -278,4 +278,140 @@ describe("buildRoleSuggestions", () => {
     expect(result[0]?.suggestions[0]).toBe("Aetherflux Reservoir");
     expect(result[0]?.rationale).toContain("current archetypes");
   });
+
+  it("prefers enchantress draw engines for Sythis over generic draw", () => {
+    const mockDb = createMockDb([
+      {
+        oracleId: "1",
+        name: "Sythis, Harvest's Hand",
+        mv: 2,
+        typeLine: "Legendary Enchantment Creature - Nymph",
+        oracleText: "Whenever you cast an enchantment spell, you gain 1 life and draw a card.",
+        keywords: [],
+        colorIdentity: ["G", "W"],
+        legalities: { commander: "legal" }
+      },
+      {
+        oracleId: "2",
+        name: "Enchantress's Presence",
+        mv: 3,
+        typeLine: "Enchantment",
+        oracleText: "Whenever you cast an enchantment spell, draw a card.",
+        keywords: [],
+        colorIdentity: ["G"],
+        legalities: { commander: "legal" }
+      },
+      {
+        oracleId: "3",
+        name: "Mesa Enchantress",
+        mv: 3,
+        typeLine: "Creature - Human Druid",
+        oracleText: "Whenever you cast an enchantment spell, you may draw a card.",
+        keywords: [],
+        colorIdentity: ["W"],
+        legalities: { commander: "legal" }
+      },
+      {
+        oracleId: "4",
+        name: "Rhystic Study",
+        mv: 3,
+        typeLine: "Enchantment",
+        oracleText: "Whenever an opponent casts a spell, you may draw a card unless that player pays {1}.",
+        keywords: [],
+        colorIdentity: ["U"],
+        legalities: { commander: "legal" }
+      }
+    ]);
+
+    const result = buildRoleSuggestions({
+      roleRows: [
+        {
+          key: "draw",
+          label: "Card Draw",
+          value: 5,
+          recommendedText: "8-12",
+          status: "LOW"
+        }
+      ],
+      deckColorIdentity: ["G", "W"],
+      existingCardNames: [],
+      commanderNames: ["Sythis, Harvest's Hand"],
+      cardDatabase: mockDb,
+      limit: 4
+    });
+
+    expect(result[0]?.direction).toBe("ADD");
+    expect(result[0]?.suggestions[0]).toBe("Enchantress's Presence");
+    expect(result[0]?.suggestions).toContain("Mesa Enchantress");
+    expect(result[0]?.rationale).toContain("commander game plan");
+  });
+
+  it("prefers Edric-style combat finishers for Edric decks", () => {
+    const mockDb = createMockDb([
+      {
+        oracleId: "1",
+        name: "Edric, Spymaster of Trest",
+        mv: 3,
+        typeLine: "Legendary Creature - Elf Rogue",
+        oracleText:
+          "Whenever a creature deals combat damage to one of your opponents, its controller may draw a card.",
+        keywords: [],
+        colorIdentity: ["G", "U"],
+        legalities: { commander: "legal" }
+      },
+      {
+        oracleId: "2",
+        name: "Triumph of the Hordes",
+        mv: 4,
+        typeLine: "Sorcery",
+        oracleText: "Until end of turn, creatures you control get +1/+1 and gain trample and infect.",
+        keywords: [],
+        colorIdentity: ["G"],
+        legalities: { commander: "legal" }
+      },
+      {
+        oracleId: "3",
+        name: "Overwhelming Stampede",
+        mv: 5,
+        typeLine: "Sorcery",
+        oracleText:
+          "Until end of turn, creatures you control get +X/+X and gain trample, where X is the greatest power among creatures you control.",
+        keywords: [],
+        colorIdentity: ["G"],
+        legalities: { commander: "legal" }
+      },
+      {
+        oracleId: "4",
+        name: "Aetherflux Reservoir",
+        mv: 4,
+        typeLine: "Artifact",
+        oracleText: "Whenever you cast a spell, you gain 1 life for each spell you've cast this turn.",
+        keywords: [],
+        colorIdentity: [],
+        legalities: { commander: "legal" }
+      }
+    ]);
+
+    const result = buildRoleSuggestions({
+      roleRows: [
+        {
+          key: "finishers",
+          label: "Finishers",
+          value: 1,
+          recommendedText: "2-6",
+          status: "LOW"
+        }
+      ],
+      deckColorIdentity: ["G", "U"],
+      existingCardNames: [],
+      commanderNames: ["Edric, Spymaster of Trest"],
+      cardDatabase: mockDb,
+      limit: 4
+    });
+
+    expect(result[0]?.direction).toBe("ADD");
+    expect(result[0]?.suggestions[0]).toBe("Triumph of the Hordes");
+    expect(result[0]?.suggestions).toContain("Overwhelming Stampede");
+    expect(result[0]?.rationale).toContain("Edric, Spymaster of Trest");
+  });
 });

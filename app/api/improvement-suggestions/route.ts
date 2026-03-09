@@ -21,6 +21,7 @@ type SuggestionsRequest = {
   deckColorIdentity?: unknown;
   existingCardNames?: unknown;
   archetypes?: unknown;
+  commanderNames?: unknown;
   manaCurve?: unknown;
   averageManaValue?: unknown;
   limit?: unknown;
@@ -235,6 +236,7 @@ export async function POST(request: Request) {
   const deckColorIdentity = parseStringArray(payload.deckColorIdentity, 6, 4);
   const existingCardNames = parseStringArray(payload.existingCardNames, 400, 160);
   const archetypes = parseArchetypes(payload.archetypes);
+  const commanderNames = parseStringArray(payload.commanderNames, 4, 160);
   const manaCurve = parseManaCurve(payload.manaCurve);
   const averageManaValue = parseAverageManaValue(payload.averageManaValue);
   const limit = parseLimit(payload.limit);
@@ -247,6 +249,7 @@ export async function POST(request: Request) {
       deckColorIdentity,
       existingCardNames,
       archetypes,
+      commanderNames,
       manaCurve,
       averageManaValue,
       cardDatabase: engine.cardDatabase,
@@ -258,7 +261,7 @@ export async function POST(request: Request) {
         colorIdentity: deckColorIdentity,
         items,
         disclaimer:
-          "Suggestions prioritize staple options, curve fit, protection density, and archetype lock-ins, then backfill from Commander-legal engine-classified cards in your color identity. Existing deck cards are excluded."
+          "Suggestions prioritize staple options, commander and archetype fit, curve fit, and protection density, then backfill from Commander-legal engine-classified cards in your color identity. Existing deck cards are excluded."
       },
       { status: 200, requestId, headers: rateLimitHeaders }
     );

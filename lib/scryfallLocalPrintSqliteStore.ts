@@ -36,6 +36,7 @@ type PrintRow = {
   price_usd_foil?: string | null;
   price_usd_etched?: string | null;
   tcgplayer_url?: string | null;
+  cardkingdom_url?: string | null;
   card_faces_json?: string | null;
 };
 
@@ -171,11 +172,13 @@ function toLocalPrintCardRecord(row: PrintRow | undefined): LocalPrintCardRecord
             tix: null
           }
         : null,
-    purchase_uris: row.tcgplayer_url
-      ? {
-          tcgplayer: row.tcgplayer_url
-        }
-      : null
+    purchase_uris:
+      row.tcgplayer_url || row.cardkingdom_url
+        ? {
+            tcgplayer: row.tcgplayer_url ?? undefined,
+            cardkingdom: row.cardkingdom_url ?? undefined
+          }
+        : null
   };
 }
 
@@ -245,6 +248,7 @@ function buildQueryParts(database: SqliteDatabase): { selectClause: string; from
       printColumn("price_usd_foil"),
       printColumn("price_usd_etched"),
       printColumn("tcgplayer_url"),
+      printColumn("cardkingdom_url"),
       printColumn("card_faces_json")
     ].join(", "),
     fromClause: hasOracleTable

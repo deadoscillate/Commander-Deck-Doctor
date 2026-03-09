@@ -488,6 +488,7 @@ async function compilePrintSqliteArtifact() {
         price_usd_foil TEXT,
         price_usd_etched TEXT,
         tcgplayer_url TEXT,
+        cardkingdom_url TEXT,
         card_faces_json TEXT
       ) WITHOUT ROWID;
 
@@ -531,8 +532,9 @@ async function compilePrintSqliteArtifact() {
         price_usd_foil,
         price_usd_etched,
         tcgplayer_url,
+        cardkingdom_url,
         card_faces_json
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     let recordCount = 0;
@@ -579,6 +581,7 @@ async function compilePrintSqliteArtifact() {
         compiled.prices?.usd_foil ?? null,
         compiled.prices?.usd_etched ?? null,
         compiled.purchase_uris?.tcgplayer ?? null,
+        compiled.purchase_uris?.cardkingdom ?? null,
         facesPayload
       );
       recordCount += 1;

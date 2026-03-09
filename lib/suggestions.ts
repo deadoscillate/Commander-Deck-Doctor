@@ -58,6 +58,7 @@ type BuildRoleSuggestionsInput = {
   deckColorIdentity: string[];
   existingCardNames: string[];
   archetypes?: string[];
+  commanderNames?: string[];
   manaCurve?: Record<string, number>;
   averageManaValue?: number | null;
   cardDatabase?: SuggestionCardDatabase;
@@ -66,6 +67,9 @@ type BuildRoleSuggestionsInput = {
 
 type SuggestionContext = {
   archetypes: Set<string>;
+  commanderNames: string[];
+  commanderCards: IndexedCard[];
+  commanderSignals: Set<string>;
   averageManaValue: number;
   manaCurve: Record<string, number>;
   topHeavyCurve: boolean;
@@ -288,6 +292,31 @@ const ARCHETYPE_ROLE_PRIORITY: Partial<Record<string, Partial<Record<SuggestionR
   }
 };
 
+const COMMANDER_ROLE_PRIORITY: Partial<Record<string, Partial<Record<SuggestionRoleKey, string[]>>>> = {
+  [normalizeCardName("Edric, Spymaster of Trest")]: {
+    protection: ["Swan Song", "March of Swirling Mist", "Heroic Intervention", "Tyvar's Stand"],
+    finishers: ["Triumph of the Hordes", "Overwhelming Stampede", "Akroma's Will"]
+  },
+  [normalizeCardName("Sythis, Harvest's Hand")]: {
+    draw: ["Enchantress's Presence", "Mesa Enchantress", "Satyr Enchanter", "Tocasia's Welcome"],
+    removal: ["Kenrith's Transformation", "Song of the Dryads", "Darksteel Mutation", "Grasp of Fate"]
+  },
+  [normalizeCardName("Atraxa, Praetors' Voice")]: {
+    draw: ["Tezzeret's Gambit", "Inspiring Call"],
+    protection: ["Heroic Intervention", "Tamiyo's Safekeeping", "Teferi's Protection"],
+    finishers: ["Walking Ballista", "Finale of Devastation"]
+  },
+  [normalizeCardName("Krenko, Mob Boss")]: {
+    draw: ["Skullclamp", "Tocasia's Welcome"],
+    finishers: ["Coat of Arms", "Shared Animosity", "Moonshaker Cavalry", "Akroma's Will"]
+  },
+  [normalizeCardName("Muldrotha, the Gravetide")]: {
+    ramp: ["Nature's Lore", "Three Visits", "Farseek", "Rampant Growth"],
+    removal: ["Pernicious Deed", "Assassin's Trophy", "Beast Within"],
+    protection: ["Heroic Intervention", "Swan Song", "Counterspell"]
+  }
+};
+
 const ROLE_KEYS: SuggestionRoleKey[] = ["ramp", "draw", "removal", "wipes", "protection", "finishers"];
 
 const PROTECTED_CUT_CARDS = new Set(
@@ -477,9 +506,52 @@ function buildSuggestionContext(input: BuildRoleSuggestionsInput): SuggestionCon
       .filter((row): row is typeof row & { key: SuggestionRoleKey } => row.key !== "lands")
       .map((row) => [row.key, row.value])
   ) as Partial<Record<SuggestionRoleKey, number>>;
+  const commanderNames = (input.commanderNames ?? []).filter(Boolean);
+  const commanderCards = commanderNames
+    .map((name) => {
+      const card = input.cardDatabase?.getCardByName(name);
+      if (!card || !isCommanderLegal(card.legalities) || isExcludedTypeLine(card.typeLine)) {
+        return null;
+      }
+
+      return {
+        name: card.name,
+        normalizedName: normalizeCardName(card.name),
+        mv: card.mv,
+        typeLine: card.typeLine,
+        oracleText: card.oracleText,
+        colorIdentity: normalizeColorIdentity(card.colorIdentity),
+        flags: classifyCardRoles({
+          typeLine: card.typeLine,
+          oracleText: card.oracleText,
+          keywords: card.keywords,
+          behaviorId: card.behaviorId ?? null,
+          oracleId: card.oracleId,
+          cardName: card.name
+        })
+      } satisfies IndexedCard;
+    })
+    .filter((card): card is IndexedCard => Boolean(card));
+  const commanderSignals = new Set<string>();
+  for (const commanderCard of commanderCards) {
+    const commanderText = `${commanderCard.name}\n${commanderCard.typeLine}\n${commanderCard.oracleText}`.toLowerCase();
+    if (/token|populate|amass/.test(commanderText)) commanderSignals.add("tokens");
+    if (/\+1\/\+1 counter|proliferate|counter/.test(commanderText)) commanderSignals.add("counters");
+    if (/graveyard|from your graveyard|reanimate|mill/.test(commanderText)) commanderSignals.add("graveyard");
+    if (/instant or sorcery|noncreature spell|magecraft|prowess/.test(commanderText)) commanderSignals.add("spells");
+    if (/artifact|historic/.test(commanderText)) commanderSignals.add("artifacts");
+    if (/enchantment|constellation|aura/.test(commanderText)) commanderSignals.add("enchantments");
+    if (/legendary|historic/.test(commanderText)) commanderSignals.add("legends");
+    if (/combat damage|attacks|can't be blocked|flying|menace|trample/.test(commanderText)) commanderSignals.add("combat");
+    if (/lifegain|gain life|opponent loses life/.test(commanderText)) commanderSignals.add("lifedrain");
+    if (/landfall|play an additional land|land enters the battlefield/.test(commanderText)) commanderSignals.add("lands");
+  }
 
   return {
     archetypes: new Set((input.archetypes ?? []).filter(Boolean)),
+    commanderNames,
+    commanderCards,
+    commanderSignals,
     averageManaValue,
     manaCurve,
     topHeavyCurve: averageManaValue >= 3.3 || highCurveCount >= 20,
@@ -529,6 +601,60 @@ function archetypeSynergyScore(roleKey: SuggestionRoleKey, card: IndexedCard, co
   return score;
 }
 
+function commanderSynergyScore(roleKey: SuggestionRoleKey, card: IndexedCard, context: SuggestionContext): number {
+  if (context.commanderCards.length === 0) {
+    return 0;
+  }
+
+  const text = `${card.name}\n${card.typeLine}\n${card.oracleText}`.toLowerCase();
+  let score = 0;
+
+  if (context.commanderSignals.has("tokens")) {
+    if (roleKey === "draw" && /(skullclamp|whenever a creature enters|whenever a token enters)/.test(text)) score += 12;
+    if (roleKey === "finishers" && /(creatures you control[^.]{0,120}get \+|for each creature you control|for each token)/.test(text)) score += 16;
+  }
+
+  if (context.commanderSignals.has("counters")) {
+    if ((roleKey === "draw" || roleKey === "protection" || roleKey === "finishers") && /counter|proliferate/.test(text)) score += 12;
+  }
+
+  if (context.commanderSignals.has("graveyard")) {
+    if ((roleKey === "draw" || roleKey === "removal" || roleKey === "protection") && /graveyard|mill|return target/.test(text)) score += 10;
+  }
+
+  if (context.commanderSignals.has("spells")) {
+    if ((roleKey === "draw" || roleKey === "protection" || roleKey === "removal") && /instant|sorcery/.test(card.typeLine.toLowerCase())) score += 10;
+    if (roleKey === "finishers" && /(aetherflux reservoir|cast a spell|storm)/.test(text)) score += 12;
+  }
+
+  if (context.commanderSignals.has("artifacts")) {
+    if ((roleKey === "ramp" || roleKey === "draw" || roleKey === "finishers") && card.typeLine.toLowerCase().includes("artifact")) score += 10;
+  }
+
+  if (context.commanderSignals.has("enchantments")) {
+    if ((roleKey === "draw" || roleKey === "removal" || roleKey === "protection") && card.typeLine.toLowerCase().includes("enchantment")) score += 12;
+  }
+
+  if (context.commanderSignals.has("legends")) {
+    if ((roleKey === "ramp" || roleKey === "draw") && /legendary|historic/.test(text)) score += 10;
+  }
+
+  if (context.commanderSignals.has("combat")) {
+    if (roleKey === "protection" && /hexproof|indestructible|can't be blocked|protection from|phases? out/.test(text)) score += 12;
+    if (roleKey === "finishers" && /(creatures you control[^.]{0,120}get \+|combat damage|extra combat)/.test(text)) score += 14;
+  }
+
+  if (context.commanderSignals.has("lifedrain")) {
+    if (roleKey === "finishers" && /(each opponent loses|you gain life|aetherflux reservoir|blood artist|drain)/.test(text)) score += 12;
+  }
+
+  if (context.commanderSignals.has("lands") && roleKey === "ramp") {
+    if (/search your library for|land card|additional land/.test(text)) score += 10;
+  }
+
+  return score;
+}
+
 function curvePressureScore(roleKey: SuggestionRoleKey, card: IndexedCard, context: SuggestionContext): number {
   if (!context.topHeavyCurve) {
     return 0;
@@ -572,6 +698,10 @@ function buildSuggestionRationale(
       return `Finisher picks are biased toward current archetypes: ${[...context.archetypes].slice(0, 2).join(" / ")}.`;
     }
 
+    if (context.commanderNames.length > 0) {
+      return `Suggestions are biased toward commander game plan: ${context.commanderNames.slice(0, 2).join(" / ")}.`;
+    }
+
     if (context.archetypes.size > 0) {
       return `Suggestions are biased toward current archetypes: ${[...context.archetypes].slice(0, 2).join(" / ")}.`;
     }
@@ -585,6 +715,10 @@ function buildSuggestionRationale(
 
   if (context.archetypes.size > 0) {
     return `Cuts avoid cards that look core to current archetypes: ${[...context.archetypes].slice(0, 2).join(" / ")}.`;
+  }
+
+  if (context.commanderNames.length > 0) {
+    return `Cuts avoid cards that look core to the commander plan: ${context.commanderNames.slice(0, 2).join(" / ")}.`;
   }
 
   return "Cuts prioritize higher-cost, lower-flexibility role cards first.";
@@ -606,9 +740,14 @@ function preferredCandidatesForRole(
   limit: number,
   cardDatabase?: SuggestionCardDatabase
 ): string[] {
+  const commanderPreferred = context.commanderNames.flatMap(
+    (name) => COMMANDER_ROLE_PRIORITY[normalizeCardName(name)]?.[roleKey] ?? []
+  );
   const contextualPreferred = [...context.archetypes]
     .flatMap((archetype) => ARCHETYPE_ROLE_PRIORITY[archetype]?.[roleKey] ?? []);
-  const preferred = [...new Set([...contextualPreferred, ...(ROLE_PREFERRED_ORDER[roleKey] ?? [])])];
+  const preferred = [
+    ...new Set([...commanderPreferred, ...contextualPreferred, ...(ROLE_PREFERRED_ORDER[roleKey] ?? [])])
+  ];
   const picked: string[] = [];
 
   for (const name of preferred) {
@@ -670,6 +809,7 @@ function dynamicCandidatesForRole(
         roleScore(roleKey, card) +
         curvePressureScore(roleKey, card, context) +
         archetypeSynergyScore(roleKey, card, context) +
+        commanderSynergyScore(roleKey, card, context) +
         (roleKey === "protection" && context.lowProtection && card.mv <= 2 ? 8 : 0)
     }))
     .sort((a, b) => {
@@ -751,6 +891,7 @@ function cutScoreForRole(
     };
     score -= flexibilityScore(indexedCard);
     score -= archetypeSynergyScore(roleKey, indexedCard, context);
+    score -= commanderSynergyScore(roleKey, indexedCard, context);
   }
 
   return score;
@@ -817,6 +958,7 @@ export function buildRoleSuggestions({
   deckColorIdentity,
   existingCardNames,
   archetypes,
+  commanderNames,
   manaCurve,
   averageManaValue,
   cardDatabase,
@@ -831,6 +973,7 @@ export function buildRoleSuggestions({
     deckColorIdentity,
     existingCardNames,
     archetypes,
+    commanderNames,
     manaCurve,
     averageManaValue,
     cardDatabase,
