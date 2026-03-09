@@ -1,0 +1,46 @@
+name: Precon Library Sync
+
+on:
+  schedule:
+    - cron: "23 15 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Refresh commander precon library
+        run: npm run precons:update
+
+      - name: Validate precon route
+        run: npm run test -- tests/precons-route.test.ts
+
+      - name: Create pull request if library changed
+        uses: peter-evans/create-pull-request@v7
+        with:
+          commit-message: "chore: refresh commander precon library"
+          branch: "automation/precon-library-sync"
+          delete-branch: true
+          title: "chore: refresh commander precon library"
+          body: |
+            Automated refresh of the Commander precon library from MTGJSON deck exports.
+
+            - source: https://mtgjson.com/api/v5/DeckList.json
+            - script: `npm run precons:update`

@@ -9,7 +9,8 @@ type RateLimitRule = {
     | "simulate"
     | "card-printings"
     | "improvement-suggestions"
-    | "commander-options";
+    | "commander-options"
+    | "precons";
   limit: number;
   windowSeconds: number;
 };

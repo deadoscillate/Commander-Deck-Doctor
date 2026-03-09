@@ -6,6 +6,7 @@ Commander deck analysis app built with Next.js + TypeScript.
 
 - Parses free-form Commander decklists (Commander section supported).
 - Imports public decks from Moxfield and Archidekt.
+- Loads stock Commander precons from a synced local library.
 - Resolves card metadata from Scryfall.
 - Runs analyzer output for:
   - deck summary and mana curve
@@ -22,6 +23,7 @@ Commander deck analysis app built with Next.js + TypeScript.
 npm install
 npm run scryfall:update
 npm run spellbook:update
+npm run precons:update
 npm run dev
 ```
 
@@ -136,6 +138,30 @@ Current sync includes:
 - The report includes a dedicated `Banlist` legality card when Commander RC banned cards are detected.
 - Banlist failures surface the actual banned card names from the rules engine findings instead of only a generic fail state.
 
+- The app can browse and load synced stock Commander precons, then run the same analyzer flow on them.
+
+## Commander Precon Library
+
+- Source: `https://mtgjson.com/api/v5/DeckList.json` plus individual deck exports under `https://mtgjson.com/api/v5/decks/<fileName>.json`
+- Local dataset:
+  - `data/precons/commander-precons.json`
+- Refresh pipeline:
+
+```bash
+npm run precons:update
+```
+
+Notes:
+
+- The current library sync includes `Commander Deck` and `MTGO Commander Deck` products.
+- Collector's Edition duplicate decks are filtered out.
+- Each synced precon stores a ready-to-analyze Commander decklist with its commander section already formatted for the app parser.
+- GitHub Action: `.github/workflows/precon-library-sync.yml`
+  - scheduled daily via cron
+  - manual `workflow_dispatch`
+  - refreshes the local precon dataset
+  - opens a pull request automatically when MTGJSON publishes deck changes
+
 ## Deployment Notes
 
 - Vercel hosts the app.
@@ -195,6 +221,7 @@ Recommended flow:
 - `POST /api/analyze`
 - `POST /api/import-url`
 - `POST /api/improvement-suggestions`
+- `GET /api/precons`
 - `POST /api/share-report`
 - `POST /api/simulate`
 - `GET /api/warmup`
@@ -209,6 +236,7 @@ Recommended flow:
 ## MVP Status (March 2026)
 
 - Core workflow is live: import/paste decklist -> analyze -> review report sections.
+- Stock precon browsing is now built in, so users can load and analyze synced Commander precons without hunting down decklists manually.
 - Key analysis outputs are present: legality checks, role coverage, archetypes, combos, Rule 0 snapshot, deck price, and simulations.
 - UX is significantly improved, including commander hero/header, full-page commander art treatment, stronger desktop/mobile layout parity, tabbed add/cut suggestions, and explicit banned-card surfacing.
 - Regression safety is materially improved (CI + smoke + accessibility + coverage gates).
@@ -232,7 +260,7 @@ Minimum standards to treat the app as production-ready for regular player usage:
    - Accessibility smoke tests and coverage threshold checks green in CI.
    - Regression tests for critical user actions (analyze button, commander dropdown refresh, mobile rendering).
 5. Operability
-   - Data refresh scripts (`scryfall:update`, `spellbook:update`, `rules:update`) documented and reproducible.
+   - Data refresh scripts (`scryfall:update`, `spellbook:update`, `rules:update`, `precons:update`) documented and reproducible.
    - Deploy flow remains `staging` -> validate -> `main`.
    - Preview/prod smoke checks confirm API baseline behavior and required security headers.
 
@@ -316,6 +344,7 @@ npm run bench:analyze -- --file tests/fixtures/kentaro-benchmark.decklist.txt --
 3. Started: cut/add recommendation ranking now considers curve pressure, archetype lock-ins, and lower-flexibility trims; the deferred suggestions API also returns a short rationale per role so users can see why those adds/cuts were prioritized.
 4. Completed: improvement suggestions are now grouped into `Adds` and `Cuts` tabs so recommendation review is faster on both desktop and mobile.
 5. Tighten commander auto-detection and no-commander fallback behavior, since prod telemetry showed slower request shapes there earlier.
+6. Completed: stock Commander precon library now syncs from MTGJSON deck exports and can be loaded directly into the analyzer.
 
 ### Phase 3: Commander Rules Completeness
 
@@ -332,3 +361,4 @@ npm run bench:analyze -- --file tests/fixtures/kentaro-benchmark.decklist.txt --
 4. Improve user-facing guidance text for Rule 0 interpretation and recommendation confidence.
 5. Add a release checklist with explicit go/no-go thresholds (latency, error rate, test pass, accessibility pass).
 6. Keep the privacy/ethics disclosure aligned with telemetry automation and any future debug-capture tooling.
+7. Completed: automated precon-library refresh workflow now opens a PR when MTGJSON deck exports change.

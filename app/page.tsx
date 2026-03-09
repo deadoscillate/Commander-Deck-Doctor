@@ -3,8 +3,10 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { AnalysisReport } from "@/components/AnalysisReport";
 import { ExportButtons } from "@/components/ExportButtons";
+import { PreconLibrary } from "@/components/PreconLibrary";
 import type { AnalyzeResponse, CommanderChoice, DeckPriceMode } from "@/lib/contracts";
 import { parseDecklist, parseDecklistWithCommander } from "@/lib/decklist";
+import type { PreconDeck } from "@/lib/preconTypes";
 import { SAMPLE_DECKLIST, SAMPLE_DECK_NAME } from "@/lib/sampleDeck";
 const SAVED_DECKS_STORAGE_KEY = "commanderDeckDoctor.savedDecks.v1";
 const MAX_SAVED_DECKS = 30;
@@ -786,6 +788,33 @@ export default function Page() {
     await runAnalysis({ commanderName: sampleCommander || null });
   }
 
+  async function onLoadPrecon(precon: PreconDeck) {
+    const preconCommander =
+      parseDecklistWithCommander(precon.decklist).commanderFromSection ??
+      precon.commanderNames[0] ??
+      "";
+    setDeckName(precon.name);
+    setDecklist(precon.decklist);
+    setDeckPriceMode("oracle-default");
+    setPrintingOverrides({});
+    setPrintingOptionsByCard({});
+    setPrintingLoadByCard({});
+    setPrintingErrorByCard({});
+    setActivePrintingPicker(null);
+    setTargetBracket("");
+    setExpectedWinTurn("");
+    setCommanderName(preconCommander);
+    setUserCedhFlag(false);
+    setUserHighPowerNoGCFlag(false);
+    setResult(null);
+    setError("");
+    setImportError("");
+    setImportInfo(`Loaded precon: ${precon.name}. Running analysis...`);
+    setSaveError("");
+    setSaveInfo("");
+    await runAnalysis({ commanderName: preconCommander || null, deckPriceMode: "oracle-default", printingOverrides: {} });
+  }
+
   return (
     <main className="page">
       <div className="hero">
@@ -869,6 +898,8 @@ export default function Page() {
               </ul>
             )}
           </section>
+
+          <PreconLibrary busy={loading || importing} onLoadPrecon={onLoadPrecon} />
 
           <label htmlFor="decklist">Decklist (paste here)</label>
           <p className="muted field-help">

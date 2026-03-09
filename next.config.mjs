@@ -21,13 +21,15 @@ const nextConfig = {
       "./data/scryfall/oracle-cards.compiled.json",
       "./data/scryfall/default-cards.compiled.json.gz",
       "./data/scryfall/prints.compiled.sqlite",
-      "./data/scryfall/print-index/**/*"
+      "./data/scryfall/print-index/**/*",
+      "./data/precons/commander-precons.json"
     ],
     "/api/**/*": [
       "./data/scryfall/oracle-cards.compiled.json",
       "./data/scryfall/default-cards.compiled.json.gz",
       "./data/scryfall/prints.compiled.sqlite",
-      "./data/scryfall/print-index/**/*"
+      "./data/scryfall/print-index/**/*",
+      "./data/precons/commander-precons.json"
     ]
   },
   typescript: {

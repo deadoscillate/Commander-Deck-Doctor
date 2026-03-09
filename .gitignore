@@ -21,3 +21,5 @@ data/scryfall/print-index/*
 data/scryfall/print-index/shards/*
 !data/scryfall/print-index/shards/*.json.gz
 data/spellbook/*
+data/precons/*
+!data/precons/commander-precons.json
