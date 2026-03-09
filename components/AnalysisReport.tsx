@@ -541,6 +541,7 @@ type AnalysisReportProps = {
   result: AnalyzeResponse;
   onOpenPrintingPicker?: (cardName: string) => void;
   onImprovementSuggestionsLoaded?: (suggestions: ImprovementSuggestionsPayload) => void;
+  showCommanderHero?: boolean;
 };
 
 type ReportTabKey = "overview" | "composition" | "simulations" | "cards" | "advanced";
@@ -566,7 +567,8 @@ const COMBO_VIEW_TABS: Array<{ key: ComboViewKey; label: string }> = [
 export function AnalysisReport({
   result,
   onOpenPrintingPicker,
-  onImprovementSuggestionsLoaded
+  onImprovementSuggestionsLoaded,
+  showCommanderHero = true
 }: AnalysisReportProps) {
   const maxCurveCount = Math.max(...Object.values(result.summary.manaCurve), 0);
   const archetypeReport = result.archetypeReport ?? {
@@ -858,7 +860,7 @@ export function AnalysisReport({
 
   return (
     <div className="results">
-      {commanderInfo.name ? (
+      {showCommanderHero && commanderInfo.name ? (
         <CommanderHeroHeader
           commander={{
             name: commanderInfo.name,

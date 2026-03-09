@@ -73,6 +73,10 @@ function normalizedColorIdentity(identity: string[]): string[] {
   return [...new Set(identity.filter(Boolean).map((value) => value.toUpperCase()))].sort();
 }
 
+function isDigitalVariantName(name: string): boolean {
+  return /^a-/i.test(name.trim());
+}
+
 function isLegendaryCreature(typeLine: string): boolean {
   const lower = typeLine.toLowerCase();
   return lower.includes("legendary") && lower.includes("creature");
@@ -291,6 +295,10 @@ export function searchCards(input: SearchOptions = {}): CardSearchRecord[] {
   const rows = buildSearchIndex()
     .filter((card) => {
       if (commanderOnly && !card.commanderEligible) {
+        return false;
+      }
+
+      if (commanderOnly && isDigitalVariantName(card.name)) {
         return false;
       }
 

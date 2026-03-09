@@ -313,6 +313,11 @@ describe("builder page", () => {
 
     render(<BuilderPage />);
 
+    expect(screen.queryByRole("button", { name: /Start Build/i })).toBeNull();
+
+    const commanderSearch = screen.getByPlaceholderText(/Search commanders/i);
+    await user.type(commanderSearch, "Edric");
+
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith(
         expect.stringContaining("/api/card-search?commanderOnly=1"),

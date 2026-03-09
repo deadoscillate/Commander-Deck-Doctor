@@ -39,6 +39,14 @@ export type BuilderDeckSection = {
   cards: BuilderDeckCard[];
 };
 
+export type BuilderNeedSummary = {
+  key: string;
+  label: string;
+  deficit: number;
+  current: number;
+  recommendedMin: number;
+};
+
 const COLOR_ORDER = ["W", "U", "B", "R", "G"];
 
 const PAIR_LAND_SUGGESTIONS: Array<{ colors: string[]; names: string[] }> = [
@@ -87,6 +95,18 @@ const ARCHETYPE_STAPLES: Record<string, string[]> = {
   Graveyard: ["Entomb", "Life from the Loam", "Animate Dead"],
   "Lands Matter": ["Field of the Dead", "Ancient Greenwarden", "Scapeshift"]
 };
+
+const COMMANDER_ARCHETYPE_PATTERNS: Array<{ label: string; pattern: RegExp }> = [
+  { label: "Tokens", pattern: /create [^.]{0,80}\btoken\b/i },
+  { label: "Go Wide", pattern: /\bcreatures you control get \+\d+\/\+\d+\b|\bwhenever one or more creatures you control attack\b/i },
+  { label: "Spellslinger", pattern: /whenever you cast an instant or sorcery|instant or sorcery spell/i },
+  { label: "Storm", pattern: /\bstorm\b|copy target instant or sorcery spell/i },
+  { label: "Artifacts", pattern: /\bartifact\b/i },
+  { label: "Enchantress", pattern: /\benchantment spell\b|\baura\b/i },
+  { label: "Counters", pattern: /\+1\/\+1 counter|proliferate|counter on/i },
+  { label: "Graveyard", pattern: /\bgraveyard\b|return [^.]{0,80} from your graveyard/i },
+  { label: "Lands Matter", pattern: /\bland enters the battlefield\b|play an additional land|whenever a land enters/i }
+];
 
 function normalizeName(name: string): string {
   return name
@@ -163,6 +183,28 @@ export function extractNeeds(rows: RecommendedCountRow[]): Array<{
       recommendedMin: row.recommendedMin
     }))
     .sort((left, right) => right.deficit - left.deficit || left.label.localeCompare(right.label));
+}
+
+export function inferCommanderArchetypes(card: {
+  name: string;
+  typeLine?: string;
+  oracleText?: string;
+}): string[] {
+  const oracleText = card.oracleText ?? "";
+  const typeLine = card.typeLine ?? "";
+  const labels: string[] = [];
+
+  for (const entry of COMMANDER_ARCHETYPE_PATTERNS) {
+    if (entry.pattern.test(oracleText)) {
+      labels.push(entry.label);
+    }
+  }
+
+  if (/\bcreature\b/i.test(typeLine) && /\belf|goblin|merfolk|zombie|vampire|dragon|wizard|soldier|angel|dinosaur|sliver\b/i.test(typeLine)) {
+    labels.push("Kindred (Tribal)");
+  }
+
+  return uniqueNames(labels);
 }
 
 export function computePreconSimilarity(
