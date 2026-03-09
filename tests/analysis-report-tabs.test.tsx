@@ -1,7 +1,7 @@
 /* @vitest-environment jsdom */
 
 import React from "react";
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { AnalysisReport } from "@/components/AnalysisReport";
@@ -86,6 +86,57 @@ describe("analysis report tab smoke", () => {
     expect(screen.getByRole("heading", { name: "Player Snapshot" })).toBeTruthy();
     await userEvent.click(screen.getByRole("tab", { name: "Simulations" }));
     expect(screen.getAllByText("N/A").length).toBeGreaterThan(0);
+  });
+
+  it("groups improvement suggestions into add and cut tabs", async () => {
+    const user = userEvent.setup();
+    const result = createAnalyzeResponseFixture({
+      improvementSuggestions: {
+        colorIdentity: ["W", "U", "B", "G"],
+        disclaimer: "Suggestions fixture.",
+        items: [
+          {
+            key: "draw",
+            label: "Card Draw",
+            currentCount: 4,
+            recommendedRange: "8-12",
+            direction: "ADD",
+            suggestions: ["Rhystic Study"],
+            rationale: "Draw is below the target range."
+          },
+          {
+            key: "finishers",
+            label: "Finishers",
+            currentCount: 8,
+            recommendedRange: "2-6",
+            direction: "CUT",
+            suggestions: ["Aetherflux Reservoir"],
+            rationale: "Finishers are above the target range."
+          }
+        ]
+      }
+    });
+
+    render(<AnalysisReport result={result} />);
+
+    await user.click(screen.getByRole("tab", { name: "Composition" }));
+
+    const addsTab = screen.getByRole("tab", { name: /Adds/i });
+    const cutsTab = screen.getByRole("tab", { name: /Cuts/i });
+    const addPanel = document.getElementById("suggestion-panel-add");
+    const cutPanel = document.getElementById("suggestion-panel-cut");
+
+    expect(addsTab.getAttribute("aria-selected")).toBe("true");
+    expect(addPanel).toBeTruthy();
+    expect(cutPanel).toBeTruthy();
+    expect(within(addPanel as HTMLElement).getByText("Rhystic Study")).toBeTruthy();
+    expect(cutPanel?.hasAttribute("hidden")).toBe(true);
+
+    await user.click(cutsTab);
+
+    expect(cutsTab.getAttribute("aria-selected")).toBe("true");
+    expect(addPanel?.hasAttribute("hidden")).toBe(true);
+    expect(within(cutPanel as HTMLElement).getByText("Aetherflux Reservoir")).toBeTruthy();
   });
 
 });

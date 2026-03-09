@@ -20,6 +20,12 @@ function toneIcon(tone: CheckTone): string {
   return "\u23F3";
 }
 
+function toneFromOutcome(outcome: "PASS" | "FAIL" | "SKIP"): CheckTone {
+  if (outcome === "PASS") return "ok";
+  if (outcome === "FAIL") return "warn";
+  return "pending";
+}
+
 export function Checks({ checks, rulesEngine }: ChecksProps) {
   const deckSizeTone: CheckTone = checks.deckSize.ok ? "ok" : "warn";
   const unknownTone: CheckTone = checks.unknownCards.ok ? "ok" : "warn";
@@ -34,6 +40,8 @@ export function Checks({ checks, rulesEngine }: ChecksProps) {
       ? "ok"
       : "warn"
     : null;
+  const banlistRule = rulesEngine?.rules.find((rule) => rule.id === "commander.banlist") ?? null;
+  const banlistTone = banlistRule ? toneFromOutcome(banlistRule.outcome) : null;
   const failingRules =
     rulesEngine?.rules.filter((rule) => rule.outcome === "FAIL").sort((a, b) => a.name.localeCompare(b.name)) ?? [];
 
@@ -109,6 +117,30 @@ export function Checks({ checks, rulesEngine }: ChecksProps) {
             </ul>
           ) : null}
         </li>
+        {banlistRule && banlistTone ? (
+          <li className={`check-item check-${banlistTone}`}>
+            <div className="check-item-head">
+              <strong>
+                {toneIcon(banlistTone)} Banlist
+              </strong>
+              <span className="check-pill">{toneLabel(banlistTone)}</span>
+            </div>
+            <p>{banlistRule.message}</p>
+            {banlistRule.findings.length > 0 ? (
+              <details className="checks-details">
+                <summary>Show banned cards</summary>
+                <ul>
+                  {banlistRule.findings.map((entry) => (
+                    <li key={entry.name}>
+                      <CardNameHover name={entry.name} />
+                      {entry.qty > 1 ? ` x${entry.qty}` : ""}
+                    </li>
+                  ))}
+                </ul>
+              </details>
+            ) : null}
+          </li>
+        ) : null}
         {rulesEngine && rulesEngineTone ? (
           <li className={`check-item check-${rulesEngineTone}`}>
             <div className="check-item-head">

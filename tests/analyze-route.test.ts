@@ -180,6 +180,60 @@ describe("POST /api/analyze", () => {
     expect(body.rulesEngine?.rules?.some((rule) => rule.id === "commander.deck-size-exactly-100")).toBe(true);
   }, 15000);
 
+  it("keeps oracle-default summaries shareable when local default data is used", async () => {
+    const fetchMock = vi.fn(async () => {
+      throw new Error("unexpected_network_lookup");
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const saveReportMock = vi.fn(async () => ({ hash: "0123456789abcdef0123" }));
+
+    vi.doMock("@/lib/analyzeTelemetryStore", () => ({
+      recordAnalyzeTelemetry: vi.fn(async () => undefined)
+    }));
+    vi.doMock("@/lib/reportStore", () => ({
+      saveReport: saveReportMock
+    }));
+
+    const decklist = "1 Arcane Signet\n99 Island";
+    const { POST: analyzePost } = await import("@/app/api/analyze/route");
+    const analyzeResponse = await analyzePost(
+      buildRequest({
+        decklist,
+        deckPriceMode: "oracle-default"
+      })
+    );
+    const analyzeBody = (await analyzeResponse.json()) as {
+      summary?: {
+        averageManaValue?: number | null;
+        manaCurve?: Record<string, number | null>;
+      };
+    };
+
+    expect(analyzeResponse.status).toBe(200);
+    expect(typeof analyzeBody.summary?.averageManaValue).toBe("number");
+    expect(Number.isFinite(analyzeBody.summary?.averageManaValue)).toBe(true);
+    expect(analyzeBody.summary?.manaCurve?.["2"]).toBe(1);
+    expect(Object.prototype.hasOwnProperty.call(analyzeBody.summary?.manaCurve ?? {}, "NaN")).toBe(false);
+    expect(fetchMock).toHaveBeenCalledTimes(0);
+
+    const { POST: sharePost } = await import("@/app/api/share-report/route");
+    const shareResponse = await sharePost(
+      new Request("http://localhost/api/share-report", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          decklist,
+          analysis: analyzeBody
+        })
+      })
+    );
+    const shareBody = (await shareResponse.json()) as { hash?: string; error?: string };
+
+    expect(shareResponse.status).toBe(200);
+    expect(shareBody.hash).toBe("0123456789abcdef0123");
+    expect(saveReportMock).toHaveBeenCalledTimes(1);
+  }, 15000);
+
   it("reuses analyze cache for identical requests", async () => {
     const fetchDeckCardsMock = vi.fn(async () => ({
       knownCards: [

@@ -7,6 +7,11 @@ const DEFAULT_COMPILED_FILE = "data/scryfall/default-cards.compiled.json.gz";
 
 let cardsByNormalizedName: Map<string, ScryfallCard> | null = null;
 
+type LocalCompiledDefaultCard = ScryfallCard & {
+  lookup_names?: string[];
+  mana_value?: number;
+};
+
 function normalizeLookupName(name: string): string {
   return name
     .normalize("NFKD")
@@ -19,9 +24,15 @@ function buildNameKey(name: string): string {
   return `name:${normalizeLookupName(name)}`;
 }
 
-function normalizeLocalCard(card: ScryfallCard): ScryfallCard {
+function normalizeLocalCard(card: LocalCompiledDefaultCard): ScryfallCard {
   return {
     ...card,
+    cmc:
+      typeof card.cmc === "number" && Number.isFinite(card.cmc)
+        ? card.cmc
+        : typeof card.mana_value === "number" && Number.isFinite(card.mana_value)
+          ? card.mana_value
+          : 0,
     colors: Array.isArray(card.colors) ? card.colors : [],
     color_identity: Array.isArray(card.color_identity) ? card.color_identity : [],
     keywords: Array.isArray(card.keywords) ? card.keywords : [],
@@ -56,7 +67,7 @@ function loadCardsByName(): Map<string, ScryfallCard> {
       continue;
     }
 
-    const card = row as ScryfallCard & { lookup_names?: string[] };
+    const card = row as LocalCompiledDefaultCard;
     if (typeof card.name !== "string" || !card.name.trim()) {
       continue;
     }

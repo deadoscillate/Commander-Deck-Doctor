@@ -10,7 +10,7 @@ Commander deck analysis app built with Next.js + TypeScript.
 - Runs analyzer output for:
   - deck summary and mana curve
   - role composition (ramp/draw/removal/wipes/tutors/protection/finishers)
-  - commander/deck checks (size, singleton, color identity, unknown cards)
+  - commander/deck checks (size, singleton, color identity, unknown cards, banlist surfacing)
   - bracket heuristics, archetype signals, combo signals, Rule 0 snapshot (including true tutor cards in table-talk flags)
   - on-demand deterministic simulations
 - Supports set-aware pricing, per-card seller links, and per-card printing selection.
@@ -126,9 +126,15 @@ Current sync includes:
 
 - Deck Improvement Suggestions include `Suggested Adds` for `LOW` role statuses.
 - Deck Improvement Suggestions include `Suggested Cuts` for `HIGH` role statuses (based on role-tagged cards in your list).
+- Improvement suggestions are now grouped into `Adds` and `Cuts` tabs for faster scanability.
 - Improvement suggestions now load after the initial report from `POST /api/improvement-suggestions` so first analysis returns faster.
 - Combo Detection includes internal tabs: `Live Combos`, `Conditional`, and `Potential`.
 - Combo lists and suggestions use card preview tiles for faster review.
+
+## Legality UI
+
+- The report includes a dedicated `Banlist` legality card when Commander RC banned cards are detected.
+- Banlist failures surface the actual banned card names from the rules engine findings instead of only a generic fail state.
 
 ## Deployment Notes
 
@@ -204,7 +210,7 @@ Recommended flow:
 
 - Core workflow is live: import/paste decklist -> analyze -> review report sections.
 - Key analysis outputs are present: legality checks, role coverage, archetypes, combos, Rule 0 snapshot, deck price, and simulations.
-- UX is significantly improved, including commander hero/header, full-page commander art treatment, and stronger desktop/mobile layout parity.
+- UX is significantly improved, including commander hero/header, full-page commander art treatment, stronger desktop/mobile layout parity, tabbed add/cut suggestions, and explicit banned-card surfacing.
 - Regression safety is materially improved (CI + smoke + accessibility + coverage gates).
 - Primary remaining gap before broader live rollout: cold-miss lookup latency, especially for `oracle-default` analyses on larger real-world lists.
 
@@ -308,13 +314,15 @@ npm run bench:analyze -- --file tests/fixtures/kentaro-benchmark.decklist.txt --
 1. Started: archetype detection now uses weighted signals, per-archetype thresholds, and broader taxonomy coverage (`Cascade`, `Topdeck Matters`, `Clues/Food/Blood`, `Spells From Exile`, `Legends Matter`) plus a type-line tribal heuristic so kindred decks can still classify even when oracle text lacks explicit "choose a creature type" support cards.
 2. Started: combo data refreshed from Commander Spellbook (`27,124` variants downloaded on March 9, 2026 -> `26,393` normalized Commander-legal combos) with regression coverage for staple exact lines such as `Oracle Consultation`, `Heliod + Ballista`, `Dramatic Scepter`, `Underworld Breach`, `Food Chain + Squee`, `Kiki + Conscripts`, and `Niv-Mizzet + Curiosity`; detected/potential combo ranking now prioritizes short, readable staple lines ahead of noisier Spellbook variants.
 3. Started: cut/add recommendation ranking now considers curve pressure, archetype lock-ins, and lower-flexibility trims; the deferred suggestions API also returns a short rationale per role so users can see why those adds/cuts were prioritized.
-4. Tighten commander auto-detection and no-commander fallback behavior, since prod telemetry showed slower request shapes there earlier.
+4. Completed: improvement suggestions are now grouped into `Adds` and `Cuts` tabs so recommendation review is faster on both desktop and mobile.
+5. Tighten commander auto-detection and no-commander fallback behavior, since prod telemetry showed slower request shapes there earlier.
 
 ### Phase 3: Commander Rules Completeness
 
 1. Continue official-rules sync hardening and dataset verification.
-2. Increase deterministic coverage for commander pair rules, companion edge cases, and banlist updates.
-3. Add targeted fixture suites for known tricky rules interactions that affect legality output.
+2. Completed: legality UI now exposes a dedicated `Banlist` card and explicit banned-card list from rules-engine findings.
+3. Increase deterministic coverage for commander pair rules, companion edge cases, and banlist updates.
+4. Add targeted fixture suites for known tricky rules interactions that affect legality output.
 
 ### Phase 4: Productization
 
