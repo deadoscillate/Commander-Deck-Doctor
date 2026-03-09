@@ -94,6 +94,91 @@ jobs:
           CMD+=(--output telemetry-output/latest.md --json-output telemetry-output/latest.json)
           "${CMD[@]}"
 
+      - name: Prepare static telemetry branch files
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          cat > telemetry-output/vercel.json <<'EOF'
+          {
+            "$schema": "https://openapi.vercel.sh/vercel.json",
+            "git": {
+              "deploymentEnabled": false
+            }
+          }
+          EOF
+
+          node <<'EOF'
+          const fs = require("node:fs");
+          const path = require("node:path");
+
+          const outputDir = path.join(process.cwd(), "telemetry-output");
+          const markdown = fs.readFileSync(path.join(outputDir, "latest.md"), "utf8");
+          const escaped = markdown
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;");
+
+          const html = `<!doctype html>
+          <html lang="en">
+            <head>
+              <meta charset="utf-8" />
+              <meta name="viewport" content="width=device-width, initial-scale=1" />
+              <title>Commander Deck Doctor Telemetry</title>
+              <style>
+                :root {
+                  color-scheme: dark;
+                  --bg: #06101b;
+                  --panel: rgba(10, 24, 40, 0.88);
+                  --border: rgba(102, 176, 255, 0.28);
+                  --text: #d8e7f7;
+                }
+                * { box-sizing: border-box; }
+                body {
+                  margin: 0;
+                  min-height: 100vh;
+                  padding: 24px;
+                  font-family: system-ui, sans-serif;
+                  background: linear-gradient(180deg, #07111d 0%, #0a1b2d 100%);
+                  color: var(--text);
+                }
+                main {
+                  max-width: 1100px;
+                  margin: 0 auto;
+                  background: var(--panel);
+                  border: 1px solid var(--border);
+                  border-radius: 20px;
+                  padding: 24px;
+                  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.35);
+                }
+                h1 {
+                  margin: 0 0 16px;
+                  font-size: 28px;
+                }
+                p {
+                  margin: 0 0 16px;
+                  color: #9db6cf;
+                }
+                pre {
+                  margin: 0;
+                  white-space: pre-wrap;
+                  word-break: break-word;
+                  font: 14px/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+                }
+              </style>
+            </head>
+            <body>
+              <main>
+                <h1>Telemetry Summary</h1>
+                <p>This branch is generated for telemetry reporting. It is not an application deployment target.</p>
+                <pre>${escaped}</pre>
+              </main>
+            </body>
+          </html>`;
+
+          fs.writeFileSync(path.join(outputDir, "index.html"), html, "utf8");
+          EOF
+
       - name: Add workflow summary
         run: cat telemetry-output/latest.md >> "$GITHUB_STEP_SUMMARY"
 
