@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useRef, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { AnalysisReport } from "@/components/AnalysisReport";
 import { ExportButtons } from "@/components/ExportButtons";
 import type { AnalyzeResponse, DeckPriceMode } from "@/lib/contracts";
@@ -242,6 +242,35 @@ export default function Page() {
   const [importInfo, setImportInfo] = useState("");
   const printingModalRef = useRef<HTMLDivElement | null>(null);
   const printingCloseButtonRef = useRef<HTMLButtonElement | null>(null);
+  const parsedDeckInput = useMemo(() => parseDecklistWithCommander(decklist), [decklist]);
+  const parsedDeckEntries = parsedDeckInput.entries;
+  const commanderFromDecklist = parsedDeckInput.commanderFromSection;
+  const commanderSelectableNames = useMemo(() => {
+    const rows = new Map<string, string>();
+    for (const entry of parsedDeckEntries) {
+      if (entry.qty !== 1) {
+        continue;
+      }
+
+      const key = normalizeCardKey(entry.name);
+      if (!rows.has(key)) {
+        rows.set(key, entry.name);
+      }
+    }
+
+    if (commanderFromDecklist) {
+      rows.set(normalizeCardKey(commanderFromDecklist), commanderFromDecklist);
+    }
+
+    return [...rows.values()].sort((left, right) => left.localeCompare(right));
+  }, [commanderFromDecklist, parsedDeckEntries]);
+  const selectedCommanderName = commanderName.trim();
+  const effectiveCommanderName = commanderFromDecklist ?? selectedCommanderName;
+  const commanderSelectionRequired = !commanderFromDecklist && parsedDeckEntries.length > 0;
+  const canAnalyze =
+    Boolean(decklist.trim()) &&
+    (!commanderSelectionRequired || Boolean(selectedCommanderName)) &&
+    !loading;
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -289,7 +318,7 @@ export default function Page() {
       printingOverrides,
       targetBracket,
       expectedWinTurn,
-      commanderName,
+      commanderName: effectiveCommanderName,
       userCedhFlag,
       userHighPowerNoGCFlag,
       updatedAt: now
@@ -383,12 +412,12 @@ export default function Page() {
       setPrintingLoadByCard({});
       setPrintingErrorByCard({});
       setActivePrintingPicker(null);
-      setCommanderName("");
+      const importedCommander = parseDecklistWithCommander(imported.decklist).commanderFromSection;
+      setCommanderName(importedCommander ?? "");
       setResult(null);
       const label = imported.provider === "moxfield" ? "Moxfield" : "Archidekt";
-      const commander = parseDecklistWithCommander(imported.decklist).commanderFromSection;
       setImportInfo(
-        `Imported: ${imported.deckName ?? `${label} deck`} ${commander ? `(Commander: ${commander})` : ""}`.trim()
+        `Imported: ${imported.deckName ?? `${label} deck`} ${importedCommander ? `(Commander: ${importedCommander})` : ""}`.trim()
       );
     } catch {
       setImportError("Could not import deck. Check the link is public and try again.");
@@ -409,6 +438,26 @@ export default function Page() {
       setCommanderName(result.commander.selectedName);
     }
   }, [result]);
+
+  useEffect(() => {
+    if (commanderFromDecklist) {
+      setCommanderName((previous) =>
+        previous === commanderFromDecklist ? previous : commanderFromDecklist
+      );
+      return;
+    }
+
+    const availableCommanderKeys = new Set(
+      commanderSelectableNames.map((name) => normalizeCardKey(name))
+    );
+    setCommanderName((previous) => {
+      if (!previous) {
+        return previous;
+      }
+
+      return availableCommanderKeys.has(normalizeCardKey(previous)) ? previous : "";
+    });
+  }, [commanderFromDecklist, commanderSelectableNames]);
 
   const tuningSummary = targetBracket && expectedWinTurn
     ? `Target: Bracket ${targetBracket} | Win/Lock: ${expectedWinTurn}`
@@ -601,7 +650,7 @@ export default function Page() {
       const commanderForRequest =
         typeof overrides?.commanderName === "string"
           ? overrides.commanderName
-          : commanderName || null;
+          : effectiveCommanderName || null;
       const pricingModeForRequest = overrides?.deckPriceMode ?? deckPriceMode;
       const printingOverridesForRequest = overrides?.printingOverrides ?? printingOverrides;
       const setOverrides = toSetOverrides(printingOverridesForRequest);
@@ -640,10 +689,18 @@ export default function Page() {
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     event.stopPropagation();
+    if (!canAnalyze) {
+      if (commanderSelectionRequired && !selectedCommanderName) {
+        setError("Select a commander before analysis.");
+      }
+      return;
+    }
+
     await runAnalysis();
   }
 
   async function onTrySampleDeck() {
+    const sampleCommander = parseDecklistWithCommander(SAMPLE_DECKLIST).commanderFromSection ?? "";
     setDeckName(SAMPLE_DECK_NAME);
     setDecklist(SAMPLE_DECKLIST);
     setPrintingOverrides({});
@@ -651,10 +708,10 @@ export default function Page() {
     setPrintingLoadByCard({});
     setPrintingErrorByCard({});
     setActivePrintingPicker(null);
-    setCommanderName("");
+    setCommanderName(sampleCommander);
     setImportError("");
     setImportInfo("Loaded sample deck. Running analysis...");
-    await runAnalysis({ commanderName: null });
+    await runAnalysis({ commanderName: sampleCommander || null });
   }
 
   return (
@@ -755,6 +812,49 @@ export default function Page() {
             required
           />
 
+          <section className="results-commander-picker">
+            <label htmlFor="commander-name">Commander</label>
+            {commanderFromDecklist ? (
+              <>
+                <input
+                  id="commander-name"
+                  type="text"
+                  value={commanderFromDecklist}
+                  readOnly
+                  aria-readonly="true"
+                />
+                <p className="muted">
+                  Commander detected from the decklist. Edit the pasted deck or Commander section to change it.
+                </p>
+              </>
+            ) : (
+              <>
+                <select
+                  id="commander-name"
+                  value={selectedCommanderName}
+                  disabled={loading || commanderSelectableNames.length === 0}
+                  onChange={(event) => {
+                    setCommanderName(event.target.value);
+                    setError("");
+                  }}
+                >
+                  <option value="">Select a commander</option>
+                  {commanderSelectableNames.map((name) => (
+                    <option key={name} value={name}>
+                      {name}
+                    </option>
+                  ))}
+                </select>
+                <p className="muted">
+                  Add a <code>Commander:</code> section in the decklist, or pick the commander here before analysis.
+                </p>
+                {commanderSelectionRequired && !selectedCommanderName ? (
+                  <p className="error-inline">Commander selection is required before analysis.</p>
+                ) : null}
+              </>
+            )}
+          </section>
+
           <section className="tuning-controls">
             <div className="tuning-header">
               <strong>Pricing Mode</strong>
@@ -850,7 +950,7 @@ export default function Page() {
           </label>
           </section>
 
-          <button type="submit" className="btn-primary" disabled={loading}>
+          <button type="submit" className="btn-primary" disabled={!canAnalyze}>
             {loading ? "Analyzing..." : "Analyze Deck"}
           </button>
 
@@ -858,30 +958,6 @@ export default function Page() {
         </form>
 
         <div className="panel results-panel">
-          {result && !result.commander.detectedFromSection && result.commander.options.length > 0 ? (
-            <section className="results-commander-picker">
-              <label htmlFor="commander-name-right">Commander (manual selection)</label>
-              <select
-                id="commander-name-right"
-                value={commanderName}
-                disabled={loading}
-                onChange={(event) => {
-                  const nextCommander = event.target.value;
-                  setCommanderName(nextCommander);
-                  void runAnalysis({ commanderName: nextCommander || null });
-                }}
-              >
-                <option value="">Select a commander</option>
-                {result.commander.options.map((option) => (
-                  <option key={option.name} value={option.name}>
-                    {option.name} ({option.colorIdentity.length > 0 ? option.colorIdentity.join("/") : "Colorless"})
-                  </option>
-                ))}
-              </select>
-              <p className="muted">Selecting a commander updates the report automatically.</p>
-            </section>
-          ) : null}
-
           <ExportButtons result={result} decklist={decklist} />
 
           {!result ? (
