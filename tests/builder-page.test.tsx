@@ -1,7 +1,7 @@
 /* @vitest-environment jsdom */
 
 import React from "react";
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -17,6 +17,12 @@ vi.mock("@/components/CardLink", () => ({
 
 vi.mock("@/components/ColorIdentityIcons", () => ({
   ColorIdentityIcons: ({ identity }: { identity: string[] }) => <span>{identity.join("") || "C"}</span>
+}));
+
+vi.mock("@/components/CommanderHeroHeader", () => ({
+  CommanderHeroHeader: ({ commander }: { commander: { name: string } }) => (
+    <div data-testid="builder-commander-hero">{commander.name}</div>
+  )
 }));
 
 vi.mock("@/components/ManaCost", () => ({
@@ -209,7 +215,7 @@ describe("builder page", () => {
   let fetchMock: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
-    fetchMock = vi.fn(async (input: string | URL | Request) => {
+    fetchMock = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
       const url = String(input);
 
       if (url.startsWith("/api/card-search?") && url.includes("commanderOnly=1")) {
@@ -257,6 +263,29 @@ describe("builder page", () => {
         });
       }
 
+      if (url === "/api/card-search" && init?.method === "POST") {
+        const body = JSON.parse(String(init.body ?? "{}")) as { names?: string[] };
+        const items = (body.names ?? []).map((name) => ({
+          name,
+          manaCost: name === "Counterspell" ? "{U}{U}" : "",
+          cmc: name === "Counterspell" ? 2 : 0,
+          typeLine: name === "Counterspell" ? "Instant" : "",
+          oracleText: "",
+          colorIdentity: name === "Counterspell" ? ["U"] : [],
+          commanderEligible: name === "Edric, Spymaster of Trest",
+          isBasicLand: false,
+          duplicateLimit: null,
+          previewImageUrl: null,
+          artUrl: null
+        }));
+
+        return jsonResponse({
+          query: "",
+          count: items.length,
+          items
+        });
+      }
+
       if (url.startsWith("/api/precons?commander=")) {
         return jsonResponse({ meta: { totalDecks: 0 }, items: [] });
       }
@@ -300,7 +329,13 @@ describe("builder page", () => {
     const searchInput = screen.getByPlaceholderText(/Search cards to add/i);
     await user.type(searchInput, "Counterspell");
 
-    const addButton = await screen.findByRole("button", { name: /^Add$/i });
+    const counterspellCard = (await screen.findAllByText("Counterspell")).find((node) =>
+      node.closest("article")
+    );
+    expect(counterspellCard).toBeTruthy();
+    const addButton = within(counterspellCard!.closest("article") as HTMLElement).getByRole("button", {
+      name: /^Add$/i
+    });
     await user.click(addButton);
 
     await waitFor(() => {

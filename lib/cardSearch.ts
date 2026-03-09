@@ -58,6 +58,7 @@ type SearchOptions = {
 };
 
 let searchIndex: CardSearchRecord[] | null = null;
+let searchIndexByName: Map<string, CardSearchRecord> | null = null;
 let commanderPool: ScryfallCard[] | null = null;
 
 function normalizeName(name: string): string {
@@ -228,7 +229,17 @@ function buildSearchIndex(): CardSearchRecord[] {
     .sort((left, right) => left.name.localeCompare(right.name));
 
   searchIndex = next;
+  searchIndexByName = new Map(next.map((card) => [normalizeName(card.name), card]));
   return next;
+}
+
+function buildSearchIndexByName(): Map<string, CardSearchRecord> {
+  if (searchIndexByName) {
+    return searchIndexByName;
+  }
+
+  buildSearchIndex();
+  return searchIndexByName ?? new Map();
 }
 
 function subsetOf(identity: string[], allowed: Set<string>): boolean {
@@ -321,7 +332,53 @@ export function searchCards(input: SearchOptions = {}): CardSearchRecord[] {
   return rows;
 }
 
+export function lookupCardsByNames(
+  names: string[],
+  input: Pick<SearchOptions, "allowedColors" | "commanderOnly"> = {}
+): CardSearchRecord[] {
+  const allowedColors = new Set(normalizedColorIdentity(input.allowedColors ?? []));
+  const commanderOnly = Boolean(input.commanderOnly);
+  const byName = buildSearchIndexByName();
+  const seen = new Set<string>();
+  const rows: CardSearchRecord[] = [];
+
+  for (const name of names) {
+    const normalized = normalizeName(name);
+    if (!normalized || seen.has(normalized)) {
+      continue;
+    }
+
+    seen.add(normalized);
+    const card = byName.get(normalized);
+    if (!card) {
+      continue;
+    }
+
+    if (commanderOnly && !card.commanderEligible) {
+      continue;
+    }
+
+    if (allowedColors.size > 0 && !subsetOf(card.colorIdentity, allowedColors)) {
+      continue;
+    }
+
+    if (!commanderOnly || !card.commanderEligible) {
+      rows.push(card);
+      continue;
+    }
+
+    const resolvedCard = getLocalDefaultCardByName(card.name) ?? buildFallbackScryfallCard(card);
+    rows.push({
+      ...card,
+      pairOptions: getPairOptionsForCard(resolvedCard)
+    });
+  }
+
+  return rows;
+}
+
 export function clearCardSearchCache(): void {
   searchIndex = null;
+  searchIndexByName = null;
   commanderPool = null;
 }

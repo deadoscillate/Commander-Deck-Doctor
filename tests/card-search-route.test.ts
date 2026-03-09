@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { GET } from "@/app/api/card-search/route";
+import { GET, POST } from "@/app/api/card-search/route";
 
 describe("GET /api/card-search", () => {
   it("returns commander-only results with legal pair metadata", async () => {
@@ -58,5 +58,28 @@ describe("GET /api/card-search", () => {
     expect(
       payload.items.every((item) => item.colorIdentity.every((color) => ["G", "U"].includes(color)))
     ).toBe(true);
+  });
+
+  it("supports exact name lookup via POST", async () => {
+    const response = await POST(
+      new Request("http://localhost/api/card-search", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          names: ["Sol Ring", "Counterspell"],
+          allowedColors: ["U"],
+          commanderOnly: false
+        })
+      })
+    );
+
+    expect(response.status).toBe(200);
+    const payload = (await response.json()) as {
+      count: number;
+      items: Array<{ name: string }>;
+    };
+
+    expect(payload.count).toBe(2);
+    expect(payload.items.map((item) => item.name)).toEqual(["Sol Ring", "Counterspell"]);
   });
 });

@@ -5,13 +5,19 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { AnalysisReport } from "@/components/AnalysisReport";
 import { CardLink } from "@/components/CardLink";
 import { ColorIdentityIcons } from "@/components/ColorIdentityIcons";
+import { CommanderHeroHeader } from "@/components/CommanderHeroHeader";
 import { ManaCost } from "@/components/ManaCost";
-import type { CommanderChoice, AnalyzeResponse } from "@/lib/contracts";
+import type { AnalyzeResponse, CommanderChoice, RoleBreakdown } from "@/lib/contracts";
 import {
+  buildArchetypeLabel,
   buildBuilderDecklist,
+  buildCommanderStapleSuggestionNames,
+  buildManaBaseSuggestionNames,
+  categorizeBuilderDeckCards,
   computePreconSimilarity,
   extractNeeds,
   totalDeckCardCount,
+  type BuilderCardMeta,
   type BuilderCommanderSelection,
   type BuilderDeckCard
 } from "@/lib/builder";
@@ -55,6 +61,18 @@ type MatchingPreconSummary = {
   name: string;
   releaseDate: string;
   decklist: string;
+};
+
+type SuggestionCardItem = {
+  name: string;
+  note?: string;
+};
+
+type SuggestionGroup = {
+  key: string;
+  label: string;
+  description?: string;
+  items: SuggestionCardItem[];
 };
 
 function normalizeName(name: string): string {
@@ -160,58 +178,25 @@ function updateCardQty(current: BuilderDeckCard[], cardName: string, delta: numb
     .filter((entry) => entry.qty > 0);
 }
 
-function flattenSuggestionCards(result: AnalyzeResponse | null): Array<{
-  label: string;
-  names: string[];
-}> {
-  if (!result) {
-    return [];
-  }
-
-  const groups = result.improvementSuggestions.items
-    .filter((item) => item.direction === "ADD" && item.suggestions.length > 0)
-    .map((item) => ({
-      label: item.label,
-      names: item.suggestions.slice(0, 6)
-    }));
-
-  const comboPieces = [
-    ...new Set(
-      result.comboReport.potential
-        .flatMap((combo) => combo.missingCards)
-        .filter(Boolean)
-    )
-  ].slice(0, 6);
-
-  if (comboPieces.length > 0) {
-    groups.push({
-      label: "Combo Pieces",
-      names: comboPieces
-    });
-  }
-
-  return groups;
-}
-
-function landSuggestionsForColors(colors: string[]): string[] {
-  const basicsByColor: Record<string, string> = {
-    W: "Plains",
-    U: "Island",
-    B: "Swamp",
-    R: "Mountain",
-    G: "Forest"
-  };
-
-  const basics = colors.map((color) => basicsByColor[color]).filter(Boolean);
-  if (colors.length > 1) {
-    return ["Command Tower", ...basics];
-  }
-
-  return basics;
-}
-
 function formatPercent(value: number): string {
   return `${Math.round(value)}%`;
+}
+
+function isBasicLandName(name: string): boolean {
+  return [
+    "Plains",
+    "Island",
+    "Swamp",
+    "Mountain",
+    "Forest",
+    "Wastes",
+    "Snow-Covered Plains",
+    "Snow-Covered Island",
+    "Snow-Covered Swamp",
+    "Snow-Covered Mountain",
+    "Snow-Covered Forest",
+    "Snow-Covered Wastes"
+  ].some((basic) => normalizeName(basic) === normalizeName(name));
 }
 
 function basicCardTemplate(name: string, isBasicLand = false, duplicateLimit: number | null = null): CardSearchRecord {
@@ -228,6 +213,137 @@ function basicCardTemplate(name: string, isBasicLand = false, duplicateLimit: nu
     previewImageUrl: null,
     artUrl: null
   };
+}
+
+function normalizeRoleBreakdown(result: AnalyzeResponse | null): RoleBreakdown | null {
+  if (!result) {
+    return null;
+  }
+
+  const empty: RoleBreakdown = {
+    ramp: [],
+    draw: [],
+    removal: [],
+    wipes: [],
+    tutors: [],
+    protection: [],
+    finishers: []
+  };
+
+  const rawRoleBreakdown = (result as { roleBreakdown?: unknown }).roleBreakdown;
+  if (!rawRoleBreakdown || typeof rawRoleBreakdown !== "object") {
+    return empty;
+  }
+
+  const record = rawRoleBreakdown as Record<string, unknown>;
+  for (const key of Object.keys(empty) as Array<keyof RoleBreakdown>) {
+    const rows = record[key];
+    if (!Array.isArray(rows)) {
+      continue;
+    }
+
+    empty[key] = rows
+      .filter((row): row is { name?: unknown; qty?: unknown } => Boolean(row) && typeof row === "object")
+      .map((row) => ({
+        name: typeof row.name === "string" ? row.name.trim() : "",
+        qty: typeof row.qty === "number" && Number.isFinite(row.qty) ? Math.max(0, Math.floor(row.qty)) : 0
+      }))
+      .filter((row) => row.name.length > 0 && row.qty > 0);
+  }
+
+  return empty;
+}
+
+function buildSuggestionGroups(
+  result: AnalyzeResponse | null,
+  commanderStaples: string[],
+  manaBaseSuggestions: string[]
+): {
+  roleGroups: SuggestionGroup[];
+  comboGroups: SuggestionGroup[];
+  stapleGroup: SuggestionGroup | null;
+  manaBaseGroup: SuggestionGroup | null;
+} {
+  if (!result) {
+    return {
+      roleGroups: [],
+      comboGroups: [],
+      stapleGroup: commanderStaples.length > 0
+        ? {
+            key: "commander-staples",
+            label: "Commander Staples",
+            description: "Fast-start staples and color staples for the current commander shell.",
+            items: commanderStaples.slice(0, 8).map((name) => ({ name }))
+          }
+        : null,
+      manaBaseGroup: manaBaseSuggestions.length > 0
+        ? {
+            key: "mana-base",
+            label: "Mana Base Suggestions",
+            description: "Staple fixing lands, duals, and triomes for the current color identity.",
+            items: manaBaseSuggestions.slice(0, 12).map((name) => ({ name }))
+          }
+        : null
+    };
+  }
+
+  const roleGroups: SuggestionGroup[] = result.improvementSuggestions.items
+    .filter((item) => item.direction === "ADD" && item.suggestions.length > 0)
+    .map((item) => ({
+      key: item.key,
+      label: item.label,
+      description: item.rationale ?? `Recommended range ${item.recommendedRange}.`,
+      items: item.suggestions.slice(0, 6).map((name) => ({ name }))
+    }));
+
+  const comboGroups: SuggestionGroup[] = result.comboReport.potential.slice(0, 4).map((combo, index) => {
+    const requires = Array.isArray(combo.requires) ? combo.requires : [];
+    const missingCards = Array.isArray(combo.missingCards) ? combo.missingCards : [];
+
+    return {
+      key: `combo-${index}`,
+      label: combo.comboName,
+      description: `Missing ${combo.missingCount} card(s); matched ${combo.matchCount}/${combo.cards.length}.`,
+      items: missingCards.slice(0, 4).map((name) => ({
+        name,
+        note: requires.length > 0 ? requires.join("; ") : undefined
+      }))
+    };
+  });
+
+  return {
+    roleGroups,
+    comboGroups,
+    stapleGroup:
+      commanderStaples.length > 0
+        ? {
+            key: "commander-staples",
+            label: "Commander Staples",
+            description: "Fast-start staples and color staples for the current commander shell.",
+            items: commanderStaples.slice(0, 8).map((name) => ({ name }))
+          }
+        : null,
+    manaBaseGroup:
+      manaBaseSuggestions.length > 0
+        ? {
+            key: "mana-base",
+            label: "Mana Base Suggestions",
+            description: "Staple fixing lands, duals, and triomes for the current color identity.",
+            items: manaBaseSuggestions.slice(0, 12).map((name) => ({ name }))
+          }
+        : null
+  };
+}
+
+function toCardMetaMap(records: Record<string, CardSearchRecord>): Record<string, BuilderCardMeta> {
+  return Object.fromEntries(
+    Object.entries(records).map(([key, record]) => [
+      key,
+      {
+        typeLine: record.typeLine
+      }
+    ])
+  );
 }
 
 export function CommanderDeckBuilder() {
@@ -254,6 +370,7 @@ export function CommanderDeckBuilder() {
   const [matchingPrecons, setMatchingPrecons] = useState<MatchingPreconSummary[]>([]);
   const [preconLoading, setPreconLoading] = useState(false);
   const [preconError, setPreconError] = useState("");
+  const [resolvedCardsByName, setResolvedCardsByName] = useState<Record<string, CardSearchRecord>>({});
   const analyzeRequestId = useRef(0);
 
   useEffect(() => {
@@ -573,10 +690,199 @@ export function CommanderDeckBuilder() {
       .sort((left, right) => right.overlapPct - left.overlapPct || left.name.localeCompare(right.name))[0] ?? null;
   }, [deckCards, matchingPrecons]);
 
+  const roleBreakdown = useMemo(() => normalizeRoleBreakdown(analysis), [analysis]);
+  const archetypeNames = useMemo(
+    () =>
+      [analysis?.archetypeReport.primary?.archetype, analysis?.archetypeReport.secondary?.archetype].filter(
+        Boolean
+      ) as string[],
+    [analysis]
+  );
   const needs = useMemo(() => extractNeeds(analysis?.deckHealth.rows ?? []), [analysis]);
-  const smartSuggestions = useMemo(() => flattenSuggestionCards(analysis), [analysis]);
-  const landSuggestions = useMemo(() => landSuggestionsForColors(allowedColorIdentity), [allowedColorIdentity]);
+  const commanderStaples = useMemo(
+    () =>
+      selectedCommander
+        ? buildCommanderStapleSuggestionNames(allowedColorIdentity, archetypeNames).filter(
+            (name) => !deckCards.some((card) => normalizeName(card.name) === normalizeName(name))
+          )
+        : [],
+    [allowedColorIdentity, archetypeNames, deckCards, selectedCommander]
+  );
+  const manaBaseSuggestions = useMemo(
+    () =>
+      selectedCommander
+        ? buildManaBaseSuggestionNames(allowedColorIdentity).filter(
+            (name) => !deckCards.some((card) => normalizeName(card.name) === normalizeName(name))
+          )
+        : [],
+    [allowedColorIdentity, deckCards, selectedCommander]
+  );
+  const suggestionGroups = useMemo(
+    () => buildSuggestionGroups(analysis, commanderStaples, manaBaseSuggestions),
+    [analysis, commanderStaples, manaBaseSuggestions]
+  );
   const totalDeckCount = currentMainDeckCount + (selectedCommander ? 1 : 0) + (selectedPairOption ? 1 : 0);
+  const metadataNames = useMemo(() => {
+    const names = [
+      ...deckCards.map((card) => card.name),
+      selectedCommander?.name ?? "",
+      selectedPairOption?.name ?? "",
+      ...commanderStaples,
+      ...manaBaseSuggestions,
+      ...suggestionGroups.roleGroups.flatMap((group) => group.items.map((item) => item.name)),
+      ...suggestionGroups.comboGroups.flatMap((group) => group.items.map((item) => item.name))
+    ];
+
+    const seen = new Set<string>();
+    const output: string[] = [];
+    for (const name of names) {
+      const normalized = normalizeName(name);
+      if (!normalized || seen.has(normalized)) {
+        continue;
+      }
+
+      seen.add(normalized);
+      output.push(name);
+    }
+
+    return output;
+  }, [commanderStaples, deckCards, manaBaseSuggestions, selectedCommander, selectedPairOption, suggestionGroups]);
+  const deckSections = useMemo(
+    () => categorizeBuilderDeckCards(deckCards, roleBreakdown, toCardMetaMap(resolvedCardsByName)),
+    [deckCards, resolvedCardsByName, roleBreakdown]
+  );
+  const archetypeLabel = useMemo(() => buildArchetypeLabel(analysis?.archetypeReport), [analysis]);
+  const heroCommander = useMemo(() => {
+    if (!selectedCommander) {
+      return null;
+    }
+
+    const analyzedPrimaryCommanderName =
+      analysis?.commander?.selectedNames?.[0] ?? selectedCommander.name;
+    const analyzedCommander = analysis?.commander?.selectedName
+      ? {
+          name: analyzedPrimaryCommanderName,
+          colorIdentity: analysis.commander.selectedColorIdentity,
+          cmc: analysis.commander.selectedCmc,
+          artUrl: analysis.commander.selectedArtUrl,
+          cardImageUrl: analysis.commander.selectedCardImageUrl,
+          setCode: analysis.commander.selectedSetCode,
+          collectorNumber: analysis.commander.selectedCollectorNumber,
+          printingId: analysis.commander.selectedPrintingId
+        }
+      : null;
+
+    return analyzedCommander ?? {
+      name: selectedCommander.name,
+      colorIdentity: allowedColorIdentity,
+      cmc: selectedCommander.cmc,
+      artUrl: selectedCommander.artUrl,
+      cardImageUrl: selectedCommander.previewImageUrl,
+      setCode: null,
+      collectorNumber: null,
+      printingId: null
+    };
+  }, [allowedColorIdentity, analysis, selectedCommander]);
+  const maxCurveCount = useMemo(() => {
+    if (!analysis) {
+      return 1;
+    }
+
+    return Math.max(
+      1,
+      ...Object.values(analysis.summary.manaCurve).map((value) =>
+        typeof value === "number" && Number.isFinite(value) ? value : 0
+      )
+    );
+  }, [analysis]);
+
+  function resolveCardRecord(name: string): CardSearchRecord {
+    const normalized = normalizeName(name);
+    const basicLand = isBasicLandName(name);
+    return (
+      resolvedCardsByName[normalized] ??
+      basicCardTemplate(name, basicLand, basicLand ? Number.POSITIVE_INFINITY : null)
+    );
+  }
+
+  function addNamedCard(name: string) {
+    setDeckCards((current) => addCardToDeck(current, resolveCardRecord(name)));
+  }
+
+  function removeNamedCard(name: string) {
+    setDeckCards((current) =>
+      current.filter((entry) => normalizeName(entry.name) !== normalizeName(name))
+    );
+  }
+
+  useEffect(() => {
+    if (metadataNames.length === 0) {
+      setResolvedCardsByName({});
+      return;
+    }
+
+    let cancelled = false;
+
+    async function resolveCards() {
+      try {
+        const response = await fetch("/api/card-search", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            names: metadataNames
+          })
+        });
+        const payload = (await response.json()) as CardSearchResponse | { error: string };
+        if (cancelled || !response.ok) {
+          return;
+        }
+
+        const items = (payload as CardSearchResponse).items ?? [];
+        setResolvedCardsByName((current) => {
+          const next = { ...current };
+          for (const item of items) {
+            next[normalizeName(item.name)] = item;
+          }
+          return next;
+        });
+      } catch {
+        // Builder suggestions degrade to name-only rows if local lookup fails.
+      }
+    }
+
+    void resolveCards();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [metadataNames]);
+
+  useEffect(() => {
+    if (typeof document === "undefined") {
+      return;
+    }
+
+    const root = document.documentElement;
+    const body = document.body;
+    const pageArtUrl = heroCommander?.artUrl ?? heroCommander?.cardImageUrl ?? null;
+
+    if (!pageArtUrl) {
+      root.classList.remove("has-commander-page-art");
+      body.classList.remove("has-commander-page-art");
+      root.style.removeProperty("--commander-page-art");
+      return;
+    }
+
+    root.style.setProperty("--commander-page-art", `url("${pageArtUrl}")`);
+    root.classList.add("has-commander-page-art");
+    body.classList.add("has-commander-page-art");
+
+    return () => {
+      root.classList.remove("has-commander-page-art");
+      body.classList.remove("has-commander-page-art");
+      root.style.removeProperty("--commander-page-art");
+    };
+  }, [heroCommander?.artUrl, heroCommander?.cardImageUrl]);
 
   function startBuild(commander: CardSearchRecord) {
     setSelectedCommander(commander);
@@ -710,6 +1016,14 @@ export function CommanderDeckBuilder() {
         </div>
       </section>
 
+      {heroCommander ? (
+        <CommanderHeroHeader
+          commander={heroCommander}
+          archetypeLabel={archetypeLabel}
+          bracketLabel={analysis?.bracketReport?.estimatedLabel ?? null}
+        />
+      ) : null}
+
       <section className="builder-grid">
         <aside className="panel builder-panel builder-panel-left">
           <div className="builder-panel-head">
@@ -772,7 +1086,7 @@ export function CommanderDeckBuilder() {
                       <div key={bucket} className="curve-row">
                         <span className="curve-label">{bucket}</span>
                         <div className="curve-bar-wrap">
-                          <div className="curve-bar" style={{ width: `${Math.min(100, ((count as number) / Math.max(1, ...Object.values(analysis.summary.manaCurve))) * 100)}%` }} />
+                          <div className="curve-bar" style={{ width: `${Math.min(100, ((count as number) / maxCurveCount) * 100)}%` }} />
                         </div>
                         <span className="curve-value">{count}</span>
                       </div>
@@ -829,10 +1143,71 @@ export function CommanderDeckBuilder() {
                 </ul>
               </div>
 
-              <div className="builder-deck-section">
-                <h3>Main Deck</h3>
-                {deckCards.length === 0 ? <p className="muted">No cards added yet. Use the search panel to add cards to the 99.</p> : <ul className="builder-card-list">{deckCards.map((card) => (<li key={card.name} className="builder-card-row"><span className="builder-card-qty">{card.qty}</span><CardLink name={card.name} /><div className="builder-card-actions"><button type="button" className="btn-tertiary" onClick={() => setDeckCards((current) => updateCardQty(current, card.name, -1))}>-</button><button type="button" className="btn-tertiary" onClick={() => setDeckCards((current) => updateCardQty(current, card.name, 1))}>+</button><button type="button" className="btn-tertiary" onClick={() => setDeckCards((current) => current.filter((entry) => normalizeName(entry.name) !== normalizeName(card.name)))}>Remove</button></div></li>))}</ul>}
-              </div>
+              {deckCards.length === 0 ? (
+                <div className="builder-deck-section">
+                  <h3>Main Deck</h3>
+                  <p className="muted">No cards added yet. Use the search panel to add cards to the 99.</p>
+                </div>
+              ) : (
+                deckSections.map((section) => (
+                  <div key={section.key} className="builder-deck-section">
+                    <div className="builder-section-head">
+                      <h3>{section.label}</h3>
+                      <span className="muted">
+                        {section.cards.reduce((sum, card) => sum + card.qty, 0)} card
+                        {section.cards.reduce((sum, card) => sum + card.qty, 0) === 1 ? "" : "s"}
+                      </span>
+                    </div>
+                    <ul className="builder-card-list">
+                      {section.cards.map((card) => {
+                        const record = resolveCardRecord(card.name);
+                        return (
+                          <li key={`${section.key}-${card.name}`} className="builder-card-row">
+                            <span className="builder-card-qty">{card.qty}</span>
+                            <div className="builder-card-main">
+                              <div className="builder-card-main-head">
+                                <strong><CardLink name={card.name} /></strong>
+                                <div className="builder-search-meta">
+                                  {record.manaCost ? <ManaCost manaCost={record.manaCost} size={16} /> : null}
+                                  {record.colorIdentity.length > 0 ? (
+                                    <ColorIdentityIcons identity={record.colorIdentity} size={15} />
+                                  ) : null}
+                                </div>
+                              </div>
+                              <p className="muted builder-card-subline">
+                                {record.typeLine || "Card data pending"}
+                              </p>
+                            </div>
+                            <div className="builder-card-actions">
+                              <button
+                                type="button"
+                                className="btn-tertiary"
+                                onClick={() => setDeckCards((current) => updateCardQty(current, card.name, -1))}
+                              >
+                                -
+                              </button>
+                              <button
+                                type="button"
+                                className="btn-tertiary"
+                                onClick={() => setDeckCards((current) => updateCardQty(current, card.name, 1))}
+                              >
+                                +
+                              </button>
+                              <button
+                                type="button"
+                                className="btn-tertiary"
+                                onClick={() => removeNamedCard(card.name)}
+                              >
+                                Remove
+                              </button>
+                            </div>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </div>
+                ))
+              )}
 
               {analysis ? <div className="builder-inline-report-toggle"><button type="button" className="btn-secondary" onClick={() => setShowReportView((current) => !current)}>{showReportView ? "Hide Full Report" : "Open Full Report"}</button></div> : null}
             </>
@@ -877,13 +1252,206 @@ export function CommanderDeckBuilder() {
           </div>
 
           <section className="builder-needs-panel">
-            <h3>Smart Suggestions</h3>
-            {smartSuggestions.length === 0 ? <p className="muted">Start adding cards to unlock role, synergy, and combo suggestions.</p> : <div className="builder-suggestion-groups">{smartSuggestions.map((group) => (<div key={group.label} className="builder-suggestion-group"><strong>{group.label}</strong><div className="builder-suggestion-chips">{group.names.map((name) => (<button key={`${group.label}-${name}`} type="button" className="chip chip-action" onClick={() => setDeckCards((current) => addCardToDeck(current, basicCardTemplate(name)))}>{name}</button>))}</div></div>))}</div>}
+            <h3>Commander Staples</h3>
+            {!suggestionGroups.stapleGroup ? (
+              <p className="muted">Select a commander to seed staple suggestions.</p>
+            ) : (
+              <div className="builder-suggestion-groups">
+                <div className="builder-suggestion-group">
+                  <p className="muted builder-suggestion-description">
+                    {suggestionGroups.stapleGroup.description}
+                  </p>
+                  <div className="builder-suggestion-list">
+                    {suggestionGroups.stapleGroup.items.map((item) => {
+                      const record = resolveCardRecord(item.name);
+                      const existingQty =
+                        deckCards.find((entry) => normalizeName(entry.name) === normalizeName(item.name))?.qty ?? 0;
+                      const duplicateLimit = record.duplicateLimit;
+                      const canAddMore =
+                        existingQty === 0 ||
+                        record.isBasicLand ||
+                        duplicateLimit === Number.POSITIVE_INFINITY ||
+                        (typeof duplicateLimit === "number" && existingQty < duplicateLimit);
+
+                      return (
+                        <article key={`staple-${item.name}`} className="builder-search-card builder-suggestion-card">
+                          <div>
+                            <strong><CardLink name={item.name} /></strong>
+                            <div className="builder-search-meta">
+                              {record.manaCost ? <ManaCost manaCost={record.manaCost} size={16} /> : null}
+                              {record.typeLine ? <span>{record.typeLine}</span> : null}
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            className="btn-secondary"
+                            disabled={!canAddMore}
+                            onClick={() => addNamedCard(item.name)}
+                          >
+                            {canAddMore ? "Add" : "In Deck"}
+                          </button>
+                        </article>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            )}
           </section>
 
           <section className="builder-needs-panel">
-            <h3>Land Suggestions</h3>
-            {landSuggestions.length === 0 ? <p className="muted">Select a commander to generate land suggestions.</p> : <div className="builder-suggestion-chips">{landSuggestions.map((name) => (<button key={name} type="button" className="chip chip-action" onClick={() => setDeckCards((current) => addCardToDeck(current, basicCardTemplate(name, true, Number.POSITIVE_INFINITY)))}>{name}</button>))}</div>}
+            <h3>Smart Suggestions</h3>
+            {suggestionGroups.roleGroups.length === 0 ? (
+              <p className="muted">Start adding cards to unlock role and archetype suggestions.</p>
+            ) : (
+              <div className="builder-suggestion-groups">
+                {suggestionGroups.roleGroups.map((group) => (
+                  <div key={group.key} className="builder-suggestion-group">
+                    <div className="builder-section-head">
+                      <strong>{group.label}</strong>
+                    </div>
+                    {group.description ? (
+                      <p className="muted builder-suggestion-description">{group.description}</p>
+                    ) : null}
+                    <div className="builder-suggestion-list">
+                      {group.items.map((item) => {
+                        const record = resolveCardRecord(item.name);
+                        const existingQty =
+                          deckCards.find((entry) => normalizeName(entry.name) === normalizeName(item.name))?.qty ?? 0;
+                        const duplicateLimit = record.duplicateLimit;
+                        const canAddMore =
+                          existingQty === 0 ||
+                          record.isBasicLand ||
+                          duplicateLimit === Number.POSITIVE_INFINITY ||
+                          (typeof duplicateLimit === "number" && existingQty < duplicateLimit);
+
+                        return (
+                          <article key={`${group.key}-${item.name}`} className="builder-search-card builder-suggestion-card">
+                            <div>
+                              <strong><CardLink name={item.name} /></strong>
+                              <div className="builder-search-meta">
+                                {record.manaCost ? <ManaCost manaCost={record.manaCost} size={16} /> : null}
+                                {record.typeLine ? <span>{record.typeLine}</span> : null}
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              className="btn-secondary"
+                              disabled={!canAddMore}
+                              onClick={() => addNamedCard(item.name)}
+                            >
+                              {canAddMore ? "Add" : "In Deck"}
+                            </button>
+                          </article>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+
+          <section className="builder-needs-panel">
+            <h3>Combo Suggestions</h3>
+            {suggestionGroups.comboGroups.length === 0 ? (
+              <p className="muted">No near-miss combo packages detected yet.</p>
+            ) : (
+              <div className="builder-suggestion-groups">
+                {suggestionGroups.comboGroups.map((group) => (
+                  <div key={group.key} className="builder-suggestion-group">
+                    <div className="builder-section-head">
+                      <strong>{group.label}</strong>
+                    </div>
+                    {group.description ? (
+                      <p className="muted builder-suggestion-description">{group.description}</p>
+                    ) : null}
+                    <div className="builder-suggestion-list">
+                      {group.items.map((item) => {
+                        const record = resolveCardRecord(item.name);
+                        const existingQty =
+                          deckCards.find((entry) => normalizeName(entry.name) === normalizeName(item.name))?.qty ?? 0;
+                        const duplicateLimit = record.duplicateLimit;
+                        const canAddMore =
+                          existingQty === 0 ||
+                          record.isBasicLand ||
+                          duplicateLimit === Number.POSITIVE_INFINITY ||
+                          (typeof duplicateLimit === "number" && existingQty < duplicateLimit);
+
+                        return (
+                          <article key={`${group.key}-${item.name}`} className="builder-search-card builder-suggestion-card">
+                            <div>
+                              <strong><CardLink name={item.name} /></strong>
+                              <div className="builder-search-meta">
+                                {record.manaCost ? <ManaCost manaCost={record.manaCost} size={16} /> : null}
+                                {record.typeLine ? <span>{record.typeLine}</span> : null}
+                              </div>
+                              {item.note ? <p className="muted builder-suggestion-note">{item.note}</p> : null}
+                            </div>
+                            <button
+                              type="button"
+                              className="btn-secondary"
+                              disabled={!canAddMore}
+                              onClick={() => addNamedCard(item.name)}
+                            >
+                              {canAddMore ? "Add" : "In Deck"}
+                            </button>
+                          </article>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+
+          <section className="builder-needs-panel">
+            <h3>Mana Base Suggestions</h3>
+            {!suggestionGroups.manaBaseGroup ? (
+              <p className="muted">Select a commander to generate land suggestions.</p>
+            ) : (
+              <div className="builder-suggestion-groups">
+                <div className="builder-suggestion-group">
+                  <p className="muted builder-suggestion-description">
+                    {suggestionGroups.manaBaseGroup.description}
+                  </p>
+                  <div className="builder-suggestion-list">
+                    {suggestionGroups.manaBaseGroup.items.map((item) => {
+                      const record = resolveCardRecord(item.name);
+                      const existingQty =
+                        deckCards.find((entry) => normalizeName(entry.name) === normalizeName(item.name))?.qty ?? 0;
+                      const duplicateLimit = record.duplicateLimit;
+                      const canAddMore =
+                        existingQty === 0 ||
+                        record.isBasicLand ||
+                        duplicateLimit === Number.POSITIVE_INFINITY ||
+                        (typeof duplicateLimit === "number" && existingQty < duplicateLimit);
+
+                      return (
+                        <article key={`land-${item.name}`} className="builder-search-card builder-suggestion-card">
+                          <div>
+                            <strong><CardLink name={item.name} /></strong>
+                            <div className="builder-search-meta">
+                              {record.manaCost ? <ManaCost manaCost={record.manaCost} size={16} /> : null}
+                              {record.typeLine ? <span>{record.typeLine}</span> : null}
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            className="btn-secondary"
+                            disabled={!canAddMore}
+                            onClick={() => addNamedCard(item.name)}
+                          >
+                            {canAddMore ? "Add" : "In Deck"}
+                          </button>
+                        </article>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            )}
           </section>
         </aside>
       </section>

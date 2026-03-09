@@ -1,5 +1,6 @@
 import { parseDecklistWithCommander } from "@/lib/decklist";
-import type { RecommendedCountRow } from "@/lib/contracts";
+import type { RecommendedCountRow, RoleBreakdown } from "@/lib/contracts";
+import type { DeckArchetypeReport } from "@/lib/archetypes";
 
 export type BuilderDeckCard = {
   name: string;
@@ -19,6 +20,74 @@ export type PreconSimilaritySummary = {
   overlapPct: number;
 };
 
+export type BuilderCardMeta = {
+  typeLine?: string;
+};
+
+export type BuilderDeckSection = {
+  key:
+    | "lands"
+    | "ramp"
+    | "draw"
+    | "removal"
+    | "wipes"
+    | "tutors"
+    | "protection"
+    | "finishers"
+    | "other";
+  label: string;
+  cards: BuilderDeckCard[];
+};
+
+const COLOR_ORDER = ["W", "U", "B", "R", "G"];
+
+const PAIR_LAND_SUGGESTIONS: Array<{ colors: string[]; names: string[] }> = [
+  { colors: ["W", "U"], names: ["Hallowed Fountain", "Glacial Fortress", "Adarkar Wastes", "Deserted Beach", "Seachrome Coast"] },
+  { colors: ["U", "B"], names: ["Watery Grave", "Drowned Catacomb", "Underground River", "Shipwreck Marsh", "Clearwater Pathway"] },
+  { colors: ["B", "R"], names: ["Blood Crypt", "Dragonskull Summit", "Sulfurous Springs", "Haunted Ridge", "Blightstep Pathway"] },
+  { colors: ["R", "G"], names: ["Stomping Ground", "Rootbound Crag", "Karplusan Forest", "Rockfall Vale", "Cragcrown Pathway"] },
+  { colors: ["G", "W"], names: ["Temple Garden", "Sunpetal Grove", "Brushland", "Overgrown Farmland", "Branchloft Pathway"] },
+  { colors: ["W", "B"], names: ["Godless Shrine", "Isolated Chapel", "Caves of Koilos", "Shattered Sanctum", "Brightclimb Pathway"] },
+  { colors: ["U", "R"], names: ["Steam Vents", "Sulfur Falls", "Shivan Reef", "Stormcarved Coast", "Riverglide Pathway"] },
+  { colors: ["B", "G"], names: ["Overgrown Tomb", "Woodland Cemetery", "Llanowar Wastes", "Deathcap Glade", "Darkbore Pathway"] },
+  { colors: ["R", "W"], names: ["Sacred Foundry", "Clifftop Retreat", "Battlefield Forge", "Sundown Pass", "Needleverge Pathway"] },
+  { colors: ["G", "U"], names: ["Breeding Pool", "Hinterland Harbor", "Yavimaya Coast", "Dreamroot Cascade", "Barkchannel Pathway"] }
+];
+
+const TRIOME_SUGGESTIONS: Array<{ colors: string[]; name: string }> = [
+  { colors: ["W", "U", "B"], name: "Raffine's Tower" },
+  { colors: ["U", "B", "R"], name: "Xander's Lounge" },
+  { colors: ["B", "R", "G"], name: "Ziatora's Proving Ground" },
+  { colors: ["R", "G", "W"], name: "Jetmir's Garden" },
+  { colors: ["G", "W", "U"], name: "Spara's Headquarters" },
+  { colors: ["W", "B", "R"], name: "Savai Triome" },
+  { colors: ["U", "R", "G"], name: "Ketria Triome" },
+  { colors: ["B", "G", "W"], name: "Indatha Triome" },
+  { colors: ["R", "W", "U"], name: "Raugrin Triome" },
+  { colors: ["G", "U", "B"], name: "Zagoth Triome" }
+];
+
+const COMMANDER_STAPLES_BY_COLOR: Record<string, string[]> = {
+  W: ["Swords to Plowshares", "Esper Sentinel", "Teferi's Protection"],
+  U: ["Rhystic Study", "Mystic Remora", "Swan Song"],
+  B: ["Demonic Tutor", "Toxic Deluge", "Feed the Swarm"],
+  R: ["Jeska's Will", "Deflecting Swat", "Blasphemous Act"],
+  G: ["Nature's Lore", "Three Visits", "Heroic Intervention"]
+};
+
+const ARCHETYPE_STAPLES: Record<string, string[]> = {
+  Tokens: ["Skullclamp", "Mondrak, Glory Dominus", "Anointed Procession"],
+  "Go Wide": ["Akroma's Will", "Moonshaker Cavalry", "Beastmaster Ascension"],
+  Spellslinger: ["Ponder", "Preordain", "Storm-Kiln Artist"],
+  Storm: ["Aetherflux Reservoir", "Birgi, God of Storytelling", "Underworld Breach"],
+  Artifacts: ["Thought Monitor", "Emry, Lurker of the Loch", "Urza's Saga"],
+  Enchantress: ["Enchantress's Presence", "Satyr Enchanter", "Mesa Enchantress"],
+  "Kindred (Tribal)": ["Kindred Discovery", "Herald's Horn", "Path of Ancestry"],
+  Counters: ["The Ozolith", "Inspiring Call", "Branching Evolution"],
+  Graveyard: ["Entomb", "Life from the Loam", "Animate Dead"],
+  "Lands Matter": ["Field of the Dead", "Ancient Greenwarden", "Scapeshift"]
+};
+
 function normalizeName(name: string): string {
   return name
     .normalize("NFKD")
@@ -29,6 +98,34 @@ function normalizeName(name: string): string {
 
 export function totalDeckCardCount(cards: BuilderDeckCard[]): number {
   return cards.reduce((sum, card) => sum + card.qty, 0);
+}
+
+function normalizeColorIdentity(colors: string[]): string[] {
+  return [...new Set(colors.filter(Boolean).map((color) => color.toUpperCase()))].sort(
+    (left, right) => COLOR_ORDER.indexOf(left) - COLOR_ORDER.indexOf(right)
+  );
+}
+
+function isColorSubset(required: string[], allowed: string[]): boolean {
+  const allowedSet = new Set(allowed);
+  return required.every((color) => allowedSet.has(color));
+}
+
+function uniqueNames(names: string[]): string[] {
+  const seen = new Set<string>();
+  const output: string[] = [];
+
+  for (const name of names) {
+    const normalized = normalizeName(name);
+    if (!normalized || seen.has(normalized)) {
+      continue;
+    }
+
+    seen.add(normalized);
+    output.push(name);
+  }
+
+  return output;
 }
 
 export function buildBuilderDecklist(
@@ -92,4 +189,162 @@ export function computePreconSimilarity(
     overlapCount,
     overlapPct
   };
+}
+
+export function buildArchetypeLabel(report: DeckArchetypeReport | null | undefined): string | null {
+  if (!report?.primary?.archetype) {
+    return null;
+  }
+
+  if (report.secondary?.archetype) {
+    return `${report.primary.archetype} / ${report.secondary.archetype}`;
+  }
+
+  return report.primary.archetype;
+}
+
+export function buildCommanderStapleSuggestionNames(
+  colors: string[],
+  archetypes: string[] = []
+): string[] {
+  const normalizedColors = normalizeColorIdentity(colors);
+  const names = ["Sol Ring", "Arcane Signet"];
+
+  if (normalizedColors.length >= 2) {
+    names.push("Command Tower", "Path of Ancestry");
+  }
+
+  if (normalizedColors.length >= 3) {
+    names.push("Exotic Orchard");
+  }
+
+  for (const color of normalizedColors) {
+    names.push(...(COMMANDER_STAPLES_BY_COLOR[color] ?? []));
+  }
+
+  for (const archetype of archetypes) {
+    names.push(...(ARCHETYPE_STAPLES[archetype] ?? []));
+  }
+
+  return uniqueNames(names);
+}
+
+export function buildManaBaseSuggestionNames(colors: string[]): string[] {
+  const normalizedColors = normalizeColorIdentity(colors);
+  if (normalizedColors.length === 0) {
+    return [];
+  }
+
+  const names: string[] = [
+    "Command Tower",
+    "Exotic Orchard",
+    "Path of Ancestry",
+    "Reflecting Pool",
+    "Fabled Passage",
+    "Terramorphic Expanse",
+    "Evolving Wilds"
+  ];
+
+  if (normalizedColors.length === 1) {
+    const basicsByColor: Record<string, string> = {
+      W: "Plains",
+      U: "Island",
+      B: "Swamp",
+      R: "Mountain",
+      G: "Forest"
+    };
+
+    names.push(basicsByColor[normalizedColors[0]] ?? "Wastes", "War Room", "Myriad Landscape");
+    return uniqueNames(names);
+  }
+
+  if (normalizedColors.length >= 3) {
+    names.push("City of Brass", "Mana Confluence");
+  }
+
+  for (const row of PAIR_LAND_SUGGESTIONS) {
+    if (isColorSubset(row.colors, normalizedColors)) {
+      names.push(...row.names);
+    }
+  }
+
+  if (normalizedColors.length >= 3) {
+    for (const triome of TRIOME_SUGGESTIONS) {
+      if (isColorSubset(triome.colors, normalizedColors)) {
+        names.push(triome.name);
+      }
+    }
+  }
+
+  if (normalizedColors.length === 5) {
+    names.push("The World Tree");
+  }
+
+  return uniqueNames(names);
+}
+
+export function categorizeBuilderDeckCards(
+  cards: BuilderDeckCard[],
+  roleBreakdown: RoleBreakdown | null | undefined,
+  cardMetaByName: Record<string, BuilderCardMeta>
+): BuilderDeckSection[] {
+  const rolePriority: Array<Exclude<BuilderDeckSection["key"], "lands" | "other">> = [
+    "ramp",
+    "draw",
+    "removal",
+    "wipes",
+    "tutors",
+    "protection",
+    "finishers"
+  ];
+
+  const labels: Record<BuilderDeckSection["key"], string> = {
+    lands: "Lands",
+    ramp: "Ramp",
+    draw: "Draw",
+    removal: "Removal",
+    wipes: "Board Wipes",
+    tutors: "Tutors",
+    protection: "Protection",
+    finishers: "Finishers",
+    other: "Other"
+  };
+
+  const roleMap = new Map<string, BuilderDeckSection["key"]>();
+  for (const key of rolePriority) {
+    const rows = roleBreakdown?.[key] ?? [];
+    for (const row of rows) {
+      const normalized = normalizeName(row.name);
+      if (!normalized || roleMap.has(normalized)) {
+        continue;
+      }
+
+      roleMap.set(normalized, key);
+    }
+  }
+
+  const buckets = new Map<BuilderDeckSection["key"], BuilderDeckCard[]>();
+  for (const key of [...rolePriority, "lands", "other"] as BuilderDeckSection["key"][]) {
+    buckets.set(key, []);
+  }
+
+  for (const card of cards) {
+    const normalized = normalizeName(card.name);
+    const typeLine = cardMetaByName[normalized]?.typeLine?.toLowerCase() ?? "";
+    if (typeLine.includes("land")) {
+      buckets.get("lands")?.push(card);
+      continue;
+    }
+
+    const roleKey = roleMap.get(normalized) ?? "other";
+    buckets.get(roleKey)?.push(card);
+  }
+
+  return (["lands", ...rolePriority, "other"] as BuilderDeckSection["key"][])
+    .map((key) => ({
+      key,
+      label: labels[key],
+      cards: buckets.get(key) ?? []
+    }))
+    .filter((section) => section.cards.length > 0);
 }

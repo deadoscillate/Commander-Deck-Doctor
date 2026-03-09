@@ -597,6 +597,13 @@ input[type="url"] {
   padding-top: 0.75rem;
 }
 
+.builder-section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
 .builder-card-list {
   list-style: none;
   margin: 0;
@@ -604,6 +611,24 @@ input[type="url"] {
   display: flex;
   flex-direction: column;
   gap: 0.45rem;
+}
+
+.builder-card-main {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 0.18rem;
+}
+
+.builder-card-main-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.55rem;
+}
+
+.builder-card-subline {
+  margin: 0;
 }
 
 .builder-card-row {
@@ -689,6 +714,21 @@ input[type="url"] {
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
+}
+
+.builder-suggestion-description,
+.builder-suggestion-note {
+  margin: 0;
+}
+
+.builder-suggestion-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.builder-suggestion-card {
+  padding: 0.85rem 0.95rem;
 }
 
 .builder-suggestion-chips {
@@ -3400,6 +3440,12 @@ ul {
   .builder-card-row,
   .builder-search-card {
     grid-template-columns: 1fr;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .builder-section-head,
+  .builder-card-main-head {
     flex-direction: column;
     align-items: stretch;
   }
