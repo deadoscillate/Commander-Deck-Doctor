@@ -16,7 +16,6 @@ import {
   buildColorStapleSuggestionNames,
   buildManaBaseSuggestionNames,
   categorizeBuilderDeckCards,
-  computePreconSimilarity,
   extractNeeds,
   inferCommanderArchetypes,
   totalDeckCardCount,
@@ -25,7 +24,6 @@ import {
   type BuilderDeckCard
 } from "@/lib/builder";
 import { GAME_CHANGERS } from "@/lib/gameChangers";
-import type { PreconDeck } from "@/lib/preconTypes";
 
 const BUILDER_STORAGE_KEY = "commanderDeckDoctor.builderDecks.v1";
 const MAX_SAVED_BUILDS = 20;
@@ -60,13 +58,6 @@ type SavedBuilderDeck = {
   partnerName: string | null;
   cards: BuilderDeckCard[];
   updatedAt: string;
-};
-
-type MatchingPreconSummary = {
-  slug: string;
-  name: string;
-  releaseDate: string;
-  decklist: string;
 };
 
 type SuggestionCardItem = {
@@ -568,6 +559,7 @@ export function CommanderDeckBuilder() {
   const [cardQuery, setCardQuery] = useState("");
   const [cardTypeFilter, setCardTypeFilter] = useState<BuilderCardTypeFilter>("");
   const [cardSetFilter, setCardSetFilter] = useState("");
+  const [setOptions, setSetOptions] = useState<string[]>([]);
   const [cardResults, setCardResults] = useState<CardSearchRecord[]>([]);
   const [cardSearchLoading, setCardSearchLoading] = useState(false);
   const [cardSearchError, setCardSearchError] = useState("");
@@ -578,9 +570,6 @@ export function CommanderDeckBuilder() {
   const [saveMessage, setSaveMessage] = useState("");
   const [decklistActionMessage, setDecklistActionMessage] = useState("");
   const [showReportView, setShowReportView] = useState(false);
-  const [matchingPrecons, setMatchingPrecons] = useState<MatchingPreconSummary[]>([]);
-  const [preconLoading, setPreconLoading] = useState(false);
-  const [preconError, setPreconError] = useState("");
   const [resolvedCardsByName, setResolvedCardsByName] = useState<Record<string, CardSearchRecord>>({});
   const analyzeRequestId = useRef(0);
 
@@ -590,6 +579,34 @@ export function CommanderDeckBuilder() {
     }
 
     setSavedDecks(parseSavedBuilderDecks(window.localStorage.getItem(BUILDER_STORAGE_KEY)));
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadSetOptions() {
+      try {
+        const response = await fetch("/api/card-search?meta=sets", { cache: "force-cache" });
+        if (!response.ok || cancelled) {
+          return;
+        }
+
+        const payload = (await response.json()) as { items?: string[] };
+        if (!cancelled) {
+          setSetOptions(Array.isArray(payload.items) ? payload.items : []);
+        }
+      } catch {
+        if (!cancelled) {
+          setSetOptions([]);
+        }
+      }
+    }
+
+    void loadSetOptions();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   function persistSavedDecks(next: SavedBuilderDeck[]) {
@@ -607,7 +624,7 @@ export function CommanderDeckBuilder() {
 
   useEffect(() => {
     const query = commanderQuery.trim();
-    if (!query) {
+    if (!query || query.length < 2) {
       setCommanderResults([]);
       setCommanderLoading(false);
       setCommanderError("");
@@ -622,7 +639,7 @@ export function CommanderDeckBuilder() {
       try {
         const params = new URLSearchParams({
           commanderOnly: "1",
-          limit: "12"
+          limit: "10"
         });
         params.set("q", query);
         if (commanderColors.length > 0) {
@@ -864,101 +881,6 @@ export function CommanderDeckBuilder() {
     };
   }, [commanderSelection, deckCards]);
 
-  useEffect(() => {
-    if (!selectedCommander) {
-      setMatchingPrecons([]);
-      setPreconError("");
-      setPreconLoading(false);
-      return;
-    }
-
-    const commanderName = selectedCommander.name;
-    let cancelled = false;
-
-    async function loadPrecons() {
-      setPreconLoading(true);
-      setPreconError("");
-
-      try {
-        const listResponse = await fetch(
-          `/api/precons?commander=${encodeURIComponent(commanderName)}&limit=10`,
-          { cache: "no-store" }
-        );
-        const listPayload = (await listResponse.json()) as
-          | { items?: Array<{ slug: string }> }
-          | { error: string };
-
-        if (!listResponse.ok) {
-          if (!cancelled) {
-            setMatchingPrecons([]);
-            setPreconError("error" in listPayload ? listPayload.error : "Could not load matching precons.");
-          }
-          return;
-        }
-
-        const slugs = Array.isArray((listPayload as { items?: Array<{ slug: string }> }).items)
-          ? ((listPayload as { items: Array<{ slug: string }> }).items.map((item) => item.slug))
-          : [];
-
-        if (slugs.length === 0) {
-          if (!cancelled) {
-            setMatchingPrecons([]);
-          }
-          return;
-        }
-
-        const detailResponses = await Promise.all(
-          slugs.slice(0, 5).map(async (slug) => {
-            const response = await fetch(`/api/precons?slug=${encodeURIComponent(slug)}`, { cache: "no-store" });
-            if (!response.ok) {
-              return null;
-            }
-
-            return (await response.json()) as PreconDeck;
-          })
-        );
-
-        if (!cancelled) {
-          setMatchingPrecons(
-            detailResponses
-              .filter((deck): deck is PreconDeck => Boolean(deck))
-              .map((deck) => ({
-                slug: deck.slug,
-                name: deck.name,
-                releaseDate: deck.releaseDate,
-                decklist: deck.decklist
-              }))
-          );
-        }
-      } catch {
-        if (!cancelled) {
-          setMatchingPrecons([]);
-          setPreconError("Could not load matching precons.");
-        }
-      } finally {
-        if (!cancelled) {
-          setPreconLoading(false);
-        }
-      }
-    }
-
-    void loadPrecons();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [selectedCommander]);
-
-  const preconSimilarity = useMemo(() => {
-    if (matchingPrecons.length === 0) {
-      return null;
-    }
-
-    return matchingPrecons
-      .map((precon) => computePreconSimilarity(deckCards, precon))
-      .sort((left, right) => right.overlapPct - left.overlapPct || left.name.localeCompare(right.name))[0] ?? null;
-  }, [deckCards, matchingPrecons]);
-
   const roleBreakdown = useMemo(() => normalizeRoleBreakdown(analysis), [analysis]);
   const needs = useMemo(() => extractNeeds(analysis?.deckHealth.rows ?? []), [analysis]);
   const commanderArchetypeNames = useMemo(
@@ -1007,9 +929,8 @@ export function CommanderDeckBuilder() {
     () =>
       selectedCommander
         ? [...GAME_CHANGERS]
-            .filter((name) => !deckCards.some((card) => normalizeName(card.name) === normalizeName(name)))
         : [],
-    [deckCards, selectedCommander]
+    [selectedCommander]
   );
   const manaBaseSuggestions = useMemo(
     () =>
@@ -1042,7 +963,7 @@ export function CommanderDeckBuilder() {
         const normalized = normalizeName(item.name);
         const record = resolvedCardsByName[normalized];
         if (!record) {
-          return isBasicLandName(item.name);
+          return true;
         }
 
         return record.colorIdentity.every((color) => allowedColorIdentity.includes(color));
@@ -1082,6 +1003,7 @@ export function CommanderDeckBuilder() {
     };
   }, [allowedColorIdentity, resolvedCardsByName, suggestionGroups]);
   const totalDeckCount = currentMainDeckCount + (selectedCommander ? 1 : 0) + (selectedPairOption ? 1 : 0);
+  const builderPriceCoverage = selectedCommander ? 100 : 0;
   const metadataNames = useMemo(() => {
     const names = [
       ...deckCards.map((card) => card.name),
@@ -1326,15 +1248,16 @@ export function CommanderDeckBuilder() {
     setDecklistActionMessage("Decklist exported.");
   }
 
-  function renderCardThumb(record: CardSearchRecord, className = "builder-card-thumb", fallbackLabel?: string) {
-    const imageUrl = record.artUrl ?? record.previewImageUrl ?? null;
+  function renderCardThumb(record: CardSearchRecord, className = "builder-card-thumb", fallbackLabel?: string, preferCardImage = true) {
+    const imageUrl = preferCardImage
+      ? record.previewImageUrl ?? record.artUrl ?? null
+      : record.artUrl ?? record.previewImageUrl ?? null;
     return (
       <div
         className={className}
         aria-hidden="true"
-        style={imageUrl ? { backgroundImage: `url("${imageUrl}")` } : undefined}
       >
-        {!imageUrl ? <span>{fallbackLabel ?? record.name.charAt(0)}</span> : null}
+        {imageUrl ? <img src={imageUrl} alt="" loading="lazy" /> : <span>{fallbackLabel ?? record.name.charAt(0)}</span>}
       </div>
     );
   }
@@ -1450,6 +1373,16 @@ export function CommanderDeckBuilder() {
         ) : null}
       </section>
 
+      {heroCommander ? (
+        <div className="builder-sticky-hero">
+          <CommanderHeroHeader
+            commander={heroCommander}
+            archetypeLabel={archetypeLabel}
+            bracketLabel={analysis?.bracketReport?.estimatedLabel ?? null}
+          />
+        </div>
+      ) : null}
+
       {selectedCommander ? (
         <section className="panel builder-status-row">
           <div className="builder-panel-head">
@@ -1463,7 +1396,6 @@ export function CommanderDeckBuilder() {
             <div className="summary-card"><span>Legality</span><strong>{analysis?.rulesEngine?.status ?? "Pending"}</strong></div>
             <div className="summary-card"><span>Bracket</span><strong>{analysis?.bracketReport?.estimatedLabel ?? "Pending"}</strong></div>
             <div className="summary-card"><span>Combos</span><strong>{analysis?.comboReport.detected.length ?? 0}</strong></div>
-            <div className="summary-card"><span>Precon Match</span><strong>{preconSimilarity ? `${preconSimilarity.overlapPct}%` : "N/A"}</strong></div>
           </div>
 
           {analysisLoading ? <p className="muted">Refreshing live analysis...</p> : null}
@@ -1497,7 +1429,7 @@ export function CommanderDeckBuilder() {
                   <div className="builder-stat-list">
                     <p>Color identity violations: <strong>{analysis.checks.colorIdentity.offColorCount}</strong></p>
                     <p>Avg mana value: <strong>{typeof analysis.summary.averageManaValue === "number" ? analysis.summary.averageManaValue.toFixed(2) : "N/A"}</strong></p>
-                    <p>Price coverage: <strong>{formatPercent(analysis.deckPrice?.coverage.usd ? analysis.deckPrice.coverage.usd * 100 : 0)}</strong></p>
+                    <p>Price coverage: <strong>{formatPercent(builderPriceCoverage)}</strong></p>
                   </div>
                   <div className="builder-role-list">
                     {Object.entries(analysis.roles).map(([role, count]) => (<span key={role} className="chip">{role}: {count}</span>))}
@@ -1533,14 +1465,6 @@ export function CommanderDeckBuilder() {
             </section>
 
             <section className="builder-status-card">
-              <h3>Precon Similarity</h3>
-              {preconLoading ? <p className="muted">Checking synced precons...</p> : null}
-              {preconError ? <p className="error-inline">{preconError}</p> : null}
-              {!preconLoading && !preconError && preconSimilarity ? <p>Closest stock match: <strong>{preconSimilarity.name}</strong> ({preconSimilarity.releaseDate}) with <strong>{preconSimilarity.overlapPct}%</strong> overlap ({preconSimilarity.overlapCount} shared cards).</p> : null}
-              {!preconLoading && !preconError && !preconSimilarity ? <p className="muted">No synced stock precon match for this commander yet.</p> : null}
-            </section>
-
-            <section className="builder-status-card">
               <h3>Game Changers</h3>
               {gameChangers.length === 0 ? (
                 <p className="muted">No Commander bracket game changers detected in the current list.</p>
@@ -1555,21 +1479,8 @@ export function CommanderDeckBuilder() {
               )}
             </section>
 
-            <section className="builder-status-card">
-              <h3>Saved Builds</h3>
-              {saveMessage ? <p className="muted">{saveMessage}</p> : null}
-              {savedDecks.length === 0 ? <p className="muted">No saved builder decks yet.</p> : <ul className="saved-decks-list">{savedDecks.map((saved) => (<li key={saved.id} className="saved-decks-item"><button type="button" className="saved-deck-load" onClick={() => loadSavedDeck(saved)}>{saved.name}</button><button type="button" className="saved-deck-remove" onClick={() => removeSavedDeck(saved.id)}>Remove</button></li>))}</ul>}
-            </section>
           </div>
         </section>
-      ) : null}
-
-      {heroCommander ? (
-        <CommanderHeroHeader
-          commander={heroCommander}
-          archetypeLabel={archetypeLabel}
-          bracketLabel={analysis?.bracketReport?.estimatedLabel ?? null}
-        />
       ) : null}
 
       <section className="builder-grid builder-grid-two-column">
@@ -1689,6 +1600,12 @@ export function CommanderDeckBuilder() {
                 ))
               )}
 
+              <section className="saved-decks-panel">
+                <h3>Saved Builds</h3>
+                {saveMessage ? <p className="muted">{saveMessage}</p> : null}
+                {savedDecks.length === 0 ? <p className="muted">No saved builder decks yet.</p> : <ul className="saved-decks-list">{savedDecks.map((saved) => (<li key={saved.id} className="saved-decks-item"><button type="button" className="saved-deck-load" onClick={() => loadSavedDeck(saved)}>{saved.name}</button><button type="button" className="saved-deck-remove" onClick={() => removeSavedDeck(saved.id)}>Remove</button></li>))}</ul>}
+              </section>
+
               {analysis ? <div className="builder-inline-report-toggle"><button type="button" className="btn-secondary" onClick={() => setShowReportView((current) => !current)}>{showReportView ? "Hide Full Report" : "Open Full Report"}</button></div> : null}
             </>
           )}
@@ -1704,12 +1621,19 @@ export function CommanderDeckBuilder() {
 
           <div className="builder-search-controls">
             <input type="search" value={cardQuery} onChange={(event) => setCardQuery(event.target.value)} placeholder={selectedCommander ? "Search cards to add" : "Select a commander first"} disabled={!selectedCommander} />
-            <select value={cardTypeFilter} onChange={(event) => setCardTypeFilter(event.target.value as BuilderCardTypeFilter)} disabled={!selectedCommander}>
-              {CARD_TYPE_FILTERS.map((option) => (
-                <option key={option.value || "all"} value={option.value}>{option.label}</option>
-              ))}
-            </select>
-            <input type="text" value={cardSetFilter} onChange={(event) => setCardSetFilter(event.target.value.toUpperCase().slice(0, 5))} placeholder="Set code" disabled={!selectedCommander} />
+            <div className="builder-search-filter-row">
+              <select value={cardTypeFilter} onChange={(event) => setCardTypeFilter(event.target.value as BuilderCardTypeFilter)} disabled={!selectedCommander}>
+                {CARD_TYPE_FILTERS.map((option) => (
+                  <option key={option.value || "all"} value={option.value}>{option.label}</option>
+                ))}
+              </select>
+              <select value={cardSetFilter} onChange={(event) => setCardSetFilter(event.target.value)} disabled={!selectedCommander}>
+                <option value="">All sets</option>
+                {setOptions.map((setCode) => (
+                  <option key={setCode} value={setCode}>{setCode}</option>
+                ))}
+              </select>
+            </div>
           </div>
 
           {cardSearchLoading ? <p className="muted">Searching cards...</p> : null}

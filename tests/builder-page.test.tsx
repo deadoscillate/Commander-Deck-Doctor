@@ -218,6 +218,10 @@ describe("builder page", () => {
     fetchMock = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
       const url = String(input);
 
+      if (url === "/api/card-search?meta=sets") {
+        return jsonResponse({ items: ["CLB", "CMD", "DMR"] });
+      }
+
       if (url.startsWith("/api/card-search?") && url.includes("commanderOnly=1")) {
         return jsonResponse({
           query: "",

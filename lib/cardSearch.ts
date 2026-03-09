@@ -66,6 +66,7 @@ let searchIndex: CardSearchRecord[] | null = null;
 let searchIndexByName: Map<string, CardSearchRecord> | null = null;
 let commanderPool: ScryfallCard[] | null = null;
 let commanderSearchIndex: CardSearchRecord[] | null = null;
+let setOptions: string[] | null = null;
 
 function normalizeName(name: string): string {
   return name
@@ -413,9 +414,31 @@ export function lookupCardsByNames(
   return rows;
 }
 
+export function listSearchSetOptions(): string[] {
+  if (setOptions) {
+    return setOptions;
+  }
+
+  const seen = new Set<string>();
+  const output: string[] = [];
+
+  for (const card of buildSearchIndex()) {
+    if (!card.setCode || seen.has(card.setCode)) {
+      continue;
+    }
+
+    seen.add(card.setCode);
+    output.push(card.setCode);
+  }
+
+  setOptions = output.sort((left, right) => left.localeCompare(right));
+  return setOptions;
+}
+
 export function clearCardSearchCache(): void {
   searchIndex = null;
   searchIndexByName = null;
   commanderPool = null;
   commanderSearchIndex = null;
+  setOptions = null;
 }

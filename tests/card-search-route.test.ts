@@ -2,6 +2,16 @@ import { describe, expect, it } from "vitest";
 import { GET, POST } from "@/app/api/card-search/route";
 
 describe("GET /api/card-search", () => {
+  it("returns available set dropdown options", async () => {
+    const response = await GET(new Request("http://localhost/api/card-search?meta=sets"));
+
+    expect(response.status).toBe(200);
+    const payload = (await response.json()) as { items: string[] };
+
+    expect(payload.items.length).toBeGreaterThan(0);
+    expect(payload.items).toContain("CLB");
+  });
+
   it("returns commander-only results with legal pair metadata", async () => {
     const response = await GET(
       new Request("http://localhost/api/card-search?q=Tymna&commanderOnly=1&includePairs=1&limit=5")

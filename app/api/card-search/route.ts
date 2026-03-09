@@ -1,6 +1,6 @@
 import { apiJson, getRequestId } from "@/lib/api/http";
 import { buildRateLimitHeaders, checkRateLimit } from "@/lib/api/rateLimit";
-import { lookupCardsByNames, searchCards } from "@/lib/cardSearch";
+import { listSearchSetOptions, lookupCardsByNames, searchCards } from "@/lib/cardSearch";
 
 export const runtime = "nodejs";
 
@@ -89,6 +89,15 @@ export async function GET(request: Request) {
   }
 
   const url = new URL(request.url);
+  if (url.searchParams.get("meta") === "sets") {
+    return apiJson(
+      {
+        items: listSearchSetOptions()
+      },
+      { requestId, headers: rateLimitHeaders }
+    );
+  }
+
   const q = url.searchParams.get("q")?.trim() ?? "";
   const names = url.searchParams
     .getAll("name")
