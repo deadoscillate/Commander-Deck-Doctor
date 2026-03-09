@@ -28,6 +28,47 @@ function isBasicLand(name: string): boolean {
   return BASIC_LANDS.has(normalizeName(name));
 }
 
+const NUMBER_WORDS = new Map<string, number>([
+  ["one", 1],
+  ["two", 2],
+  ["three", 3],
+  ["four", 4],
+  ["five", 5],
+  ["six", 6],
+  ["seven", 7],
+  ["eight", 8],
+  ["nine", 9],
+  ["ten", 10],
+  ["eleven", 11],
+  ["twelve", 12]
+]);
+
+function duplicateAllowanceForCard(card: DeckCard["card"] | null | undefined): number | null {
+  if (!card) {
+    return null;
+  }
+
+  const oracleText = [card.oracle_text, ...card.card_faces.map((face) => face.oracle_text ?? "")]
+    .filter(Boolean)
+    .join("\n");
+
+  if (/a deck can have any number of cards named/i.test(oracleText)) {
+    return Number.POSITIVE_INFINITY;
+  }
+
+  const limitedMatch = oracleText.match(/a deck can have up to ([a-z0-9-]+) cards? named/i);
+  const rawLimit = limitedMatch?.[1]?.toLowerCase() ?? null;
+  if (!rawLimit) {
+    return null;
+  }
+
+  if (/^\d+$/.test(rawLimit)) {
+    return Number.parseInt(rawLimit, 10);
+  }
+
+  return NUMBER_WORDS.get(rawLimit) ?? null;
+}
+
 function colorLabel(code: string): string {
   if (code === "W") return "White";
   if (code === "U") return "Blue";
@@ -40,10 +81,29 @@ function colorLabel(code: string): string {
 /**
  * Builds simple Commander sanity checks: deck size, unknown cards, and singleton duplicates.
  */
-export function buildDeckChecks(parsedDeck: ParsedDeckEntry[], unknownCards: string[]): DeckChecks {
+export function buildDeckChecks(
+  parsedDeck: ParsedDeckEntry[],
+  unknownCards: string[],
+  knownCards: DeckCard[] = []
+): DeckChecks {
   const deckSize = parsedDeck.reduce((sum, entry) => sum + entry.qty, 0);
+  const knownCardByName = new Map(
+    knownCards.map((entry) => [normalizeName(entry.name), entry] as const)
+  );
   const duplicates = parsedDeck
-    .filter((entry) => entry.qty > 1 && !isBasicLand(entry.name))
+    .filter((entry) => {
+      if (entry.qty <= 1 || isBasicLand(entry.name)) {
+        return false;
+      }
+
+      const knownEntry = knownCardByName.get(normalizeName(entry.name)) ?? null;
+      const duplicateAllowance = duplicateAllowanceForCard(knownEntry?.card);
+      if (duplicateAllowance == null) {
+        return true;
+      }
+
+      return entry.qty > duplicateAllowance;
+    })
     .map((entry) => ({ name: entry.name, qty: entry.qty }))
     .sort((a, b) => b.qty - a.qty || a.name.localeCompare(b.name));
 

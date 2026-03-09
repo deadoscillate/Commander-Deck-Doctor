@@ -62,7 +62,7 @@ describe("Commander rules engine", () => {
 
     expect(report.status).toBe("PASS");
     expect(report.failedRules).toBe(0);
-    expect(report.passedRules).toBe(8);
+    expect(report.passedRules).toBe(9);
     expect(report.skippedRules).toBe(1);
     expect(report.rules.find((rule) => rule.id === "commander.companion-legality")?.outcome).toBe("SKIP");
   });
@@ -760,5 +760,239 @@ describe("Commander rules engine", () => {
     expect(report.status).toBe("FAIL");
     expect(companionRule?.outcome).toBe("FAIL");
     expect(companionRule?.message).toContain("cannot also be declared as the companion");
+  });
+
+  it("allows duplicate cards when Oracle text says any number of copies are legal", () => {
+    const report = evaluateCommanderRules({
+      parsedDeck: [
+        { name: "Marrow-Gnawer", qty: 1 },
+        { name: "Relentless Rats", qty: 25 },
+        { name: "Swamp", qty: 74 }
+      ],
+      knownCards: [
+        buildDeckCard("Marrow-Gnawer", 1, {
+          type_line: "Legendary Creature - Rat Rogue",
+          color_identity: ["B"],
+          colors: ["B"],
+          cmc: 5,
+          mana_cost: "{3}{B}{B}"
+        }),
+        buildDeckCard("Relentless Rats", 25, {
+          type_line: "Creature - Rat",
+          color_identity: ["B"],
+          colors: ["B"],
+          cmc: 3,
+          mana_cost: "{1}{B}{B}",
+          oracle_text: "A deck can have any number of cards named Relentless Rats."
+        }),
+        buildDeckCard("Swamp", 74, {
+          type_line: "Basic Land - Swamp",
+          cmc: 0,
+          mana_cost: "",
+          color_identity: ["B"],
+          colors: []
+        })
+      ],
+      unknownCards: [],
+      commander: {
+        name: "Marrow-Gnawer",
+        colorIdentity: ["B"],
+        resolved: true,
+        card: buildCard({
+          name: "Marrow-Gnawer",
+          type_line: "Legendary Creature - Rat Rogue",
+          color_identity: ["B"],
+          colors: ["B"],
+          cmc: 5,
+          mana_cost: "{3}{B}{B}"
+        })
+      }
+    });
+
+    const singletonRule = report.rules.find((rule) => rule.id === "commander.singleton-non-basic");
+    expect(singletonRule?.outcome).toBe("PASS");
+  });
+
+  it("allows Seven Dwarves up to seven copies but no more", () => {
+    const commander = buildCard({
+      name: "Torbran, Thane of Red Fell",
+      type_line: "Legendary Creature - Dwarf Noble",
+      color_identity: ["R"],
+      colors: ["R"],
+      cmc: 4,
+      mana_cost: "{1}{R}{R}{R}"
+    });
+    const baseInput = {
+      unknownCards: [] as string[],
+      commander: {
+        name: "Torbran, Thane of Red Fell",
+        colorIdentity: ["R"],
+        resolved: true,
+        card: commander
+      }
+    };
+
+    const legalReport = evaluateCommanderRules({
+      parsedDeck: [
+        { name: "Torbran, Thane of Red Fell", qty: 1 },
+        { name: "Seven Dwarves", qty: 7 },
+        { name: "Mountain", qty: 92 }
+      ],
+      knownCards: [
+        { name: "Torbran, Thane of Red Fell", qty: 1, card: commander },
+        buildDeckCard("Seven Dwarves", 7, {
+          type_line: "Creature - Dwarf",
+          color_identity: ["R"],
+          colors: ["R"],
+          cmc: 2,
+          mana_cost: "{1}{R}",
+          oracle_text: "A deck can have up to seven cards named Seven Dwarves."
+        }),
+        buildDeckCard("Mountain", 92, {
+          type_line: "Basic Land - Mountain",
+          cmc: 0,
+          mana_cost: "",
+          color_identity: ["R"],
+          colors: []
+        })
+      ],
+      ...baseInput
+    });
+
+    const illegalReport = evaluateCommanderRules({
+      parsedDeck: [
+        { name: "Torbran, Thane of Red Fell", qty: 1 },
+        { name: "Seven Dwarves", qty: 8 },
+        { name: "Mountain", qty: 91 }
+      ],
+      knownCards: [
+        { name: "Torbran, Thane of Red Fell", qty: 1, card: commander },
+        buildDeckCard("Seven Dwarves", 8, {
+          type_line: "Creature - Dwarf",
+          color_identity: ["R"],
+          colors: ["R"],
+          cmc: 2,
+          mana_cost: "{1}{R}",
+          oracle_text: "A deck can have up to seven cards named Seven Dwarves."
+        }),
+        buildDeckCard("Mountain", 91, {
+          type_line: "Basic Land - Mountain",
+          cmc: 0,
+          mana_cost: "",
+          color_identity: ["R"],
+          colors: []
+        })
+      ],
+      ...baseInput
+    });
+
+    expect(legalReport.rules.find((rule) => rule.id === "commander.singleton-non-basic")?.outcome).toBe("PASS");
+    expect(illegalReport.rules.find((rule) => rule.id === "commander.singleton-non-basic")?.outcome).toBe("FAIL");
+  });
+
+  it("fails Conspiracy cards through category-based Commander restrictions", () => {
+    const report = evaluateCommanderRules({
+      parsedDeck: [
+        { name: "Marchesa, the Black Rose", qty: 1 },
+        { name: "Conspiracy", qty: 1 },
+        { name: "Island", qty: 98 }
+      ],
+      knownCards: [
+        buildDeckCard("Marchesa, the Black Rose", 1, {
+          type_line: "Legendary Creature - Human Wizard",
+          color_identity: ["U", "B", "R"],
+          colors: ["U", "B", "R"],
+          cmc: 4,
+          mana_cost: "{1}{U}{B}{R}"
+        }),
+        buildDeckCard("Conspiracy", 1, {
+          type_line: "Conspiracy",
+          oracle_text: "",
+          color_identity: ["B"],
+          colors: ["B"],
+          cmc: 5,
+          mana_cost: "{3}{B}{B}"
+        }),
+        buildDeckCard("Island", 98, {
+          type_line: "Basic Land - Island",
+          cmc: 0,
+          mana_cost: "",
+          color_identity: ["U"],
+          colors: []
+        })
+      ],
+      unknownCards: [],
+      commander: {
+        name: "Marchesa, the Black Rose",
+        colorIdentity: ["U", "B", "R"],
+        resolved: true,
+        card: buildCard({
+          name: "Marchesa, the Black Rose",
+          type_line: "Legendary Creature - Human Wizard",
+          color_identity: ["U", "B", "R"],
+          colors: ["U", "B", "R"],
+          cmc: 4,
+          mana_cost: "{1}{U}{B}{R}"
+        })
+      }
+    });
+
+    const rule = report.rules.find((entry) => entry.id === "commander.special-card-type-bans");
+    expect(report.status).toBe("FAIL");
+    expect(rule?.outcome).toBe("FAIL");
+    expect(rule?.findings.some((entry) => entry.name === "Conspiracy")).toBe(true);
+  });
+
+  it("fails ante cards through category-based Commander restrictions", () => {
+    const report = evaluateCommanderRules({
+      parsedDeck: [
+        { name: "Ayli, Eternal Pilgrim", qty: 1 },
+        { name: "Contract from Below", qty: 1 },
+        { name: "Plains", qty: 98 }
+      ],
+      knownCards: [
+        buildDeckCard("Ayli, Eternal Pilgrim", 1, {
+          type_line: "Legendary Creature - Kor Cleric",
+          color_identity: ["W", "B"],
+          colors: ["W", "B"],
+          cmc: 2,
+          mana_cost: "{W}{B}"
+        }),
+        buildDeckCard("Contract from Below", 1, {
+          type_line: "Sorcery",
+          color_identity: ["B"],
+          colors: ["B"],
+          cmc: 1,
+          mana_cost: "{B}",
+          oracle_text: "Remove Contract from Below from your deck before playing if you're not playing for ante. Discard your hand, ante the top card of your library, then draw seven cards."
+        }),
+        buildDeckCard("Plains", 98, {
+          type_line: "Basic Land - Plains",
+          cmc: 0,
+          mana_cost: "",
+          color_identity: ["W"],
+          colors: []
+        })
+      ],
+      unknownCards: [],
+      commander: {
+        name: "Ayli, Eternal Pilgrim",
+        colorIdentity: ["W", "B"],
+        resolved: true,
+        card: buildCard({
+          name: "Ayli, Eternal Pilgrim",
+          type_line: "Legendary Creature - Kor Cleric",
+          color_identity: ["W", "B"],
+          colors: ["W", "B"],
+          cmc: 2,
+          mana_cost: "{W}{B}"
+        })
+      }
+    });
+
+    const rule = report.rules.find((entry) => entry.id === "commander.special-card-type-bans");
+    expect(report.status).toBe("FAIL");
+    expect(rule?.outcome).toBe("FAIL");
+    expect(rule?.findings.some((entry) => entry.name === "Contract from Below")).toBe(true);
   });
 });

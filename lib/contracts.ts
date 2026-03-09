@@ -148,6 +148,7 @@ export type RulesEngineRuleResult = {
   outcome: RulesEngineOutcome;
   message: string;
   findings: NamedCount[];
+  remediation?: string[];
 };
 
 export type RulesEngineReport = {

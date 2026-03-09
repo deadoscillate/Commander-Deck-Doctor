@@ -105,6 +105,25 @@ function buildBanlistFindings(
     .map(([name, qty]) => ({ name, qty }));
 }
 
+function buildCategoryBanFindings(knownCards: DeckCard[]): Array<{ name: string; qty: number }> {
+  const findingsByName = new Map<string, number>();
+
+  for (const entry of knownCards) {
+    const isConspiracy = /\bconspiracy\b/i.test(entry.card.type_line ?? "");
+    const referencesAnte = /\bante\b/i.test(oracleText(entry.card));
+
+    if (!isConspiracy && !referencesAnte) {
+      continue;
+    }
+
+    findingsByName.set(entry.card.name, (findingsByName.get(entry.card.name) ?? 0) + entry.qty);
+  }
+
+  return [...findingsByName.entries()]
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .map(([name, qty]) => ({ name, qty }));
+}
+
 function oracleText(card: ScryfallCard): string {
   return [card.oracle_text, ...card.card_faces.map((face) => face.oracle_text ?? "")]
     .filter(Boolean)
@@ -303,7 +322,7 @@ export function evaluateCommanderRules(input: CommanderRulesEngineInput): RulesE
     resolvedCommanderCards,
     input.commander.resolved
   );
-  const checks = buildDeckChecks(input.parsedDeck, input.unknownCards);
+  const checks = buildDeckChecks(input.parsedDeck, input.unknownCards, input.knownCards);
   const colorIdentityCheck = input.commander.name
     ? input.commander.resolved
       ? buildColorIdentityCheck(input.knownCards, input.commander.name, input.commander.colorIdentity)
@@ -377,6 +396,7 @@ export function evaluateCommanderRules(input: CommanderRulesEngineInput): RulesE
     };
   })();
   const banlistFindings = buildBanlistFindings(input.parsedDeck, selectedCommanderNames, selectedCompanionNames);
+  const categoryBanFindings = buildCategoryBanFindings(input.knownCards);
 
   const rules: RulesEngineRuleResult[] = [
     buildRule({
@@ -387,7 +407,10 @@ export function evaluateCommanderRules(input: CommanderRulesEngineInput): RulesE
       severity: "ERROR",
       outcome: checks.deckSize.ok ? "PASS" : "FAIL",
       message: checks.deckSize.message,
-      findings: []
+      findings: [],
+      remediation: checks.deckSize.ok
+        ? undefined
+        : ["Add or remove cards until the 100-card deck, including commander(s), totals exactly 100 cards."]
     }),
     buildRule({
       id: "commander.singleton-non-basic",
@@ -397,7 +420,13 @@ export function evaluateCommanderRules(input: CommanderRulesEngineInput): RulesE
       severity: "ERROR",
       outcome: checks.singleton.ok ? "PASS" : "FAIL",
       message: checks.singleton.message,
-      findings: checks.singleton.duplicates
+      findings: checks.singleton.duplicates,
+      remediation: checks.singleton.ok
+        ? undefined
+        : [
+            "Cut extra copies of non-basic cards unless that card's Oracle text explicitly overrides Commander singleton rules.",
+            "If a duplicate is intentional, verify the exact card text allows that many copies."
+          ]
     }),
     buildRule({
       id: "commander.banlist",
@@ -411,7 +440,29 @@ export function evaluateCommanderRules(input: CommanderRulesEngineInput): RulesE
         banlistFindings.length === 0
           ? `No banned cards detected against Commander RC banlist (${banlistDataset.versionDate}).`
           : `${banlistFindings.length} banned card${banlistFindings.length === 1 ? "" : "s"} detected against Commander RC banlist (${banlistDataset.versionDate}).`,
-      findings: banlistFindings
+      findings: banlistFindings,
+      remediation: banlistFindings.length === 0
+        ? undefined
+        : ["Replace each banned card in the deck, commander slot, or companion slot with a legal alternative."]
+    }),
+    buildRule({
+      id: "commander.special-card-type-bans",
+      name: "Special Card-Type Restrictions",
+      description: "Commander decks cannot contain Conspiracy cards or cards that reference the ante mechanic.",
+      domain: "DECK_CONSTRUCTION",
+      severity: "ERROR",
+      outcome: categoryBanFindings.length === 0 ? "PASS" : "FAIL",
+      message:
+        categoryBanFindings.length === 0
+          ? "No Conspiracy or ante cards detected."
+          : `${categoryBanFindings.length} card${categoryBanFindings.length === 1 ? "" : "s"} violate Commander's category-based restrictions.`,
+      findings: categoryBanFindings,
+      remediation: categoryBanFindings.length === 0
+        ? undefined
+        : [
+            "Remove Conspiracy cards and cards that reference ante from the deck.",
+            "These cards are banned by category even when they are not listed individually on the Commander banlist."
+          ]
     }),
     buildRule({
       id: "commander.known-card-resolution",
@@ -421,7 +472,10 @@ export function evaluateCommanderRules(input: CommanderRulesEngineInput): RulesE
       severity: "WARN",
       outcome: checks.unknownCards.ok ? "PASS" : "FAIL",
       message: checks.unknownCards.message,
-      findings: toNameCountList(checks.unknownCards.cards)
+      findings: toNameCountList(checks.unknownCards.cards),
+      remediation: checks.unknownCards.ok
+        ? undefined
+        : ["Correct unknown card names so legality, singleton exceptions, and color identity can be validated deterministically."]
     }),
     buildRule({
       id: "commander.commander-selected",
@@ -433,7 +487,10 @@ export function evaluateCommanderRules(input: CommanderRulesEngineInput): RulesE
       message: input.commander.name
         ? `Commander selected: ${selectedCommanderNames.join(" + ")}.`
         : "Commander not selected. Add a commander to unlock full rules validation.",
-      findings: selectedCommanderNames.map((name) => ({ name, qty: 1 }))
+      findings: selectedCommanderNames.map((name) => ({ name, qty: 1 })),
+      remediation: input.commander.name
+        ? undefined
+        : ["Choose the commander before analyzing so color identity and commander-specific legality can be validated."]
     }),
     buildRule({
       id: "commander.commander-present-in-deck",
@@ -455,7 +512,13 @@ export function evaluateCommanderRules(input: CommanderRulesEngineInput): RulesE
             : `One or more selected commanders are not present in the submitted decklist: ${selectedCommanderNames.join(" + ")}.`
           : `Commander selection could not be resolved for deck-presence validation: ${selectedCommanderNames.join(" + ")}.`
         : "No commander selected, so deck-presence validation was skipped.",
-      findings: selectedCommanderNames.map((name) => ({ name, qty: 1 }))
+      findings: selectedCommanderNames.map((name) => ({ name, qty: 1 })),
+      remediation:
+        selectedCommanderNames.length > 0 &&
+        input.commander.resolved &&
+        !selectedCommanderNames.every((name) => commanderExistsInDeck(input.parsedDeck, name))
+          ? ["Make sure the selected commander card is included in the submitted decklist or correct the commander selection."]
+          : undefined
     }),
     buildRule({
       id: "commander.commander-eligible",
@@ -476,7 +539,14 @@ export function evaluateCommanderRules(input: CommanderRulesEngineInput): RulesE
           ? commanderConfiguration.message
           : `Commander selection could not be resolved for configuration validation: ${selectedCommanderNames.join(" + ")}.`
         : "No commander selected, so commander eligibility validation was skipped.",
-      findings: selectedCommanderNames.map((name) => ({ name, qty: 1 }))
+      findings: selectedCommanderNames.map((name) => ({ name, qty: 1 })),
+      remediation:
+        selectedCommanderNames.length > 0 && input.commander.resolved && !commanderConfiguration.ok
+          ? [
+              "Choose a single commander-eligible card or a legal paired configuration.",
+              "For two-commanders, both cards must explicitly support the same Commander pairing rule."
+            ]
+          : undefined
     }),
     buildRule({
       id: "commander.companion-legality",
@@ -487,7 +557,14 @@ export function evaluateCommanderRules(input: CommanderRulesEngineInput): RulesE
       severity: "ERROR",
       outcome: companionRuleEvaluation.outcome,
       message: companionRuleEvaluation.message,
-      findings: selectedCompanionNames.map((name) => ({ name, qty: 1 }))
+      findings: selectedCompanionNames.map((name) => ({ name, qty: 1 })),
+      remediation:
+        companionRuleEvaluation.outcome === "FAIL"
+          ? [
+              "Remove the companion or adjust the 100-card deck so it satisfies the companion's deck-building restriction.",
+              "The companion must match commander color identity and remain outside the 100-card deck."
+            ]
+          : undefined
     }),
     buildRule({
       id: "commander.color-identity",
@@ -500,7 +577,11 @@ export function evaluateCommanderRules(input: CommanderRulesEngineInput): RulesE
       findings: colorIdentityCheck.offColorCards.map((entry) => ({
         name: entry.name,
         qty: entry.qty
-      }))
+      })),
+      remediation:
+        colorIdentityCheck.enabled && !colorIdentityCheck.ok
+          ? ["Replace or cut off-color cards so every card's color identity is a subset of the selected commander's color identity."]
+          : undefined
     })
   ].sort(sortRules);
 

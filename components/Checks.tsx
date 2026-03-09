@@ -160,6 +160,13 @@ export function Checks({ checks, rulesEngine }: ChecksProps) {
                   {failingRules.map((rule) => (
                     <li key={rule.id}>
                       <strong>{rule.name}</strong>: {rule.message}
+                      {Array.isArray(rule.remediation) && rule.remediation.length > 0 ? (
+                        <ul>
+                          {rule.remediation.map((step) => (
+                            <li key={step}>{step}</li>
+                          ))}
+                        </ul>
+                      ) : null}
                     </li>
                   ))}
                 </ul>

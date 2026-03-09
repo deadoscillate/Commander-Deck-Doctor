@@ -787,7 +787,7 @@ export async function POST(request: Request) {
     );
     const { count: extraTurnsCount, cards: extraTurnCards } = computeExtraTurns(knownCards);
     const { count: massLandDenialCount, cards: massLandDenialCards } = computeMassLandDenial(knownCards);
-    const checksBase = buildDeckChecks(effectiveParsedDeck, unknownCards);
+    const checksBase = buildDeckChecks(effectiveParsedDeck, unknownCards, knownCards);
 
     const commanderSelection = deriveCommanderOptions(knownCards, effectiveParsedDeck, inputDeckSize);
     const commanderOptions = commanderSelection.options;

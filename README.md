@@ -106,6 +106,7 @@ The precon browser now loads the full synced library, keeps search visible while
 - Explicit print tags are now honored first even in `oracle-default`, so tagged lists price against the intended print before falling back to default-name pricing.
 - Pre-analyze commander selection now uses commander-eligible candidates only, resolves them from local card data first, and only shows a second selector when the chosen commander has legal pair options.
 - Companion declarations are parsed separately from the 100-card deck and validated deterministically in Commander rules checks.
+- Singleton validation now respects card-text exceptions such as unlimited-copy cards and capped exceptions like Seven Dwarves.
 - URL import is Archidekt-only for now. Successful imports switch the analyzer to `decklist-set` automatically so pricing and print selection stay aligned with the imported list.
 - Archidekt companion imports are preserved as companion sections instead of being folded into the main deck.
 - Simulations do not block initial analyze.
@@ -199,6 +200,8 @@ Current MVP state:
 - Stock-precon comparison is built in for commander-matched decks.
 - Commander pairing flows now support legal pre-analyze pair selection instead of exposing the whole deck as possible pair choices.
 - Companion legality now covers deterministic validation for the ten official companions, including color identity, deck-building restriction checks, and banlist handling.
+- Category-based Commander deck-construction bans now surface explicitly for ante cards and Conspiracy cards.
+- Failing legality checks now include remediation guidance in the report UI.
 - Legality, archetypes, combos, Rule 0, pricing, and simulations are all present.
 - Pricing now distinguishes exact-print, set-match, name-match, and fallback resolution so users can judge how trustworthy a deck total is.
 - Regression safety is materially better than earlier iterations: CI, smoke coverage, accessibility checks, and telemetry are in place.
@@ -255,6 +258,8 @@ Practical target:
 - Completed: deterministic companion validation for the ten official companions, including deck-construction checks, color identity checks, and banlist coverage
 - Completed: broader pair-specific messaging for invalid commander pair configurations
 - Completed: deterministic regression coverage for pair rules, companions, parser behavior, import behavior, and plaintext export
+- Completed: singleton exception handling for cards whose Oracle text overrides normal Commander copy limits
+- Completed: category-based legality coverage for Conspiracy and ante cards plus remediation guidance in legality output
 - Keep rules datasets synced and verified
 
 ### Phase 4: Productization

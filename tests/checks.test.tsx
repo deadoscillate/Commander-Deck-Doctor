@@ -53,6 +53,7 @@ const rulesEngineWithBanlistFailure: RulesEngineReport = {
       severity: "ERROR",
       outcome: "FAIL",
       message: "2 banned cards detected against Commander RC banlist (2026-03-07).",
+      remediation: ["Replace each banned card in the deck, commander slot, or companion slot with a legal alternative."],
       findings: [
         { name: "Black Lotus", qty: 1 },
         { name: "Flash", qty: 1 }
@@ -78,5 +79,18 @@ describe("Checks", () => {
 
     expect(within(banlistCard as HTMLElement).getByRole("button", { name: "Black Lotus" })).toBeTruthy();
     expect(within(banlistCard as HTMLElement).getByRole("button", { name: "Flash" })).toBeTruthy();
+  });
+
+  it("shows remediation guidance for failing rules", async () => {
+    const user = userEvent.setup();
+
+    render(<Checks checks={baseChecks} rulesEngine={rulesEngineWithBanlistFailure} />);
+
+    const rulesCard = screen.getAllByText("Show failing rules").at(-1)?.closest(".check-item") as HTMLElement | null;
+    expect(rulesCard).toBeTruthy();
+
+    await user.click(within(rulesCard as HTMLElement).getByText("Show failing rules"));
+
+    expect(within(rulesCard as HTMLElement).getByText(/Replace each banned card/i)).toBeTruthy();
   });
 });
