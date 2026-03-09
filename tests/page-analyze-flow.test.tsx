@@ -122,6 +122,13 @@ describe("app page analyze flow", () => {
   });
 
   it("requires commander selection before analyze when no commander section exists", async () => {
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({
+        commanderFromSection: null,
+        options: [],
+        suggestedCommanderName: null
+      })
+    );
     const user = userEvent.setup();
     const { default: Page } = await import("@/app/page");
     render(<Page />);
@@ -130,12 +137,27 @@ describe("app page analyze flow", () => {
 
     await user.type(screen.getByLabelText(/Decklist \(paste here\)/i), "1 Sol Ring");
 
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
+
     expect((analyzeButton as HTMLButtonElement).disabled).toBe(true);
-    expect(screen.getByText(/Commander selection is required before analysis\./i)).toBeTruthy();
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(screen.getByText(/No commander candidates found\./i)).toBeTruthy();
   });
 
   it("submits selected commander from the input panel before analyze", async () => {
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({
+        commanderFromSection: null,
+        options: [
+          {
+            name: "Atraxa, Praetors' Voice",
+            colorIdentity: ["W", "U", "B", "G"]
+          }
+        ],
+        suggestedCommanderName: "Atraxa, Praetors' Voice"
+      })
+    );
     fetchMock.mockResolvedValueOnce(
       jsonResponse(
         createAnalyzeResponse({
@@ -153,15 +175,18 @@ describe("app page analyze flow", () => {
     render(<Page />);
 
     await user.type(screen.getByLabelText(/Decklist \(paste here\)/i), manualCommanderDecklist);
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
     await user.selectOptions(screen.getByLabelText(/^Commander$/i), "Atraxa, Praetors' Voice");
 
     await user.click(screen.getByRole("button", { name: /Analyze Deck/i }));
 
     await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledTimes(1);
+      expect(fetchMock).toHaveBeenCalledTimes(2);
     });
 
-    const [, request] = fetchMock.mock.calls[0] as [string, RequestInit];
+    const [, request] = fetchMock.mock.calls[1] as [string, RequestInit];
     const payload = JSON.parse(String(request.body));
     expect(payload.commanderName).toBe("Atraxa, Praetors' Voice");
   });
@@ -175,6 +200,18 @@ describe("app page analyze flow", () => {
     window.dispatchEvent(new Event("resize"));
 
     fetchMock.mockResolvedValueOnce(
+      jsonResponse({
+        commanderFromSection: null,
+        options: [
+          {
+            name: "Atraxa, Praetors' Voice",
+            colorIdentity: ["W", "U", "B", "G"]
+          }
+        ],
+        suggestedCommanderName: "Atraxa, Praetors' Voice"
+      })
+    );
+    fetchMock.mockResolvedValueOnce(
       jsonResponse(
         createAnalyzeResponse({
           commander: {
@@ -191,15 +228,18 @@ describe("app page analyze flow", () => {
     render(<Page />);
 
     await user.type(screen.getByLabelText(/Decklist \(paste here\)/i), manualCommanderDecklist);
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
     await user.selectOptions(screen.getByLabelText(/^Commander$/i), "Atraxa, Praetors' Voice");
 
     await user.click(screen.getByRole("button", { name: /Analyze Deck/i }));
 
     await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledTimes(1);
+      expect(fetchMock).toHaveBeenCalledTimes(2);
     });
 
-    const [, request] = fetchMock.mock.calls[0] as [string, RequestInit];
+    const [, request] = fetchMock.mock.calls[1] as [string, RequestInit];
     const payload = JSON.parse(String(request.body));
     expect(payload.commanderName).toBe("Atraxa, Praetors' Voice");
   });

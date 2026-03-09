@@ -8,7 +8,8 @@ type RateLimitRule = {
     | "share-report"
     | "simulate"
     | "card-printings"
-    | "improvement-suggestions";
+    | "improvement-suggestions"
+    | "commander-options";
   limit: number;
   windowSeconds: number;
 };

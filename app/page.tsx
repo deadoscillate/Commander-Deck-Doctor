@@ -3,7 +3,7 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { AnalysisReport } from "@/components/AnalysisReport";
 import { ExportButtons } from "@/components/ExportButtons";
-import type { AnalyzeResponse, DeckPriceMode } from "@/lib/contracts";
+import type { AnalyzeResponse, CommanderChoice, DeckPriceMode } from "@/lib/contracts";
 import { parseDecklist, parseDecklistWithCommander } from "@/lib/decklist";
 import { SAMPLE_DECKLIST, SAMPLE_DECK_NAME } from "@/lib/sampleDeck";
 const SAVED_DECKS_STORAGE_KEY = "commanderDeckDoctor.savedDecks.v1";
@@ -58,6 +58,12 @@ type CardPrintingsResponse = {
   name: string;
   count: number;
   printings: DeckPrintingOption[];
+};
+
+type CommanderOptionsResponse = {
+  commanderFromSection: string | null;
+  options: CommanderChoice[];
+  suggestedCommanderName: string | null;
 };
 
 function parseSavedDecks(raw: string | null): SavedDeck[] {
@@ -240,36 +246,21 @@ export default function Page() {
   const [importing, setImporting] = useState(false);
   const [importError, setImportError] = useState("");
   const [importInfo, setImportInfo] = useState("");
+  const [commanderOptions, setCommanderOptions] = useState<CommanderChoice[]>([]);
+  const [commanderOptionsLoading, setCommanderOptionsLoading] = useState(false);
+  const [commanderOptionsError, setCommanderOptionsError] = useState("");
   const printingModalRef = useRef<HTMLDivElement | null>(null);
   const printingCloseButtonRef = useRef<HTMLButtonElement | null>(null);
   const parsedDeckInput = useMemo(() => parseDecklistWithCommander(decklist), [decklist]);
   const parsedDeckEntries = parsedDeckInput.entries;
   const commanderFromDecklist = parsedDeckInput.commanderFromSection;
-  const commanderSelectableNames = useMemo(() => {
-    const rows = new Map<string, string>();
-    for (const entry of parsedDeckEntries) {
-      if (entry.qty !== 1) {
-        continue;
-      }
-
-      const key = normalizeCardKey(entry.name);
-      if (!rows.has(key)) {
-        rows.set(key, entry.name);
-      }
-    }
-
-    if (commanderFromDecklist) {
-      rows.set(normalizeCardKey(commanderFromDecklist), commanderFromDecklist);
-    }
-
-    return [...rows.values()].sort((left, right) => left.localeCompare(right));
-  }, [commanderFromDecklist, parsedDeckEntries]);
   const selectedCommanderName = commanderName.trim();
   const effectiveCommanderName = commanderFromDecklist ?? selectedCommanderName;
   const commanderSelectionRequired = !commanderFromDecklist && parsedDeckEntries.length > 0;
   const canAnalyze =
     Boolean(decklist.trim()) &&
     (!commanderSelectionRequired || Boolean(selectedCommanderName)) &&
+    !commanderOptionsLoading &&
     !loading;
 
   useEffect(() => {
@@ -441,14 +432,95 @@ export default function Page() {
 
   useEffect(() => {
     if (commanderFromDecklist) {
+      setCommanderOptions([]);
+      setCommanderOptionsLoading(false);
+      setCommanderOptionsError("");
       setCommanderName((previous) =>
         previous === commanderFromDecklist ? previous : commanderFromDecklist
       );
       return;
     }
 
+    if (parsedDeckEntries.length === 0) {
+      setCommanderOptions([]);
+      setCommanderOptionsLoading(false);
+      setCommanderOptionsError("");
+      setCommanderName("");
+      return;
+    }
+
+    let cancelled = false;
+    const timeoutId = window.setTimeout(async () => {
+      setCommanderOptionsLoading(true);
+      setCommanderOptionsError("");
+
+      try {
+        const response = await fetch("/api/commander-options", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            decklist,
+            deckPriceMode,
+            setOverrides: toSetOverrides(printingOverrides)
+          })
+        });
+
+        const payload = (await response.json()) as CommanderOptionsResponse | { error: string };
+        if (cancelled) {
+          return;
+        }
+
+        if (!response.ok) {
+          setCommanderOptions([]);
+          setCommanderOptionsError(
+            "error" in payload && payload.error ? payload.error : "Could not load commander candidates."
+          );
+          return;
+        }
+
+        const data = payload as CommanderOptionsResponse;
+        setCommanderOptions(data.options ?? []);
+        const validCommanderKeys = new Set(
+          (data.options ?? []).map((option) => normalizeCardKey(option.name))
+        );
+        setCommanderName((previous) => {
+          if (previous && validCommanderKeys.has(normalizeCardKey(previous))) {
+            return previous;
+          }
+
+          if (data.suggestedCommanderName) {
+            return data.suggestedCommanderName;
+          }
+
+          return "";
+        });
+      } catch {
+        if (cancelled) {
+          return;
+        }
+
+        setCommanderOptions([]);
+        setCommanderOptionsError("Could not load commander candidates.");
+      } finally {
+        if (!cancelled) {
+          setCommanderOptionsLoading(false);
+        }
+      }
+    }, 250);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timeoutId);
+    };
+  }, [commanderFromDecklist, deckPriceMode, decklist, parsedDeckEntries.length, printingOverrides]);
+
+  useEffect(() => {
+    if (commanderFromDecklist) {
+      return;
+    }
+
     const availableCommanderKeys = new Set(
-      commanderSelectableNames.map((name) => normalizeCardKey(name))
+      commanderOptions.map((option) => normalizeCardKey(option.name))
     );
     setCommanderName((previous) => {
       if (!previous) {
@@ -457,7 +529,7 @@ export default function Page() {
 
       return availableCommanderKeys.has(normalizeCardKey(previous)) ? previous : "";
     });
-  }, [commanderFromDecklist, commanderSelectableNames]);
+  }, [commanderFromDecklist, commanderOptions]);
 
   const tuningSummary = targetBracket && expectedWinTurn
     ? `Target: Bracket ${targetBracket} | Win/Lock: ${expectedWinTurn}`
@@ -832,22 +904,31 @@ export default function Page() {
                 <select
                   id="commander-name"
                   value={selectedCommanderName}
-                  disabled={loading || commanderSelectableNames.length === 0}
+                  disabled={loading || commanderOptionsLoading || commanderOptions.length === 0}
                   onChange={(event) => {
                     setCommanderName(event.target.value);
                     setError("");
                   }}
                 >
                   <option value="">Select a commander</option>
-                  {commanderSelectableNames.map((name) => (
-                    <option key={name} value={name}>
-                      {name}
+                  {commanderOptions.map((option) => (
+                    <option key={option.name} value={option.name}>
+                      {option.name}
                     </option>
                   ))}
                 </select>
-                <p className="muted">
-                  Add a <code>Commander:</code> section in the decklist, or pick the commander here before analysis.
-                </p>
+                {commanderOptionsLoading ? (
+                  <p className="muted">Checking possible commanders...</p>
+                ) : commanderOptions.length > 0 ? (
+                  <p className="muted">
+                    Add a <code>Commander:</code> section in the decklist, or pick one of the possible commanders here before analysis.
+                  </p>
+                ) : (
+                  <p className="muted">
+                    No commander candidates found. Add a <code>Commander:</code> section or include the commander in the list.
+                  </p>
+                )}
+                {commanderOptionsError ? <p className="error-inline">{commanderOptionsError}</p> : null}
                 {commanderSelectionRequired && !selectedCommanderName ? (
                   <p className="error-inline">Commander selection is required before analysis.</p>
                 ) : null}
