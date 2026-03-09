@@ -313,6 +313,27 @@ input[type="url"] {
   flex-direction: column;
   gap: 0.55rem;
   margin-top: 0.6rem;
+  max-height: min(32rem, 70vh);
+  overflow-y: auto;
+  padding-right: 0.3rem;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(143, 193, 255, 0.45) rgba(15, 24, 36, 0.28);
+}
+
+.precon-library-body::-webkit-scrollbar {
+  width: 10px;
+}
+
+.precon-library-body::-webkit-scrollbar-track {
+  background: rgba(15, 24, 36, 0.28);
+  border-radius: 999px;
+}
+
+.precon-library-body::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, rgba(57, 145, 168, 0.82), rgba(36, 81, 100, 0.82));
+  border-radius: 999px;
+  border: 2px solid rgba(15, 24, 36, 0.22);
 }
 
 .precon-list {
@@ -322,26 +343,6 @@ input[type="url"] {
   display: flex;
   flex-direction: column;
   gap: 0.55rem;
-  max-height: 24rem;
-  overflow-y: auto;
-  padding-right: 0.25rem;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(143, 193, 255, 0.45) rgba(15, 24, 36, 0.28);
-}
-
-.precon-list::-webkit-scrollbar {
-  width: 10px;
-}
-
-.precon-list::-webkit-scrollbar-track {
-  background: rgba(15, 24, 36, 0.28);
-  border-radius: 999px;
-}
-
-.precon-list::-webkit-scrollbar-thumb {
-  background: linear-gradient(180deg, rgba(57, 145, 168, 0.82), rgba(36, 81, 100, 0.82));
-  border-radius: 999px;
-  border: 2px solid rgba(15, 24, 36, 0.22);
 }
 
 .precon-item {
