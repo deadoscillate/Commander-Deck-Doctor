@@ -181,6 +181,7 @@ export type RoleSuggestion = {
   currentCount: number;
   recommendedRange: string;
   direction: "ADD" | "CUT";
+  rationale?: string;
   suggestions: string[];
 };
 

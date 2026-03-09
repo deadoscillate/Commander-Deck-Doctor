@@ -656,6 +656,10 @@ export function AnalysisReport({
     const existingCardNames = result.parsedDeck.flatMap((entry) =>
       entry.resolvedName ? [entry.name, entry.resolvedName] : [entry.name]
     );
+    const archetypes = [
+      archetypeReport.primary?.archetype ?? null,
+      archetypeReport.secondary?.archetype ?? null
+    ].filter((value): value is string => Boolean(value));
 
     async function loadImprovementSuggestions() {
       setImprovementSuggestionsLoading(true);
@@ -672,6 +676,9 @@ export function AnalysisReport({
             roleBreakdown,
             deckColorIdentity,
             existingCardNames,
+            archetypes,
+            manaCurve: result.summary.manaCurve,
+            averageManaValue: result.summary.averageManaValue,
             limit: 7
           }),
           signal: controller.signal
@@ -713,6 +720,8 @@ export function AnalysisReport({
       controller.abort();
     };
   }, [
+    archetypeReport.primary?.archetype,
+    archetypeReport.secondary?.archetype,
     commanderInfo.colorIdentity,
     onImprovementSuggestionsLoaded,
     result,

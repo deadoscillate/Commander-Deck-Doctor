@@ -160,4 +160,122 @@ describe("buildRoleSuggestions", () => {
     expect(result).toHaveLength(1);
     expect(result[0]?.suggestions).toContain("Rampant Growth");
   });
+
+  it("prefers cheaper ramp adds when the deck curve is top-heavy", () => {
+    const mockDb = createMockDb([
+      {
+        oracleId: "1",
+        name: "Rampant Growth",
+        mv: 2,
+        typeLine: "Sorcery",
+        oracleText: "Search your library for a basic land card, put that card onto the battlefield tapped, then shuffle.",
+        keywords: [],
+        colorIdentity: ["G"],
+        legalities: { commander: "legal" }
+      },
+      {
+        oracleId: "2",
+        name: "Explosive Vegetation",
+        mv: 4,
+        typeLine: "Sorcery",
+        oracleText: "Search your library for up to two basic land cards, put them onto the battlefield tapped, then shuffle.",
+        keywords: [],
+        colorIdentity: ["G"],
+        legalities: { commander: "legal" }
+      }
+    ]);
+
+    const result = buildRoleSuggestions({
+      roleRows: [
+        {
+          key: "ramp",
+          label: "Ramp",
+          value: 4,
+          recommendedText: "8-12",
+          status: "LOW"
+        }
+      ],
+      deckColorIdentity: ["G"],
+      existingCardNames: [],
+      archetypes: [],
+      averageManaValue: 3.8,
+      manaCurve: { "5": 9, "6": 6, "7+": 7 },
+      cardDatabase: mockDb,
+      limit: 4
+    });
+
+    expect(result[0]?.suggestions[0]).toBe("Rampant Growth");
+    expect(result[0]?.rationale).toContain("Top-heavy curve");
+  });
+
+  it("avoids cutting on-plan token finishers before off-plan finishers", () => {
+    const mockDb = createMockDb([
+      {
+        oracleId: "1",
+        name: "Moonshaker Cavalry",
+        mv: 8,
+        typeLine: "Creature - Horse",
+        oracleText: "Creatures you control gain flying and get +X/+X until end of turn, where X is the number of creatures you control.",
+        keywords: [],
+        colorIdentity: ["W"],
+        legalities: { commander: "legal" }
+      },
+      {
+        oracleId: "2",
+        name: "Craterhoof Behemoth",
+        mv: 8,
+        typeLine: "Creature - Beast",
+        oracleText: "Creatures you control gain trample and get +X/+X until end of turn, where X is the number of creatures you control.",
+        keywords: [],
+        colorIdentity: ["G"],
+        legalities: { commander: "legal" }
+      },
+      {
+        oracleId: "3",
+        name: "Aetherflux Reservoir",
+        mv: 4,
+        typeLine: "Artifact",
+        oracleText: "Whenever you cast a spell, you gain 1 life for each spell you've cast this turn.",
+        keywords: [],
+        colorIdentity: [],
+        legalities: { commander: "legal" }
+      }
+    ]);
+
+    const result = buildRoleSuggestions({
+      roleRows: [
+        {
+          key: "finishers",
+          label: "Finishers",
+          value: 8,
+          recommendedText: "2-6",
+          status: "HIGH"
+        }
+      ],
+      roleBreakdown: {
+        ramp: [],
+        draw: [],
+        removal: [],
+        wipes: [],
+        tutors: [],
+        protection: [],
+        finishers: [
+          { name: "Moonshaker Cavalry", qty: 1 },
+          { name: "Craterhoof Behemoth", qty: 1 },
+          { name: "Aetherflux Reservoir", qty: 1 }
+        ]
+      },
+      deckColorIdentity: ["G", "W"],
+      existingCardNames: ["Moonshaker Cavalry", "Craterhoof Behemoth", "Aetherflux Reservoir"],
+      archetypes: ["Tokens", "Go Wide"],
+      averageManaValue: 3.2,
+      manaCurve: { "4": 12, "5": 8, "6": 4, "7+": 3 },
+      cardDatabase: mockDb,
+      limit: 3
+    });
+
+    expect(result[0]?.direction).toBe("CUT");
+    expect(result[0]?.suggestions[0]).toBe("Aetherflux Reservoir");
+    expect(result[0]?.rationale).toContain("current archetypes");
+  });
 });

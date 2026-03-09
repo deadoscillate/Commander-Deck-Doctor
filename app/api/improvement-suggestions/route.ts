@@ -20,6 +20,9 @@ type SuggestionsRequest = {
   roleBreakdown?: unknown;
   deckColorIdentity?: unknown;
   existingCardNames?: unknown;
+  archetypes?: unknown;
+  manaCurve?: unknown;
+  averageManaValue?: unknown;
   limit?: unknown;
 };
 
@@ -160,6 +163,44 @@ function parseLimit(value: unknown): number {
   return Math.max(3, Math.min(10, Math.floor(value)));
 }
 
+function parseAverageManaValue(value: unknown): number | null {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return null;
+  }
+
+  return Math.max(0, Math.min(12, value));
+}
+
+function parseArchetypes(value: unknown): string[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value
+    .filter((item): item is string => typeof item === "string")
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .slice(0, 6);
+}
+
+function parseManaCurve(value: unknown): Record<string, number> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return {};
+  }
+
+  const record = value as Record<string, unknown>;
+  const parsed: Record<string, number> = {};
+  for (const [bucket, count] of Object.entries(record)) {
+    if (typeof count !== "number" || !Number.isFinite(count)) {
+      continue;
+    }
+
+    parsed[bucket] = Math.max(0, Math.floor(count));
+  }
+
+  return parsed;
+}
+
 export async function POST(request: Request) {
   const requestId = getRequestId(request);
   const rateLimit = await checkRateLimit(request, SUGGESTIONS_RATE_LIMIT);
@@ -193,6 +234,9 @@ export async function POST(request: Request) {
   const roleBreakdown = parseRoleBreakdown(payload.roleBreakdown);
   const deckColorIdentity = parseStringArray(payload.deckColorIdentity, 6, 4);
   const existingCardNames = parseStringArray(payload.existingCardNames, 400, 160);
+  const archetypes = parseArchetypes(payload.archetypes);
+  const manaCurve = parseManaCurve(payload.manaCurve);
+  const averageManaValue = parseAverageManaValue(payload.averageManaValue);
   const limit = parseLimit(payload.limit);
 
   try {
@@ -202,6 +246,9 @@ export async function POST(request: Request) {
       roleBreakdown,
       deckColorIdentity,
       existingCardNames,
+      archetypes,
+      manaCurve,
+      averageManaValue,
       cardDatabase: engine.cardDatabase,
       limit
     });
@@ -211,7 +258,7 @@ export async function POST(request: Request) {
         colorIdentity: deckColorIdentity,
         items,
         disclaimer:
-          "Suggestions prioritize staple options, then backfill from Commander-legal engine-classified cards in your color identity. Existing deck cards are excluded."
+          "Suggestions prioritize staple options, curve fit, protection density, and archetype lock-ins, then backfill from Commander-legal engine-classified cards in your color identity. Existing deck cards are excluded."
       },
       { status: 200, requestId, headers: rateLimitHeaders }
     );

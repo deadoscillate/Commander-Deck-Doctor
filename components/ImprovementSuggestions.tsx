@@ -39,6 +39,7 @@ export function ImprovementSuggestions({
               <p className="muted">
                 Current: {item.currentCount} | Recommended: {item.recommendedRange}
               </p>
+              {item.rationale ? <p className="muted">{item.rationale}</p> : null}
               {item.suggestions.length > 0 ? (
                 <div className="suggestion-card-grid">
                   {item.suggestions.map((name) => (

@@ -29,6 +29,13 @@ describe("POST /api/improvement-suggestions", () => {
             finishers: []
           },
           deckColorIdentity: ["G"],
+          archetypes: ["Lands Matter"],
+          manaCurve: {
+            "5": 8,
+            "6": 5,
+            "7+": 4
+          },
+          averageManaValue: 3.6,
           existingCardNames: ["Cultivate", "Llanowar Elves"],
           limit: 4
         })
@@ -38,13 +45,14 @@ describe("POST /api/improvement-suggestions", () => {
     expect(response.status).toBe(200);
     const payload = (await response.json()) as {
       colorIdentity: string[];
-      items: Array<{ key: string; suggestions: string[] }>;
+      items: Array<{ key: string; suggestions: string[]; rationale?: string }>;
       disclaimer: string;
     };
 
     expect(payload.colorIdentity).toEqual(["G"]);
     expect(payload.items[0]?.key).toBe("ramp");
     expect(payload.items[0]?.suggestions.length).toBeGreaterThan(0);
-    expect(payload.disclaimer).toContain("Commander-legal");
+    expect(payload.items[0]?.rationale).toBeTruthy();
+    expect(payload.disclaimer).toContain("curve fit");
   });
 });

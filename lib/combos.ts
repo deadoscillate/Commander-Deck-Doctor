@@ -1,6 +1,25 @@
 import rawComboDb from "./combos.json";
 
 const COMMANDER_SPELLBOOK_SEARCH_URL = "https://commanderspellbook.com/search/";
+const STAPLE_COMBO_PRIORITY = new Map(
+  [
+    ["Thassa's Oracle", "Demonic Consultation"],
+    ["Thassa's Oracle", "Tainted Pact"],
+    ["Heliod, Sun-Crowned", "Walking Ballista"],
+    ["Dramatic Reversal", "Isochron Scepter"],
+    ["Underworld Breach", "Brain Freeze", "Lion's Eye Diamond"],
+    ["Food Chain", "Squee, the Immortal"],
+    ["Food Chain", "Misthollow Griffin"],
+    ["Food Chain", "Eternal Scourge"],
+    ["Kiki-Jiki, Mirror Breaker", "Zealous Conscripts"],
+    ["Kiki-Jiki, Mirror Breaker", "Restoration Angel"],
+    ["Niv-Mizzet, Parun", "Curiosity"],
+    ["Niv-Mizzet, the Firemind", "Curiosity"],
+    ["Basalt Monolith", "Rings of Brighthearth"],
+    ["Helm of the Host", "Godo, Bandit Warlord"],
+    ["Sanguine Bond", "Exquisite Blood"]
+  ].map((cards, index) => [buildComboSignature(cards), 1000 - index] as const)
+);
 
 export type ComboDefinition = {
   comboName: string;
@@ -67,6 +86,47 @@ function normalizeLookupName(name: string): string {
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
     .replace(/[^a-z0-9]/g, "");
+}
+
+function buildComboSignature(cards: string[]): string {
+  return [...new Set(cards.map((card) => normalizeLookupName(card)).filter(Boolean))]
+    .sort((a, b) => a.localeCompare(b))
+    .join("|");
+}
+
+function hasVariantNoise(comboName: string, cards: string[]): boolean {
+  if (/\+\s+\d+\s+more\s+\[[^\]]+\]/i.test(comboName)) {
+    return true;
+  }
+
+  return cards.some((card) => /^_+$/.test(card.replace(/\s+/g, "")));
+}
+
+function getComboPriority(combo: ComboDefinition): number {
+  const staplePriority = STAPLE_COMBO_PRIORITY.get(buildComboSignature(combo.cards)) ?? 0;
+  const readableBonus = hasVariantNoise(combo.comboName, combo.cards) ? 0 : 25;
+  const compactBonus = Math.max(0, 6 - combo.cards.length) * 8;
+  const requirementPenalty = combo.requires.length * 3;
+  const conditionalPenalty = combo.isConditional ? 5 : 0;
+
+  return staplePriority + readableBonus + compactBonus - requirementPenalty - conditionalPenalty;
+}
+
+function compareDetectedCombos(a: ComboDefinition, b: ComboDefinition): number {
+  const priorityDelta = getComboPriority(b) - getComboPriority(a);
+  if (priorityDelta !== 0) {
+    return priorityDelta;
+  }
+
+  if (a.cards.length !== b.cards.length) {
+    return a.cards.length - b.cards.length;
+  }
+
+  if (a.requires.length !== b.requires.length) {
+    return a.requires.length - b.requires.length;
+  }
+
+  return a.comboName.localeCompare(b.comboName);
 }
 
 function buildCommanderSpellbookSearchUrl(comboName: string, cards: string[]): string {
@@ -284,7 +344,14 @@ export function detectCombosInDeck(deckCardNames: string[], options: DetectCombo
     });
   }
 
+  detected.sort(compareDetectedCombos);
+  conditional.sort(compareDetectedCombos);
   potential.sort((a, b) => {
+    const priorityDelta = getComboPriority(b) - getComboPriority(a);
+    if (priorityDelta !== 0) {
+      return priorityDelta;
+    }
+
     if (a.isConditional !== b.isConditional) {
       return a.isConditional ? 1 : -1;
     }
@@ -301,9 +368,8 @@ export function detectCombosInDeck(deckCardNames: string[], options: DetectCombo
       return b.completionRatio - a.completionRatio;
     }
 
-    return a.comboName.localeCompare(b.comboName);
+    return compareDetectedCombos(a, b);
   });
-  conditional.sort((a, b) => a.comboName.localeCompare(b.comboName));
 
   return {
     detected,

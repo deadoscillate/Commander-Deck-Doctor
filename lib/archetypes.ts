@@ -464,6 +464,19 @@ const ARCHETYPE_RULES: ArchetypeRule[] = [
     ]
   },
   {
+    label: "Legends Matter",
+    minimumScore: 4,
+    minimumMatchedCards: 2,
+    signals: [
+      signal(/\blegendary spell\b/, 2),
+      signal(/\blegendary permanent\b/, 2),
+      signal(/\blegendary creature\b/, 1.5),
+      signal(/\bhistoric spell\b/, 2),
+      signal(/\bwhenever you cast a legendary spell\b/, 2.5),
+      signal(/\bfor each legendary\b/, 2)
+    ]
+  },
+  {
     label: "Infect/Toxic",
     minimumScore: 4,
     minimumMatchedCards: 2,
@@ -522,6 +535,50 @@ const ARCHETYPE_RULES: ArchetypeRule[] = [
   }
 ];
 
+function parseTypeLineSubtypes(typeLine: string): string[] {
+  if (!typeLine.toLowerCase().includes("creature")) {
+    return [];
+  }
+
+  const parts = typeLine.split(/\s+[—-]\s+/);
+  if (parts.length < 2) {
+    return [];
+  }
+
+  return parts[1]
+    .split(/\s+/)
+    .map((token) => token.trim())
+    .filter(Boolean);
+}
+
+function computeKindredTypeLineBoost(deckCards: DeckCard[]): { matchedCards: number; score: number } {
+  const subtypeCounts = new Map<string, number>();
+  let creatureCount = 0;
+
+  for (const entry of deckCards) {
+    const subtypes = parseTypeLineSubtypes(entry.card.type_line);
+    if (subtypes.length === 0) {
+      continue;
+    }
+
+    creatureCount += entry.qty;
+    const uniqueSubtypes = [...new Set(subtypes)];
+    for (const subtype of uniqueSubtypes) {
+      subtypeCounts.set(subtype, (subtypeCounts.get(subtype) ?? 0) + entry.qty);
+    }
+  }
+
+  const topSubtypeCount = Math.max(0, ...subtypeCounts.values());
+  if (creatureCount < 12 || topSubtypeCount < 8) {
+    return { matchedCards: 0, score: 0 };
+  }
+
+  return {
+    matchedCards: topSubtypeCount,
+    score: Math.min(MAX_ARCHETYPE_SCORE_PER_CARD * 3, topSubtypeCount * 0.45)
+  };
+}
+
 function toConfidence(score: number, deckSize: number): number {
   if (deckSize <= 0 || score <= 0) {
     return 0;
@@ -560,6 +617,8 @@ export function computeDeckArchetypes(deckCards: DeckCard[], deckSize: number): 
     };
   });
 
+  const kindredTypeLineBoost = computeKindredTypeLineBoost(deckCards);
+
   const scored = ARCHETYPE_RULES.map((rule) => {
     let matchedCards = 0;
     let score = 0;
@@ -573,6 +632,11 @@ export function computeDeckArchetypes(deckCards: DeckCard[], deckSize: number): 
 
       matchedCards += entry.qty;
       score += cardScore * entry.qty;
+    }
+
+    if (rule.label === "Kindred (Tribal)") {
+      matchedCards += kindredTypeLineBoost.matchedCards;
+      score += kindredTypeLineBoost.score;
     }
 
     return {

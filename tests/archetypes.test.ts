@@ -173,6 +173,31 @@ describe("computeDeckArchetypes parlance coverage", () => {
     expect((counts.get("Spells From Exile") ?? 0) > 0).toBe(true);
   });
 
+  it("detects type-line tribal decks and legends-matter support cards", () => {
+    const cards: DeckCard[] = [
+      buildDeckCard("Lathril, Blade of the Elves", 1, "Menace. Whenever Lathril deals combat damage to a player, create that many 1/1 green Elf Warrior creature tokens.", "Legendary Creature - Elf Noble"),
+      buildDeckCard("Elvish Archdruid", 1, "Other Elf creatures you control get +1/+1. {T}: Add {G} for each Elf you control.", "Creature - Elf Druid"),
+      buildDeckCard("Priest of Titania", 1, "{T}: Add {G} for each Elf on the battlefield.", "Creature - Elf Druid"),
+      buildDeckCard("Elvish Warmaster", 1, "Whenever one or more other Elves enter the battlefield under your control, create a 1/1 green Elf Warrior creature token.", "Creature - Elf Warrior"),
+      buildDeckCard("Imperious Perfect", 1, "Other Elf creatures you control get +1/+1. {G}, {T}: Create a 1/1 green Elf Warrior creature token.", "Creature - Elf Warrior"),
+      buildDeckCard("Elvish Mystic", 1, "{T}: Add {G}.", "Creature - Elf Druid"),
+      buildDeckCard("Dwynen's Elite", 1, "When Dwynen's Elite enters the battlefield, if you control another Elf, create a 1/1 green Elf Warrior creature token.", "Creature - Elf Warrior"),
+      buildDeckCard("Beast Whisperer", 1, "Whenever you cast a creature spell, draw a card.", "Creature - Elf Druid"),
+      buildDeckCard("Joraga Warcaller", 1, "Multikicker {1}{G}. Other Elf creatures you control get +1/+1 for each +1/+1 counter on Joraga Warcaller.", "Creature - Elf Warrior"),
+      buildDeckCard("Realmwalker", 1, "As Realmwalker enters the battlefield, choose a creature type. You may look at the top card of your library any time. You may cast creature spells of the chosen type from the top of your library.", "Creature - Shapeshifter"),
+      buildDeckCard("Rishkar's Expertise", 1, "Draw cards equal to the greatest power among creatures you control. You may cast a spell with mana value 5 or less from your hand without paying its mana cost.", "Sorcery"),
+      buildDeckCard("Shanid, Sleepers' Scourge", 1, "Menace. Whenever you play a legendary land or cast a legendary spell, you draw a card and you lose 1 life.", "Legendary Creature - Human Knight"),
+      buildDeckCard("Reki, the History of Kamigawa", 1, "Whenever you cast a legendary spell, draw a card.", "Legendary Creature - Human Shaman"),
+      buildDeckCard("Heroes' Podium", 1, "Each legendary creature you control gets +1/+1 for each other legendary creature you control.", "Legendary Artifact")
+    ];
+
+    const report = computeDeckArchetypes(cards, 100);
+    const counts = new Map(report.counts.map((row) => [row.archetype, row.tagCount]));
+
+    expect((counts.get("Kindred (Tribal)") ?? 0) > 0).toBe(true);
+    expect((counts.get("Legends Matter") ?? 0) > 0).toBe(true);
+  });
+
   it("still tags classic archetypes like wheels and spellslinger", () => {
     const cards: DeckCard[] = [
       buildDeckCard(

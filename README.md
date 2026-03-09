@@ -305,9 +305,9 @@ npm run bench:analyze -- --file tests/fixtures/kentaro-benchmark.decklist.txt --
 
 ### Phase 2: Analyzer Quality
 
-1. Started: archetype detection now uses weighted signals, per-archetype thresholds, and broader taxonomy coverage (`Cascade`, `Topdeck Matters`, `Clues/Food/Blood`, `Spells From Exile`) to reduce one-card false positives.
-2. Grow combo database breadth, including more common infinite lines and commander-specific packages.
-3. Improve cut/add recommendation ranking (curve pressure, redundancy, protection density, strategy lock-ins) now that suggestions can be iterated independently from initial analyze latency.
+1. Started: archetype detection now uses weighted signals, per-archetype thresholds, and broader taxonomy coverage (`Cascade`, `Topdeck Matters`, `Clues/Food/Blood`, `Spells From Exile`, `Legends Matter`) plus a type-line tribal heuristic so kindred decks can still classify even when oracle text lacks explicit "choose a creature type" support cards.
+2. Started: combo data refreshed from Commander Spellbook (`27,124` variants downloaded on March 9, 2026 -> `26,393` normalized Commander-legal combos) with regression coverage for staple exact lines such as `Oracle Consultation`, `Heliod + Ballista`, `Dramatic Scepter`, `Underworld Breach`, `Food Chain + Squee`, `Kiki + Conscripts`, and `Niv-Mizzet + Curiosity`; detected/potential combo ranking now prioritizes short, readable staple lines ahead of noisier Spellbook variants.
+3. Started: cut/add recommendation ranking now considers curve pressure, archetype lock-ins, and lower-flexibility trims; the deferred suggestions API also returns a short rationale per role so users can see why those adds/cuts were prioritized.
 4. Tighten commander auto-detection and no-commander fallback behavior, since prod telemetry showed slower request shapes there earlier.
 
 ### Phase 3: Commander Rules Completeness

@@ -42,6 +42,7 @@ export type RoleSuggestions = {
   currentCount: number;
   recommendedRange: string;
   direction: "ADD" | "CUT";
+  rationale?: string;
   suggestions: string[];
 };
 
@@ -56,8 +57,20 @@ type BuildRoleSuggestionsInput = {
   roleBreakdown?: RoleBreakdown;
   deckColorIdentity: string[];
   existingCardNames: string[];
+  archetypes?: string[];
+  manaCurve?: Record<string, number>;
+  averageManaValue?: number | null;
   cardDatabase?: SuggestionCardDatabase;
   limit?: number;
+};
+
+type SuggestionContext = {
+  archetypes: Set<string>;
+  averageManaValue: number;
+  manaCurve: Record<string, number>;
+  topHeavyCurve: boolean;
+  lowProtection: boolean;
+  roleValues: Partial<Record<SuggestionRoleKey, number>>;
 };
 
 const FALLBACK_ROLE_CARD_POOLS: Record<SuggestionRoleKey, SuggestionCard[]> = {
@@ -130,6 +143,7 @@ const ROLE_PREFERRED_ORDER: Record<SuggestionRoleKey, string[]> = {
   ramp: [
     "Arcane Signet",
     "Fellwar Stone",
+    "Relic of Legends",
     "Nature's Lore",
     "Three Visits",
     "Farseek",
@@ -149,6 +163,9 @@ const ROLE_PREFERRED_ORDER: Record<SuggestionRoleKey, string[]> = {
     "Rhystic Study",
     "Mystic Remora",
     "Esper Sentinel",
+    "Kindred Discovery",
+    "Guardian Project",
+    "Reki, the History of Kamigawa",
     "Phyrexian Arena",
     "Night's Whisper",
     "Sign in Blood",
@@ -218,10 +235,57 @@ const ROLE_PREFERRED_ORDER: Record<SuggestionRoleKey, string[]> = {
     "Overwhelming Stampede",
     "Akroma's Will",
     "Moonshaker Cavalry",
+    "Coat of Arms",
     "Walking Ballista",
     "Aetherflux Reservoir",
     "Laboratory Maniac"
   ]
+};
+
+const ARCHETYPE_ROLE_PRIORITY: Partial<Record<string, Partial<Record<SuggestionRoleKey, string[]>>>> = {
+  Tokens: {
+    draw: ["Skullclamp", "Tocasia's Welcome"],
+    finishers: ["Moonshaker Cavalry", "Craterhoof Behemoth", "Finale of Devastation", "Akroma's Will"]
+  },
+  "Go Wide": {
+    draw: ["Skullclamp", "Tocasia's Welcome"],
+    finishers: ["Moonshaker Cavalry", "Craterhoof Behemoth", "Akroma's Will", "Overwhelming Stampede"]
+  },
+  "Kindred (Tribal)": {
+    draw: ["Kindred Discovery", "Guardian Project", "Reki, the History of Kamigawa"],
+    finishers: ["Coat of Arms", "Moonshaker Cavalry", "Craterhoof Behemoth"]
+  },
+  "Legends Matter": {
+    ramp: ["Relic of Legends", "Delighted Halfling"],
+    draw: ["Reki, the History of Kamigawa"]
+  },
+  Spellslinger: {
+    draw: ["Ponder", "Preordain", "Brainstorm", "Fact or Fiction"],
+    protection: ["Swan Song", "Counterspell", "Fierce Guardianship", "Deflecting Swat"],
+    finishers: ["Aetherflux Reservoir"]
+  },
+  Storm: {
+    draw: ["Ponder", "Preordain", "Brainstorm", "Fact or Fiction"],
+    protection: ["Swan Song", "Counterspell", "Fierce Guardianship"],
+    finishers: ["Aetherflux Reservoir"]
+  },
+  Artifacts: {
+    ramp: ["Arcane Signet", "Fellwar Stone", "Thought Vessel"],
+    finishers: ["Walking Ballista", "Aetherflux Reservoir"]
+  },
+  Counters: {
+    finishers: ["Walking Ballista", "Finale of Devastation"]
+  },
+  Aristocrats: {
+    protection: ["Teferi's Protection", "Flawless Maneuver"],
+    finishers: ["Exsanguinate", "Torment of Hailfire"]
+  },
+  "Life Drain": {
+    finishers: ["Exsanguinate", "Torment of Hailfire", "Aetherflux Reservoir"]
+  },
+  "Lands Matter": {
+    ramp: ["Nature's Lore", "Three Visits", "Farseek", "Cultivate", "Kodama's Reach"]
+  }
 };
 
 const ROLE_KEYS: SuggestionRoleKey[] = ["ramp", "draw", "removal", "wipes", "protection", "finishers"];
@@ -397,6 +461,135 @@ function buildIndexedCards(cardDatabase: SuggestionCardDatabase): IndexedCard[] 
   return indexed;
 }
 
+function buildSuggestionContext(input: BuildRoleSuggestionsInput): SuggestionContext {
+  const averageManaValue =
+    typeof input.averageManaValue === "number" && Number.isFinite(input.averageManaValue)
+      ? Math.max(0, input.averageManaValue)
+      : 0;
+  const manaCurve = input.manaCurve ?? {};
+  const highCurveCount =
+    (typeof manaCurve["5"] === "number" ? manaCurve["5"] : 0) +
+    (typeof manaCurve["6"] === "number" ? manaCurve["6"] : 0) +
+    (typeof manaCurve["7+"] === "number" ? manaCurve["7+"] : 0);
+  const lowProtectionRow = input.roleRows.find((row) => row.key === "protection");
+  const roleValues = Object.fromEntries(
+    input.roleRows
+      .filter((row): row is typeof row & { key: SuggestionRoleKey } => row.key !== "lands")
+      .map((row) => [row.key, row.value])
+  ) as Partial<Record<SuggestionRoleKey, number>>;
+
+  return {
+    archetypes: new Set((input.archetypes ?? []).filter(Boolean)),
+    averageManaValue,
+    manaCurve,
+    topHeavyCurve: averageManaValue >= 3.3 || highCurveCount >= 20,
+    lowProtection: lowProtectionRow?.status === "LOW" || (roleValues.protection ?? 0) <= 2,
+    roleValues
+  };
+}
+
+function archetypeSynergyScore(roleKey: SuggestionRoleKey, card: IndexedCard, context: SuggestionContext): number {
+  const text = `${card.name}\n${card.typeLine}\n${card.oracleText}`.toLowerCase();
+  let score = 0;
+
+  if ((context.archetypes.has("Tokens") || context.archetypes.has("Go Wide")) && roleKey === "finishers") {
+    if (/creatures you control[^.]{0,120}get \+|for each creature you control|for each token/.test(text)) score += 28;
+  }
+
+  if (context.archetypes.has("Kindred (Tribal)")) {
+    if (roleKey === "draw" && /creature type|kindred|sliver|tribal/.test(text)) score += 14;
+    if (roleKey === "finishers" && /for each creature type|creatures you control[^.]{0,120}get \+/.test(text)) score += 12;
+  }
+
+  if (context.archetypes.has("Legends Matter") && (roleKey === "ramp" || roleKey === "draw")) {
+    if (/legendary|historic/.test(text)) score += 16;
+  }
+
+  if ((context.archetypes.has("Spellslinger") || context.archetypes.has("Storm")) && roleKey !== "ramp") {
+    if ((roleKey === "draw" || roleKey === "protection" || roleKey === "removal") && /instant|sorcery/.test(card.typeLine.toLowerCase())) score += 10;
+    if (roleKey === "finishers" && /(aetherflux reservoir|cast an instant or sorcery|noncreature spell)/.test(text)) score += 18;
+  }
+
+  if (context.archetypes.has("Artifacts")) {
+    if ((roleKey === "ramp" || roleKey === "draw" || roleKey === "finishers") && card.typeLine.toLowerCase().includes("artifact")) score += 12;
+  }
+
+  if ((context.archetypes.has("Aristocrats") || context.archetypes.has("Life Drain")) && roleKey === "finishers") {
+    if (/each opponent loses|you gain life|blood artist|drain/.test(text)) score += 14;
+  }
+
+  if (context.archetypes.has("Counters") && roleKey === "finishers") {
+    if (/counter|walking ballista/.test(text)) score += 12;
+  }
+
+  if (context.archetypes.has("Lands Matter") && roleKey === "ramp") {
+    if (/search your library for|additional land|land card/.test(text)) score += 10;
+  }
+
+  return score;
+}
+
+function curvePressureScore(roleKey: SuggestionRoleKey, card: IndexedCard, context: SuggestionContext): number {
+  if (!context.topHeavyCurve) {
+    return 0;
+  }
+
+  if (roleKey === "ramp" || roleKey === "draw" || roleKey === "removal" || roleKey === "protection") {
+    if (card.mv <= 2) return 14;
+    if (card.mv === 3) return 6;
+    if (card.mv >= 5) return -12;
+    if (card.mv === 4) return -4;
+  }
+
+  if (roleKey === "finishers") {
+    if (card.mv <= 6) return 8;
+    if (card.mv >= 9) return -8;
+  }
+
+  return 0;
+}
+
+function flexibilityScore(card: IndexedCard): number {
+  const roleHits = ROLE_KEYS.reduce((sum, roleKey) => sum + (card.flags[roleKey] ? 1 : 0), 0);
+  return Math.max(0, roleHits - 1) * 5;
+}
+
+function buildSuggestionRationale(
+  roleKey: SuggestionRoleKey,
+  direction: "ADD" | "CUT",
+  context: SuggestionContext
+): string {
+  if (direction === "ADD") {
+    if (roleKey === "ramp" && context.topHeavyCurve) {
+      return "Top-heavy curve pushes cheaper acceleration to the front.";
+    }
+
+    if (roleKey === "protection" && context.lowProtection) {
+      return "Low protection density favors cheaper shields first.";
+    }
+
+    if (roleKey === "finishers" && context.archetypes.size > 0) {
+      return `Finisher picks are biased toward current archetypes: ${[...context.archetypes].slice(0, 2).join(" / ")}.`;
+    }
+
+    if (context.archetypes.size > 0) {
+      return `Suggestions are biased toward current archetypes: ${[...context.archetypes].slice(0, 2).join(" / ")}.`;
+    }
+
+    return "Suggestions prioritize curve fit and staple efficiency first.";
+  }
+
+  if (context.topHeavyCurve) {
+    return "Cuts prioritize expensive, lower-flexibility cards first.";
+  }
+
+  if (context.archetypes.size > 0) {
+    return `Cuts avoid cards that look core to current archetypes: ${[...context.archetypes].slice(0, 2).join(" / ")}.`;
+  }
+
+  return "Cuts prioritize higher-cost, lower-flexibility role cards first.";
+}
+
 export function prewarmRoleSuggestionsIndex(cardDatabase?: SuggestionCardDatabase): void {
   if (!cardDatabase) {
     return;
@@ -409,10 +602,13 @@ function preferredCandidatesForRole(
   roleKey: SuggestionRoleKey,
   deckColors: Set<string>,
   existing: Set<string>,
+  context: SuggestionContext,
   limit: number,
   cardDatabase?: SuggestionCardDatabase
 ): string[] {
-  const preferred = ROLE_PREFERRED_ORDER[roleKey] ?? [];
+  const contextualPreferred = [...context.archetypes]
+    .flatMap((archetype) => ARCHETYPE_ROLE_PRIORITY[archetype]?.[roleKey] ?? []);
+  const preferred = [...new Set([...contextualPreferred, ...(ROLE_PREFERRED_ORDER[roleKey] ?? [])])];
   const picked: string[] = [];
 
   for (const name of preferred) {
@@ -454,6 +650,7 @@ function dynamicCandidatesForRole(
   deckColors: Set<string>,
   existing: Set<string>,
   taken: Set<string>,
+  context: SuggestionContext,
   limit: number,
   cardDatabase?: SuggestionCardDatabase
 ): string[] {
@@ -469,7 +666,11 @@ function dynamicCandidatesForRole(
     .filter((card) => !taken.has(card.normalizedName))
     .map((card) => ({
       card,
-      score: roleScore(roleKey, card)
+      score:
+        roleScore(roleKey, card) +
+        curvePressureScore(roleKey, card, context) +
+        archetypeSynergyScore(roleKey, card, context) +
+        (roleKey === "protection" && context.lowProtection && card.mv <= 2 ? 8 : 0)
     }))
     .sort((a, b) => {
       const scoreDiff = b.score - a.score;
@@ -486,7 +687,8 @@ function dynamicCandidatesForRole(
 function cutScoreForRole(
   roleKey: SuggestionRoleKey,
   qty: number,
-  card: SuggestionCardDefinition | null
+  card: SuggestionCardDefinition | null,
+  context: SuggestionContext
 ): number {
   const name = card?.name ?? "";
   const normalizedName = normalizeCardName(name);
@@ -526,12 +728,38 @@ function cutScoreForRole(
     score -= 20;
   }
 
+  if (context.topHeavyCurve && mv >= 5) {
+    score += 8;
+  }
+
+  if (card) {
+    const indexedCard: IndexedCard = {
+      name: card.name,
+      normalizedName,
+      mv,
+      typeLine: card.typeLine,
+      oracleText: card.oracleText,
+      colorIdentity: normalizeColorIdentity(card.colorIdentity),
+      flags: classifyCardRoles({
+        typeLine: card.typeLine,
+        oracleText: card.oracleText,
+        keywords: card.keywords,
+        behaviorId: card.behaviorId ?? null,
+        oracleId: card.oracleId,
+        cardName: card.name
+      })
+    };
+    score -= flexibilityScore(indexedCard);
+    score -= archetypeSynergyScore(roleKey, indexedCard, context);
+  }
+
   return score;
 }
 
 function cutCandidatesForRole(
   roleKey: SuggestionRoleKey,
   roleBreakdown: RoleBreakdown | undefined,
+  context: SuggestionContext,
   limit: number,
   cardDatabase?: SuggestionCardDatabase
 ): string[] {
@@ -544,7 +772,7 @@ function cutCandidatesForRole(
     .map((row) => ({
       name: row.name,
       qty: row.qty,
-      score: cutScoreForRole(roleKey, row.qty, cardDatabase?.getCardByName(row.name) ?? null)
+      score: cutScoreForRole(roleKey, row.qty, cardDatabase?.getCardByName(row.name) ?? null, context)
     }))
     .sort((a, b) => {
       if (b.score !== a.score) {
@@ -588,12 +816,26 @@ export function buildRoleSuggestions({
   roleBreakdown,
   deckColorIdentity,
   existingCardNames,
+  archetypes,
+  manaCurve,
+  averageManaValue,
   cardDatabase,
   limit = 6
 }: BuildRoleSuggestionsInput): RoleSuggestions[] {
   const normalizedLimit = Math.max(3, Math.min(10, Math.floor(limit)));
   const deckColors = new Set(normalizeColorIdentity(deckColorIdentity));
   const existing = new Set(existingCardNames.map((name) => normalizeCardName(name)));
+  const context = buildSuggestionContext({
+    roleRows,
+    roleBreakdown,
+    deckColorIdentity,
+    existingCardNames,
+    archetypes,
+    manaCurve,
+    averageManaValue,
+    cardDatabase,
+    limit
+  });
   const output: RoleSuggestions[] = [];
 
   for (const role of roleRows) {
@@ -606,7 +848,7 @@ export function buildRoleSuggestions({
     let direction: "ADD" | "CUT" = "ADD";
 
     if (role.status === "LOW") {
-      picked = preferredCandidatesForRole(roleKey, deckColors, existing, normalizedLimit, cardDatabase);
+      picked = preferredCandidatesForRole(roleKey, deckColors, existing, context, normalizedLimit, cardDatabase);
       const taken = new Set(picked.map((name) => normalizeCardName(name)));
 
       if (picked.length < normalizedLimit) {
@@ -615,6 +857,7 @@ export function buildRoleSuggestions({
           deckColors,
           existing,
           taken,
+          context,
           normalizedLimit - picked.length,
           cardDatabase
         );
@@ -622,7 +865,7 @@ export function buildRoleSuggestions({
       }
     } else {
       direction = "CUT";
-      picked = cutCandidatesForRole(roleKey, roleBreakdown, normalizedLimit, cardDatabase);
+      picked = cutCandidatesForRole(roleKey, roleBreakdown, context, normalizedLimit, cardDatabase);
     }
 
     output.push({
@@ -631,6 +874,7 @@ export function buildRoleSuggestions({
       currentCount: role.value,
       recommendedRange: role.recommendedText,
       direction,
+      rationale: buildSuggestionRationale(roleKey, direction, context),
       suggestions: picked
     });
   }
