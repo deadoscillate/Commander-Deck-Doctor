@@ -448,4 +448,40 @@ describe("app page analyze flow", () => {
     expect(payload.decklist).toContain("(FIC) 60");
     expect(payload.commanderName).toBe("Cloud Strife");
   });
+
+  it("imports an Archidekt deck into print-aware analysis mode", async () => {
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({
+        provider: "archidekt",
+        providerDeckId: "8976321",
+        deckName: "Edric Flyers",
+        decklist: "Commander\n1 Edric, Spymaster of Trest (OTC) 221\n\nDeck\n1 Sol Ring (CMM) 217\n98 Island (DMR) 405",
+        cardCount: 100,
+        commanderCount: 1
+      })
+    );
+
+    const user = userEvent.setup();
+    const { default: Page } = await import("@/app/page");
+    render(<Page />);
+
+    await user.type(
+      screen.getByLabelText(/Deck URL \(Archidekt\)/i),
+      "https://archidekt.com/decks/8976321/edric-flyers"
+    );
+    await user.click(screen.getByRole("button", { name: /Import URL/i }));
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
+
+    expect(fetchMock.mock.calls[0]?.[0]).toBe("/api/import-url");
+    expect(
+      (screen.getByLabelText(/Decklist \(paste here\)/i) as HTMLTextAreaElement).value
+    ).toBe("Commander\n1 Edric, Spymaster of Trest (OTC) 221\n\nDeck\n1 Sol Ring (CMM) 217\n98 Island (DMR) 405");
+    expect(
+      (screen.getByLabelText(/Card pricing lookup/i) as HTMLSelectElement).value
+    ).toBe("decklist-set");
+    expect(screen.getByText(/Imported: Edric Flyers \(Commander: Edric, Spymaster of Trest\)/i)).toBeTruthy();
+  });
 });

@@ -1,9 +1,11 @@
-type Provider = "moxfield" | "archidekt";
+type Provider = "archidekt";
 const PROVIDER_FETCH_TIMEOUT_MS = 10_000;
 
 type DeckEntry = {
   name: string;
   qty: number;
+  setCode?: string;
+  collectorNumber?: string;
 };
 
 type JsonRecord = Record<string, unknown>;
@@ -52,11 +54,19 @@ function normalizeName(name: string): string {
     .replace(/[^a-z0-9]/g, "");
 }
 
+function normalizeCategoryName(name: string): string {
+  return name.trim().toLowerCase();
+}
+
 function mergeEntries(entries: DeckEntry[]): DeckEntry[] {
   const merged = new Map<string, DeckEntry>();
 
   for (const entry of entries) {
-    const key = normalizeName(entry.name);
+    const key = [
+      normalizeName(entry.name),
+      entry.setCode?.toLowerCase() ?? "",
+      entry.collectorNumber?.toLowerCase() ?? ""
+    ].join("|");
     const existing = merged.get(key);
     if (existing) {
       existing.qty += entry.qty;
@@ -69,19 +79,30 @@ function mergeEntries(entries: DeckEntry[]): DeckEntry[] {
 }
 
 function toDecklist(commanders: DeckEntry[], deckCards: DeckEntry[]): string {
+  const formatEntry = (row: DeckEntry) => {
+    if (row.setCode && row.collectorNumber) {
+      return `${row.qty} ${row.name} (${row.setCode.toUpperCase()}) ${row.collectorNumber}`;
+    }
+
+    if (row.setCode) {
+      return `${row.qty} ${row.name} (${row.setCode.toUpperCase()})`;
+    }
+
+    return `${row.qty} ${row.name}`;
+  };
   const lines: string[] = [];
 
   if (commanders.length > 0) {
     lines.push("Commander");
     for (const row of commanders) {
-      lines.push(`${row.qty} ${row.name}`);
+      lines.push(formatEntry(row));
     }
     lines.push("");
   }
 
   lines.push("Deck");
   for (const row of deckCards) {
-    lines.push(`${row.qty} ${row.name}`);
+    lines.push(formatEntry(row));
   }
 
   return lines.join("\n");
@@ -122,48 +143,45 @@ function getEntryQty(raw: unknown): number {
   );
 }
 
+function getEntrySetCode(raw: unknown): string | null {
+  const obj = asRecord(raw);
+  if (!obj) {
+    return null;
+  }
+
+  const edition = asRecord(obj.edition);
+  const card = asRecord(obj.card);
+  const rowEdition = asRecord(card?.edition);
+  return (
+    asString(edition?.editioncode) ??
+    asString(rowEdition?.editioncode)
+  );
+}
+
+function getEntryCollectorNumber(raw: unknown): string | null {
+  const obj = asRecord(raw);
+  if (!obj) {
+    return null;
+  }
+
+  const card = asRecord(obj.card);
+  return asString(obj.collectorNumber) ?? asString(card?.collectorNumber);
+}
+
 function toEntry(raw: unknown, fallbackName?: string): DeckEntry | null {
   const name = getEntryName(raw) ?? (fallbackName ? asString(fallbackName) : null);
   if (!name) {
     return null;
   }
 
+  const setCode = getEntrySetCode(raw)?.toLowerCase() ?? undefined;
+  const collectorNumber = getEntryCollectorNumber(raw) ?? undefined;
   return {
     name,
-    qty: getEntryQty(raw)
+    qty: getEntryQty(raw),
+    setCode,
+    collectorNumber
   };
-}
-
-function extractEntriesFromUnknownBoard(board: unknown): DeckEntry[] {
-  if (!board) {
-    return [];
-  }
-
-  if (Array.isArray(board)) {
-    return board.map((item) => toEntry(item)).filter((item): item is DeckEntry => Boolean(item));
-  }
-
-  if (typeof board === "object") {
-    const rows: DeckEntry[] = [];
-    for (const [key, value] of Object.entries(board as Record<string, unknown>)) {
-      if (typeof value === "number") {
-        const name = asString(key);
-        const qty = asPositiveInt(value);
-        if (name && qty) {
-          rows.push({ name, qty });
-        }
-        continue;
-      }
-
-      const entry = toEntry(value, key);
-      if (entry) {
-        rows.push(entry);
-      }
-    }
-    return rows;
-  }
-
-  return [];
 }
 
 function categoriesContainCommander(raw: unknown): boolean {
@@ -201,15 +219,6 @@ function parseProvider(urlInput: string): { provider: Provider; id: string } {
   const host = parsedUrl.hostname.toLowerCase();
   const path = parsedUrl.pathname;
 
-  if (host.includes("moxfield.com")) {
-    const match = path.match(/\/decks\/([^/?#]+)/i);
-    if (!match) {
-      throw new Error("Could not parse Moxfield deck ID from URL.");
-    }
-
-    return { provider: "moxfield", id: match[1] };
-  }
-
   if (host.includes("archidekt.com")) {
     const match = path.match(/\/(?:api\/)?decks\/(\d+)/i);
     if (!match) {
@@ -219,14 +228,10 @@ function parseProvider(urlInput: string): { provider: Provider; id: string } {
     return { provider: "archidekt", id: match[1] };
   }
 
-  throw new Error("Unsupported deck URL. Supported providers: Moxfield, Archidekt.");
+  throw new Error("Unsupported deck URL. Supported provider: Archidekt.");
 }
 
-function looksLikeCloudflareBlock(body: string): boolean {
-  return /cloudflare|attention required|you have been blocked/i.test(body);
-}
-
-async function fetchJson(url: string, provider: Provider): Promise<unknown> {
+async function fetchJson(url: string): Promise<unknown> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), PROVIDER_FETCH_TIMEOUT_MS);
 
@@ -252,14 +257,6 @@ async function fetchJson(url: string, provider: Provider): Promise<unknown> {
   }
 
   if (!response.ok) {
-    const body = await response.text().catch(() => "");
-
-    if (provider === "moxfield" && (response.status === 403 || looksLikeCloudflareBlock(body))) {
-      throw new Error(
-        "Moxfield blocked automated requests from this environment (Cloudflare). Use an Archidekt URL or paste decklist text directly."
-      );
-    }
-
     if (response.status === 404) {
       throw new Error("Deck not found. Check the URL and make sure the deck is public.");
     }
@@ -274,29 +271,79 @@ async function fetchJson(url: string, provider: Provider): Promise<unknown> {
   return response.json();
 }
 
+function buildCategoryInclusionLookup(raw: unknown): Map<string, boolean> {
+  const rows = Array.isArray(raw) ? raw : [];
+  const lookup = new Map<string, boolean>();
+  for (const row of rows) {
+    const category = asRecord(row);
+    const name = asString(category?.name);
+    if (!name) {
+      continue;
+    }
+
+    lookup.set(normalizeCategoryName(name), category?.includedInDeck !== false);
+  }
+
+  return lookup;
+}
+
+function rowIncludedInDeck(
+  rawCategories: unknown,
+  categoryInclusionLookup: Map<string, boolean>
+): boolean {
+  if (!Array.isArray(rawCategories) || rawCategories.length === 0) {
+    return true;
+  }
+
+  let sawKnownCategory = false;
+  let included = false;
+  for (const row of rawCategories) {
+    const name = typeof row === "string" ? row : asString(asRecord(row)?.name);
+    if (!name) {
+      continue;
+    }
+
+    const normalizedName = normalizeCategoryName(name);
+    const categoryIncluded = categoryInclusionLookup.get(normalizedName);
+    if (typeof categoryIncluded !== "boolean") {
+      continue;
+    }
+
+    sawKnownCategory = true;
+    if (categoryIncluded) {
+      included = true;
+      break;
+    }
+  }
+
+  return sawKnownCategory ? included : true;
+}
+
 async function importFromArchidekt(id: string): Promise<DeckImportResult> {
-  const data = asRecord(await fetchJson(`https://archidekt.com/api/decks/${id}/`, "archidekt"));
+  const data = asRecord(await fetchJson(`https://archidekt.com/api/decks/${id}/`));
   const cards = Array.isArray(data?.cards) ? data.cards : [];
+  const categoryInclusionLookup = buildCategoryInclusionLookup(data?.categories);
 
   const commanders: DeckEntry[] = [];
   const mainboard: DeckEntry[] = [];
 
   for (const cardRow of cards) {
     const cardRowObj = asRecord(cardRow);
-    const rowCard = asRecord(cardRowObj?.card);
-    const oracleCard = asRecord(rowCard?.oracleCard);
-    const name = asString(oracleCard?.name) ?? asString(rowCard?.name);
-    const qty = asPositiveInt(cardRowObj?.quantity) ?? 1;
-    if (!name) {
+    if (!rowIncludedInDeck(cardRowObj?.categories, categoryInclusionLookup)) {
+      continue;
+    }
+
+    const entry = toEntry(cardRowObj);
+    if (!entry) {
       continue;
     }
 
     const isCommander =
       categoriesContainCommander(cardRowObj?.categories) || cardRowObj?.companion === true;
     if (isCommander) {
-      commanders.push({ name, qty });
+      commanders.push(entry);
     } else {
-      mainboard.push({ name, qty });
+      mainboard.push(entry);
     }
   }
 
@@ -314,87 +361,10 @@ async function importFromArchidekt(id: string): Promise<DeckImportResult> {
   };
 }
 
-function splitMoxfieldBoards(data: JsonRecord): { commanders: DeckEntry[]; mainboard: DeckEntry[] } {
-  const commanders: DeckEntry[] = [];
-  const mainboard: DeckEntry[] = [];
-
-  commanders.push(...extractEntriesFromUnknownBoard(data?.commanders));
-  mainboard.push(...extractEntriesFromUnknownBoard(data?.mainboard));
-
-  const boards = asRecord(data.boards);
-  if (boards) {
-    for (const [boardName, boardValue] of Object.entries(boards)) {
-      const key = boardName.toLowerCase();
-      const boardObj = asRecord(boardValue);
-      const rows = extractEntriesFromUnknownBoard(boardObj?.cards ?? boardValue);
-      if (rows.length === 0) {
-        continue;
-      }
-
-      if (key.includes("commander")) {
-        commanders.push(...rows);
-      } else if (key.includes("main") || key.includes("deck")) {
-        mainboard.push(...rows);
-      }
-    }
-  }
-
-  if (mainboard.length === 0 && Array.isArray(data?.cards)) {
-    for (const row of data.cards) {
-      const entry = toEntry(row);
-      if (!entry) {
-        continue;
-      }
-
-      const rowObj = asRecord(row);
-      const commanderHint =
-        rowObj?.isCommander === true ||
-        asString(rowObj?.board)?.toLowerCase().includes("commander") === true ||
-        asString(rowObj?.zone)?.toLowerCase().includes("commander") === true ||
-        categoriesContainCommander(rowObj?.categories);
-
-      if (commanderHint) {
-        commanders.push(entry);
-      } else {
-        mainboard.push(entry);
-      }
-    }
-  }
-
-  return {
-    commanders: mergeEntries(commanders),
-    mainboard: mergeEntries(mainboard)
-  };
-}
-
-async function importFromMoxfield(id: string): Promise<DeckImportResult> {
-  const data = asRecord(await fetchJson(`https://api.moxfield.com/v2/decks/${id}`, "moxfield"));
-  if (!data) {
-    throw new Error("Import failed: unexpected Moxfield response format.");
-  }
-
-  const { commanders, mainboard } = splitMoxfieldBoards(data);
-
-  return {
-    provider: "moxfield",
-    providerDeckId: id,
-    deckName: asString(data?.name),
-    decklist: toDecklist(commanders, mainboard),
-    cardCount: mainboard.reduce((sum, row) => sum + row.qty, 0) +
-      commanders.reduce((sum, row) => sum + row.qty, 0),
-    commanderCount: commanders.reduce((sum, row) => sum + row.qty, 0)
-  };
-}
-
 /**
  * Imports supported deck URLs and returns normalized decklist text.
  */
 export async function importDeckFromUrl(urlInput: string): Promise<DeckImportResult> {
-  const { provider, id } = parseProvider(urlInput);
-
-  if (provider === "archidekt") {
-    return importFromArchidekt(id);
-  }
-
-  return importFromMoxfield(id);
+  const { id } = parseProvider(urlInput);
+  return importFromArchidekt(id);
 }

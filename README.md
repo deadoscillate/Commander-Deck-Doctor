@@ -32,7 +32,7 @@ npm run telemetry:summary -- --days 7
 ## Core Features
 
 - Paste free-form Commander decklists, including `Commander:` sections.
-- Import public decks from Moxfield and Archidekt.
+- Import public Archidekt decks as print-aware decklists.
 - Load stock Commander precons from a synced local library with full-list browse and search.
 - Compare an upgraded deck against matching stock precons for the same commander.
 - Analyze:
@@ -104,6 +104,7 @@ The precon browser now loads the full synced library, keeps search visible while
 - `oracle-default` is the fast name-based pricing path.
 - `[SET]` tags enable set-aware pricing and print selection.
 - Pre-analyze commander selection now uses commander-eligible candidates only, resolves them from local card data first, and only shows a second selector when the chosen commander has legal pair options.
+- URL import is Archidekt-only for now. Successful imports switch the analyzer to `decklist-set` automatically so pricing and print selection stay aligned with the imported list.
 - Simulations do not block initial analyze.
 - Improvement suggestions load after the initial report from `POST /api/improvement-suggestions`.
 - Card previews, seller links, and print pickers are available in the report UI.
@@ -218,6 +219,7 @@ Practical target:
 - Completed: cold-start telemetry plus scheduled warmup
 - Completed: pre-analyze commander selection now uses commander-eligible candidates instead of scanning the whole list after analyze
 - Completed: separate telemetry and local-only lookup path for `/api/commander-options`
+- Completed: Archidekt import now emits print-aware decklists and switches imported decks into `decklist-set`
 - Ongoing: reduce the remaining `oracle-default` cold-miss lookup cost in `/api/analyze`
 
 ### Phase 2: Analyzer Quality

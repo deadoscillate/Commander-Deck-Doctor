@@ -18,9 +18,8 @@ const IMPORT_URL_RATE_LIMIT = {
 const IMPORT_CLIENT_ERRORS = [
   "Invalid URL.",
   "Only HTTPS deck URLs are supported.",
-  "Could not parse Moxfield deck ID from URL.",
   "Could not parse Archidekt deck ID from URL.",
-  "Unsupported deck URL. Supported providers: Moxfield, Archidekt.",
+  "Unsupported deck URL. Supported provider: Archidekt.",
   "Deck not found. Check the URL and make sure the deck is public.",
   "Provider denied access. Make sure the deck is public."
 ];
@@ -43,7 +42,7 @@ function classifyImportErrorStatus(message: string): 400 | 502 | 500 {
 
 /**
  * POST /api/import-url
- * Imports deck text from supported provider URLs (Moxfield, Archidekt).
+ * Imports deck text from supported provider URLs (Archidekt).
  */
 export async function POST(request: Request) {
   const requestId = getRequestId(request);
@@ -84,7 +83,7 @@ export async function POST(request: Request) {
     const message = error instanceof Error ? error.message : "Deck import failed.";
     const status = classifyImportErrorStatus(message);
     const normalizedClientMessage = message.includes("Unsupported")
-      ? "Unsupported URL. Use a Moxfield or Archidekt deck link."
+      ? "Unsupported URL. Use an Archidekt deck link."
       : message;
     reportApiError(error, {
       requestId,

@@ -12,7 +12,7 @@ const SAVED_DECKS_STORAGE_KEY = "commanderDeckDoctor.savedDecks.v1";
 const MAX_SAVED_DECKS = 30;
 
 type ImportUrlResponse = {
-  provider: "moxfield" | "archidekt";
+  provider: "archidekt";
   providerDeckId: string;
   deckName: string | null;
   decklist: string;
@@ -123,14 +123,10 @@ function createSavedDeckId(): string {
   return `saved-${Date.now()}-${Math.floor(Math.random() * 1_000_000)}`;
 }
 
-function importProviderForUrl(value: string): "moxfield" | "archidekt" | null {
+function importProviderForUrl(value: string): "archidekt" | null {
   try {
     const url = new URL(value);
     const host = url.hostname.toLowerCase();
-    if (host === "moxfield.com" || host === "www.moxfield.com") {
-      return "moxfield";
-    }
-
     if (host === "archidekt.com" || host === "www.archidekt.com") {
       return "archidekt";
     }
@@ -144,7 +140,7 @@ function importProviderForUrl(value: string): "moxfield" | "archidekt" | null {
 function normalizeImportError(message: string): string {
   const lower = message.toLowerCase();
   if (lower.includes("unsupported")) {
-    return "Unsupported URL. Use a Moxfield or Archidekt deck link.";
+    return "Unsupported URL. Use an Archidekt deck link.";
   }
 
   if (lower.includes("deck not found") || lower.includes("public") || lower.includes("provider")) {
@@ -433,7 +429,7 @@ export default function Page() {
     }
 
     if (!importProviderForUrl(trimmed)) {
-      setImportError("Unsupported URL. Use a Moxfield or Archidekt deck link.");
+      setImportError("Unsupported URL. Use an Archidekt deck link.");
       setImportInfo("");
       return;
     }
@@ -457,6 +453,7 @@ export default function Page() {
 
       const imported = data as ImportUrlResponse;
       setDecklist(imported.decklist);
+      setDeckPriceMode("decklist-set");
       if (imported.deckName) {
         setDeckName(imported.deckName);
       }
@@ -474,9 +471,8 @@ export default function Page() {
       setCommanderName(importedCommanderSelection[0] ?? "");
       setCommanderPartnerName(importedCommanderSelection[1] ?? "");
       setResult(null);
-      const label = imported.provider === "moxfield" ? "Moxfield" : "Archidekt";
       setImportInfo(
-        `Imported: ${imported.deckName ?? `${label} deck`} ${importedCommander ? `(Commander: ${importedCommander})` : ""}`.trim()
+        `Imported: ${imported.deckName ?? "Archidekt deck"} ${importedCommander ? `(Commander: ${importedCommander})` : ""}`.trim()
       );
     } catch {
       setImportError("Could not import deck. Check the link is public and try again.");
@@ -943,15 +939,15 @@ export default function Page() {
 
       <section className="panel-grid">
         <form className="panel form-panel" onSubmit={onSubmit}>
-          <label htmlFor="deck-url">Deck URL (Moxfield or Archidekt)</label>
-          <p className="muted field-help">Supports Moxfield and Archidekt deck links.</p>
+          <label htmlFor="deck-url">Deck URL (Archidekt)</label>
+          <p className="muted field-help">Supports public Archidekt deck links.</p>
           <div className="url-import-row">
             <input
               id="deck-url"
               type="url"
               value={deckUrl}
               onChange={(event) => setDeckUrl(event.target.value)}
-              placeholder="https://www.moxfield.com/decks/... or https://archidekt.com/decks/..."
+              placeholder="https://archidekt.com/decks/..."
             />
             <button type="button" className="btn-secondary" onClick={onImportUrl} disabled={importing}>
               {importing ? "Importing..." : "Import URL"}
