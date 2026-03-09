@@ -296,6 +296,31 @@ function normalizeCommanderInfo(result: AnalyzeResponse): {
   };
 }
 
+function normalizeCompanionInfo(result: AnalyzeResponse): {
+  name: string | null;
+  manaCost: string | null;
+  cmc: number | null;
+  resolved: boolean;
+} {
+  const rawCompanion = (result as { companion?: unknown }).companion;
+  const companionRecord =
+    rawCompanion && typeof rawCompanion === "object" ? (rawCompanion as Record<string, unknown>) : {};
+  const cmc = toFiniteNumber(companionRecord.selectedCmc, NaN);
+
+  return {
+    name:
+      typeof companionRecord.selectedName === "string" && companionRecord.selectedName
+        ? companionRecord.selectedName
+        : null,
+    manaCost:
+      typeof companionRecord.selectedManaCost === "string" && companionRecord.selectedManaCost
+        ? companionRecord.selectedManaCost
+        : null,
+    cmc: Number.isFinite(cmc) ? cmc : null,
+    resolved: Boolean(companionRecord.resolved)
+  };
+}
+
 function normalizeRuleZero(result: AnalyzeResponse): {
   winStyle: {
     primary: string;
@@ -561,6 +586,7 @@ export function AnalysisReport({
   const roleBreakdown = normalizeRoleBreakdown(result);
   const tutorSummary = normalizeTutorSummary(result);
   const commanderInfo = normalizeCommanderInfo(result);
+  const companionInfo = normalizeCompanionInfo(result);
   const commanderSuggestionNames = useMemo(
     () =>
       Array.isArray(result.commander.selectedNames) && result.commander.selectedNames.length > 0
@@ -1035,13 +1061,25 @@ export function AnalysisReport({
               </>
             ) : null}
             {commanderInfo.name ? (
-              <p>
-                Commander:{" "}
-                <strong>
-                  <CardNameHover name={commanderInfo.name} />
-                </strong>{" "}
-                <ManaCost manaCost={commanderInfo.manaCost} size={16} className="commander-inline-mana" />
-              </p>
+              <>
+                <p>
+                  Commander:{" "}
+                  <strong>
+                    <CardNameHover name={commanderInfo.name} />
+                  </strong>{" "}
+                  <ManaCost manaCost={commanderInfo.manaCost} size={16} className="commander-inline-mana" />
+                </p>
+                {companionInfo.name ? (
+                  <p>
+                    Companion:{" "}
+                    <strong>
+                      <CardNameHover name={companionInfo.name} />
+                    </strong>{" "}
+                    <ManaCost manaCost={companionInfo.manaCost} size={16} className="commander-inline-mana" />
+                    {!companionInfo.resolved ? " (unresolved)" : ""}
+                  </p>
+                ) : null}
+              </>
             ) : (
               <p className="muted">
                 No commander selected yet. If no Commander section is present in your list, select one in the input

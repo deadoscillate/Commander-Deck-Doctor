@@ -16,11 +16,19 @@ type CommanderSelection = {
   cards?: ScryfallCard[];
 };
 
+type CompanionSelection = {
+  name: string | null;
+  entries?: ParsedDeckEntry[];
+  resolved: boolean;
+  card?: ScryfallCard | null;
+};
+
 export type CommanderRulesEngineInput = {
   parsedDeck: ParsedDeckEntry[];
   knownCards: DeckCard[];
   unknownCards: string[];
   commander: CommanderSelection;
+  companion?: CompanionSelection | null;
 };
 
 function toNameCountList(names: string[]): Array<{ name: string; qty: number }> {
@@ -58,7 +66,8 @@ function normalizeName(name: string): string {
 
 function buildBanlistFindings(
   parsedDeck: ParsedDeckEntry[],
-  commanderNames: string[]
+  commanderNames: string[],
+  companionNames: string[] = []
 ): Array<{ name: string; qty: number }> {
   const bannedByNormalizedName = new Map(
     banlistDataset.bannedNames.map((name) => [normalizeName(name), name] as const)
@@ -83,9 +92,176 @@ function buildBanlistFindings(
     }
   }
 
+  for (const companionName of companionNames) {
+    const normalizedCompanionName = normalizeName(companionName);
+    const bannedCompanionName = bannedByNormalizedName.get(normalizedCompanionName);
+    if (bannedCompanionName && !findingsByCardName.has(bannedCompanionName)) {
+      findingsByCardName.set(bannedCompanionName, 1);
+    }
+  }
+
   return [...findingsByCardName.entries()]
     .sort((a, b) => a[0].localeCompare(b[0]))
     .map(([name, qty]) => ({ name, qty }));
+}
+
+function oracleText(card: ScryfallCard): string {
+  return [card.oracle_text, ...card.card_faces.map((face) => face.oracle_text ?? "")]
+    .filter(Boolean)
+    .join("\n");
+}
+
+function manaCosts(card: ScryfallCard): string[] {
+  return [card.mana_cost, ...card.card_faces.map((face) => face.mana_cost ?? "")]
+    .filter((value): value is string => typeof value === "string" && value.trim().length > 0);
+}
+
+function manaSymbols(card: ScryfallCard): string[] {
+  return manaCosts(card)
+    .flatMap((cost) => [...cost.matchAll(/\{([^}]+)\}/g)].map((match) => match[1] ?? ""))
+    .filter((symbol) => symbol.length > 0);
+}
+
+function cardTypes(card: ScryfallCard): Set<string> {
+  return new Set(
+    card.type_line
+      .split(/[\u2014-]/)[0]
+      .split(/\s+/)
+      .map((part) => part.trim())
+      .filter(Boolean)
+  );
+}
+
+function creatureSubtypes(card: ScryfallCard): Set<string> {
+  const parts = card.type_line.split(/[\u2014-]/);
+  if (parts.length < 2 || !/\bcreature\b/i.test(parts[0] ?? "")) {
+    return new Set();
+  }
+
+  return new Set(
+    (parts[1] ?? "")
+      .split(/\s+/)
+      .map((part) => part.trim())
+      .filter(Boolean)
+  );
+}
+
+function isLand(card: ScryfallCard): boolean {
+  return /\bland\b/i.test(card.type_line);
+}
+
+function isPermanent(card: ScryfallCard): boolean {
+  return /\b(artifact|creature|enchantment|land|planeswalker|battle)\b/i.test(card.type_line);
+}
+
+function isCreature(card: ScryfallCard): boolean {
+  return /\bcreature\b/i.test(card.type_line);
+}
+
+function hasActivatedAbility(card: ScryfallCard): boolean {
+  return /(^|\n)[^(\n]*:\s*/m.test(oracleText(card));
+}
+
+function companionColorIdentityAllowed(companionCard: ScryfallCard, commanderColorIdentity: string[]): boolean {
+  const allowed = new Set(commanderColorIdentity);
+  return companionCard.color_identity.every((color) => allowed.has(color));
+}
+
+type CompanionValidationResult = {
+  ok: boolean;
+  reason: string;
+};
+
+function validateCompanionRule(companionCard: ScryfallCard, startingDeck: DeckCard[]): CompanionValidationResult {
+  const startingCards = startingDeck.map((entry) => entry.card);
+  switch (normalizeName(companionCard.name)) {
+    case "lurrusofthedreamden": {
+      const invalid = startingDeck.find((entry) => !isLand(entry.card) && isPermanent(entry.card) && entry.card.cmc > 2);
+      return invalid
+        ? { ok: false, reason: `Lurrus requires every permanent spell to have mana value 2 or less. ${invalid.card.name} has mana value ${invalid.card.cmc}.` }
+        : { ok: true, reason: "Lurrus condition satisfied: all permanent spells have mana value 2 or less." };
+    }
+    case "yorionskynomad":
+      return {
+        ok: false,
+        reason: "Yorion requires at least 20 cards above the minimum deck size, which Commander cannot satisfy with a fixed 100-card deck."
+      };
+    case "jeganthathewellspring": {
+      const invalid = startingCards.find((card) => {
+        const seen = new Set<string>();
+        for (const symbol of manaSymbols(card)) {
+          if (seen.has(symbol)) {
+            return true;
+          }
+          seen.add(symbol);
+        }
+        return false;
+      });
+      return invalid
+        ? { ok: false, reason: `Jegantha requires every mana cost to avoid repeated mana symbols. ${invalid.name} repeats a mana symbol in its mana cost.` }
+        : { ok: true, reason: "Jegantha condition satisfied: no starting-deck card repeats a mana symbol in its mana cost." };
+    }
+    case "kaheeratheorphanguard": {
+      const allowed = new Set(["Cat", "Elemental", "Nightmare", "Dinosaur", "Beast"]);
+      const invalid = startingCards.find((card) => {
+        if (!isCreature(card)) {
+          return false;
+        }
+        const subtypes = creatureSubtypes(card);
+        return subtypes.size === 0 || ![...subtypes].some((subtype) => allowed.has(subtype));
+      });
+      return invalid
+        ? { ok: false, reason: `Kaheera requires every creature card to be a Cat, Elemental, Nightmare, Dinosaur, or Beast. ${invalid.name} does not qualify.` }
+        : { ok: true, reason: "Kaheera condition satisfied: every creature card matches an allowed creature type." };
+    }
+    case "kerugathemacrosage": {
+      const invalid = startingDeck.find((entry) => !isLand(entry.card) && entry.card.cmc < 3);
+      return invalid
+        ? { ok: false, reason: `Keruga requires every nonland card to have mana value 3 or greater. ${invalid.card.name} has mana value ${invalid.card.cmc}.` }
+        : { ok: true, reason: "Keruga condition satisfied: every nonland card has mana value 3 or greater." };
+    }
+    case "zirdathedawnwaker": {
+      const invalid = startingCards.find((card) => isPermanent(card) && !hasActivatedAbility(card));
+      return invalid
+        ? { ok: false, reason: `Zirda requires every permanent card to have an activated ability. ${invalid.name} does not show one in Oracle text.` }
+        : { ok: true, reason: "Zirda condition satisfied: every permanent card shows an activated ability." };
+    }
+    case "gyrudadepthsofdredge": {
+      const invalid = startingCards.find((card) => (card.cmc ?? 0) % 2 !== 0);
+      return invalid
+        ? { ok: false, reason: `Gyruda requires every card in the starting deck to have even mana value. ${invalid.name} has mana value ${invalid.cmc}.` }
+        : { ok: true, reason: "Gyruda condition satisfied: every starting-deck card has even mana value." };
+    }
+    case "oboshthepreypiercer": {
+      const invalid = startingDeck.find((entry) => !isLand(entry.card) && (entry.card.cmc ?? 0) % 2 === 0);
+      return invalid
+        ? { ok: false, reason: `Obosh requires every nonland card to have odd mana value. ${invalid.card.name} has mana value ${invalid.card.cmc}.` }
+        : { ok: true, reason: "Obosh condition satisfied: every nonland card has odd mana value." };
+    }
+    case "lutritheSpellchaser":
+      return {
+        ok: true,
+        reason: "Lutri's singleton condition is already enforced by Commander deck construction, but Commander banlist checks still apply."
+      };
+    case "umorithecollector": {
+      const nonlandCards = startingCards.filter((card) => !isLand(card));
+      const sharedTypes = nonlandCards.reduce<Set<string> | null>((current, card) => {
+        const types = cardTypes(card);
+        if (!current) {
+          return new Set(types);
+        }
+        return new Set([...current].filter((type) => types.has(type)));
+      }, null);
+      return sharedTypes && sharedTypes.size > 0
+        ? { ok: true, reason: `Umori condition satisfied: all nonland cards share the card type ${[...sharedTypes][0]}.` }
+        : { ok: false, reason: "Umori requires every nonland card in the starting deck to share at least one card type." };
+    }
+    default:
+      return {
+        ok: false,
+        reason: `${companionCard.name} is not a supported Commander companion for deterministic validation.`
+      };
+  }
 }
 
 function commanderExistsInDeck(parsedDeck: ParsedDeckEntry[], commanderName: string | null): boolean {
@@ -141,7 +317,66 @@ export function evaluateCommanderRules(input: CommanderRulesEngineInput): RulesE
           message: `Commander "${input.commander.name}" could not be resolved for color identity validation.`
         }
     : checks.colorIdentity;
-  const banlistFindings = buildBanlistFindings(input.parsedDeck, selectedCommanderNames);
+  const selectedCompanionEntries = Array.isArray(input.companion?.entries)
+    ? input.companion?.entries.filter((entry) => entry.name.trim().length > 0)
+    : [];
+  const selectedCompanionNames = selectedCompanionEntries.map((entry) => entry.name);
+  const selectedCompanionName = input.companion?.name ?? selectedCompanionNames[0] ?? null;
+  const resolvedCompanionCard = input.companion?.card ?? null;
+  const declaredCompanionCopies = selectedCompanionEntries.reduce((sum, entry) => sum + entry.qty, 0);
+  const companionRuleEvaluation = (() => {
+    if (!selectedCompanionName) {
+      return {
+        outcome: "SKIP" as const,
+        message: "No companion selected, so companion validation was skipped."
+      };
+    }
+
+    if (selectedCompanionEntries.length !== 1 || declaredCompanionCopies !== 1) {
+      return {
+        outcome: "FAIL" as const,
+        message: "Commander allows at most one companion card outside the 100-card deck."
+      };
+    }
+
+    if (!input.companion?.resolved || !resolvedCompanionCard) {
+      return {
+        outcome: "FAIL" as const,
+        message: `Companion "${selectedCompanionName}" could not be resolved for legality validation.`
+      };
+    }
+
+    if (input.unknownCards.length > 0) {
+      return {
+        outcome: "SKIP" as const,
+        message: "Unknown card names prevent full companion validation."
+      };
+    }
+
+    if (!companionColorIdentityAllowed(resolvedCompanionCard, input.commander.colorIdentity)) {
+      return {
+        outcome: "FAIL" as const,
+        message: `${resolvedCompanionCard.name} is outside the selected commander color identity.`
+      };
+    }
+
+    const duplicateCopiesInDeck = input.parsedDeck.reduce((sum, entry) => {
+      return normalizeName(entry.name) === normalizeName(resolvedCompanionCard.name) ? sum + entry.qty : sum;
+    }, 0);
+    if (duplicateCopiesInDeck > 0) {
+      return {
+        outcome: "FAIL" as const,
+        message: `${resolvedCompanionCard.name} appears in the 100-card deck and cannot also be declared as the companion.`
+      };
+    }
+
+    const validation = validateCompanionRule(resolvedCompanionCard, input.knownCards);
+    return {
+      outcome: validation.ok ? ("PASS" as const) : ("FAIL" as const),
+      message: validation.reason
+    };
+  })();
+  const banlistFindings = buildBanlistFindings(input.parsedDeck, selectedCommanderNames, selectedCompanionNames);
 
   const rules: RulesEngineRuleResult[] = [
     buildRule({
@@ -242,6 +477,17 @@ export function evaluateCommanderRules(input: CommanderRulesEngineInput): RulesE
           : `Commander selection could not be resolved for configuration validation: ${selectedCommanderNames.join(" + ")}.`
         : "No commander selected, so commander eligibility validation was skipped.",
       findings: selectedCommanderNames.map((name) => ({ name, qty: 1 }))
+    }),
+    buildRule({
+      id: "commander.companion-legality",
+      name: "Companion Legality",
+      description:
+        "A declared companion must be a legal companion, fit the commander's color identity, and satisfy its own deck-building restriction.",
+      domain: "COMMANDER_RULES",
+      severity: "ERROR",
+      outcome: companionRuleEvaluation.outcome,
+      message: companionRuleEvaluation.message,
+      findings: selectedCompanionNames.map((name) => ({ name, qty: 1 }))
     }),
     buildRule({
       id: "commander.color-identity",

@@ -19,6 +19,16 @@ const archidektPayload = {
     },
     {
       quantity: 1,
+      companion: true,
+      categories: [{ name: "Companion" }],
+      card: {
+        oracleCard: { name: "Lurrus of the Dream-Den" },
+        edition: { editioncode: "iko" },
+        collectorNumber: "226"
+      }
+    },
+    {
+      quantity: 1,
       categories: [{ name: "Mainboard" }],
       card: {
         oracleCard: { name: "Sol Ring" },
@@ -66,7 +76,9 @@ describe("deck URL import", () => {
     expect(result.deckName).toBe("Edric Flyers");
     expect(result.cardCount).toBe(2);
     expect(result.commanderCount).toBe(1);
+    expect(result.companionCount).toBe(1);
     expect(result.decklist).toContain("Commander\n1 Edric, Spymaster of Trest (OTC) 221");
+    expect(result.decklist).toContain("Companion\n1 Lurrus of the Dream-Den (IKO) 226");
     expect(result.decklist).toContain("Deck\n1 Sol Ring (CMM) 217");
     expect(result.decklist).not.toContain("Counterspell");
   });

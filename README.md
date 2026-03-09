@@ -31,7 +31,7 @@ npm run telemetry:summary -- --days 7
 
 ## Core Features
 
-- Paste free-form Commander decklists, including `Commander:` sections.
+- Paste free-form Commander decklists, including `Commander:` and `Companion:` sections.
 - Import public Archidekt decks as print-aware decklists.
 - Load stock Commander precons from a synced local library with full-list browse and search.
 - Compare an upgraded deck against matching stock precons for the same commander.
@@ -105,7 +105,9 @@ The precon browser now loads the full synced library, keeps search visible while
 - `[SET]` tags enable set-aware pricing and print selection.
 - Explicit print tags are now honored first even in `oracle-default`, so tagged lists price against the intended print before falling back to default-name pricing.
 - Pre-analyze commander selection now uses commander-eligible candidates only, resolves them from local card data first, and only shows a second selector when the chosen commander has legal pair options.
+- Companion declarations are parsed separately from the 100-card deck and validated deterministically in Commander rules checks.
 - URL import is Archidekt-only for now. Successful imports switch the analyzer to `decklist-set` automatically so pricing and print selection stay aligned with the imported list.
+- Archidekt companion imports are preserved as companion sections instead of being folded into the main deck.
 - Simulations do not block initial analyze.
 - Improvement suggestions load after the initial report from `POST /api/improvement-suggestions`.
 - Card previews, seller links, pricing confidence, and print pickers are available in the report UI.
@@ -196,6 +198,7 @@ Current MVP state:
 - Precon browsing is built in, scrollable, and print-aware.
 - Stock-precon comparison is built in for commander-matched decks.
 - Commander pairing flows now support legal pre-analyze pair selection instead of exposing the whole deck as possible pair choices.
+- Companion legality now covers deterministic validation for the ten official companions, including color identity, deck-building restriction checks, and banlist handling.
 - Legality, archetypes, combos, Rule 0, pricing, and simulations are all present.
 - Pricing now distinguishes exact-print, set-match, name-match, and fallback resolution so users can judge how trustworthy a deck total is.
 - Regression safety is materially better than earlier iterations: CI, smoke coverage, accessibility checks, and telemetry are in place.
@@ -249,8 +252,9 @@ Practical target:
 
 - Completed: stricter commander validation for commander presence in the decklist and commander eligibility
 - Completed: legal paired commander flows for Partner, Partner With, Friends forever, Doctor's companion, and Choose a Background in the pre-analyze picker and rules engine
-- Continue tightening commander legality edge cases such as companions and broader pair-specific messaging
-- Expand deterministic test coverage for pair rules, companions, and banlist handling
+- Completed: deterministic companion validation for the ten official companions, including deck-construction checks, color identity checks, and banlist coverage
+- Completed: broader pair-specific messaging for invalid commander pair configurations
+- Completed: deterministic regression coverage for pair rules, companions, parser behavior, import behavior, and plaintext export
 - Keep rules datasets synced and verified
 
 ### Phase 4: Productization

@@ -567,6 +567,101 @@ describe("POST /api/analyze", () => {
     ).toBe("PASS");
   });
 
+  it("returns companion details without counting companion toward the 100-card deck", async () => {
+    const commanderCard = buildCard({
+      name: "Karlov of the Ghost Council",
+      type_line: "Legendary Creature - Spirit Advisor",
+      cmc: 2,
+      mana_cost: "{W}{B}",
+      colors: ["W", "B"],
+      color_identity: ["W", "B"]
+    });
+    const soulWarden = buildCard({
+      name: "Soul Warden",
+      type_line: "Creature - Human Cleric",
+      cmc: 1,
+      mana_cost: "{W}",
+      colors: ["W"],
+      color_identity: ["W"]
+    });
+    const lurrus = buildCard({
+      name: "Lurrus of the Dream-Den",
+      type_line: "Legendary Creature - Cat Nightmare",
+      cmc: 3,
+      mana_cost: "{1}{W/B}{W/B}",
+      colors: ["W", "B"],
+      color_identity: ["W", "B"]
+    });
+
+    vi.doMock("@/lib/scryfall", () => ({
+      fetchDeckCards: vi.fn(async () => ({
+        knownCards: [
+          { name: "Karlov of the Ghost Council", qty: 1, card: commanderCard },
+          { name: "Soul Warden", qty: 1, card: soulWarden },
+          {
+            name: "Plains",
+            qty: 98,
+            card: buildCard({
+              name: "Plains",
+              type_line: "Basic Land - Plains",
+              cmc: 0,
+              mana_cost: "",
+              colors: [],
+              color_identity: ["W"]
+            })
+          }
+        ],
+        unknownCards: []
+      })),
+      getCardById: vi.fn(async () => null),
+      getCardByName: vi.fn(async (name: string) => (name === "Lurrus of the Dream-Den" ? lurrus : null)),
+      getCardByNameWithSet: vi.fn(async (name: string, setCode: string) =>
+        name === "Lurrus of the Dream-Den" && setCode === "iko" ? lurrus : null
+      ),
+      getLocalCardByName: vi.fn(async (name: string) => (name === "Lurrus of the Dream-Den" ? lurrus : null))
+    }));
+
+    const { POST } = await import("@/app/api/analyze/route");
+    const response = await POST(
+      buildRequest({
+        decklist: ["Commander", "1 Karlov of the Ghost Council", "", "Companion", "1 Lurrus of the Dream-Den (IKO) 226", "", "Deck", "1 Soul Warden", "98 Plains"].join("\n"),
+        commanderName: "Karlov of the Ghost Council"
+      })
+    );
+    const body = (await response.json()) as {
+      companion?: {
+        detectedFromSection?: string | null;
+        selectedName?: string | null;
+        selectedSetCode?: string | null;
+        selectedCollectorNumber?: string | null;
+        resolved?: boolean;
+        source?: string;
+      };
+      summary?: {
+        deckSize?: number;
+      };
+      rulesEngine?: {
+        rules?: Array<{ id?: string; outcome?: string }>;
+      };
+    };
+
+    expect(response.status).toBe(200);
+    expect(body.summary?.deckSize).toBe(100);
+    expect(body.companion).toEqual(
+      expect.objectContaining({
+        detectedFromSection: "Lurrus of the Dream-Den",
+        selectedName: "Lurrus of the Dream-Den",
+        selectedSetCode: "iko",
+        selectedCollectorNumber: "226",
+        resolved: true,
+        source: "section"
+      })
+    );
+    expect(
+      body.rulesEngine?.rules?.find((rule) => rule.id === "commander.companion-legality")?.outcome
+    ).toBe("PASS");
+  });
+
   it("auto-selects the unique largest fitting color identity candidate", async () => {
     vi.doMock("@/lib/scryfall", () => ({
       fetchDeckCards: vi.fn(async () => ({

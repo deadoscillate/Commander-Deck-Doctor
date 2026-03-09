@@ -204,6 +204,11 @@ export function buildPlaintextReport(result: AnalyzeResponse): string {
   const summaryLines = [
     "Summary",
     `- Commander: ${result.commander.selectedName ?? "Not selected"}`,
+    `- Companion: ${
+      result.companion?.selectedName
+        ? `${result.companion.selectedName}${result.companion.resolved ? "" : " (unresolved)"}`
+        : "None"
+    }`,
     `- Deck Size: ${result.summary.deckSize}`,
     `- Unique Cards: ${result.summary.uniqueCards}`,
     `- Avg Mana Value: ${formatFixedNumber(result.summary.averageManaValue, 2)}`,

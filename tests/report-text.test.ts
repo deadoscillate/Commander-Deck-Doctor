@@ -23,9 +23,22 @@ describe("buildPlaintextReport", () => {
     unsafeResult.openingHandSimulation.rampInOpeningPct = null;
     unsafeResult.openingHandSimulation.averageFirstSpellTurn = null;
     unsafeResult.openingHandSimulation.estimatedCommanderCastTurn = null;
+    result.companion = {
+      detectedFromSection: "Lurrus of the Dream-Den",
+      selectedName: "Lurrus of the Dream-Den",
+      selectedManaCost: "{1}{W/B}{W/B}",
+      selectedCmc: 3,
+      selectedCardImageUrl: "https://img.test/lurrus-card.jpg",
+      selectedSetCode: "iko",
+      selectedCollectorNumber: "226",
+      selectedPrintingId: "lurrus-printing-id",
+      resolved: false,
+      source: "section"
+    };
 
     const report = buildPlaintextReport(result as AnalyzeResponse);
 
+    expect(report).toContain("- Companion: Lurrus of the Dream-Den (unresolved)");
     expect(report).toContain("- Avg Mana Value: N/A");
     expect(report).toContain("- Playable hands: 0.0%");
     expect(report).toContain("- Average first spell turn: N/A");

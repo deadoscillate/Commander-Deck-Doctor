@@ -633,7 +633,9 @@ export async function POST(request: Request) {
     const {
       entries: parsedDeck,
       commanderFromSection,
-      commandersFromSection
+      commandersFromSection,
+      companionFromSection,
+      companionsFromSection
     } = parseDecklistWithCommander(decklist);
     if (parsedDeck.length === 0) {
       return apiJson(
@@ -883,6 +885,27 @@ export async function POST(request: Request) {
       selectedCommanderCards,
       allSelectedCommandersResolved
     );
+    const selectedCompanionEntry = companionsFromSection[0] ?? null;
+    const selectedCompanionCard =
+      selectedCompanionEntry
+        ? (selectedCompanionEntry.printingId
+            ? (await getLocalCardByName(selectedCompanionEntry.name, {
+                printingId: selectedCompanionEntry.printingId,
+                setCode: selectedCompanionEntry.setCode ?? null
+              })) ??
+              (await getCardById(selectedCompanionEntry.printingId)) ??
+              (await getCardByName(selectedCompanionEntry.name))
+            : selectedCompanionEntry.setCode
+              ? (await getLocalCardByName(selectedCompanionEntry.name, {
+                  setCode: selectedCompanionEntry.setCode,
+                  collectorNumber: selectedCompanionEntry.collectorNumber ?? null
+                })) ??
+                (await getCardByNameWithSet(selectedCompanionEntry.name, selectedCompanionEntry.setCode)) ??
+                (await getCardByName(selectedCompanionEntry.name))
+              : (await getLocalCardByName(selectedCompanionEntry.name)) ??
+                (await getCardByName(selectedCompanionEntry.name)))
+        : null;
+    const selectedCompanionResolved = Boolean(selectedCompanionEntry ? selectedCompanionCard : null);
 
     const colorIdentityCheck = selectedCommanderNames.length > 0 && allSelectedCommandersResolved
       ? buildColorIdentityCheck(
@@ -917,6 +940,12 @@ export async function POST(request: Request) {
         resolved: allSelectedCommandersResolved,
         card: selectedCommanderCard,
         cards: selectedCommanderCards
+      },
+      companion: {
+        name: companionFromSection,
+        entries: companionsFromSection,
+        resolved: selectedCompanionResolved,
+        card: selectedCompanionCard
       }
     });
     const roundedSummary = {
@@ -1065,6 +1094,33 @@ export async function POST(request: Request) {
         options: commanderOptions,
         needsManualSelection:
           !detectedCommanderFromSection && !selectedCommanderName && commanderOptions.length > 0
+      },
+      companion: {
+        detectedFromSection: companionFromSection,
+        selectedName: selectedCompanionEntry?.name ?? null,
+        selectedManaCost:
+          typeof selectedCompanionCard?.mana_cost === "string" && selectedCompanionCard.mana_cost
+            ? selectedCompanionCard.mana_cost
+            : null,
+        selectedCmc:
+          typeof selectedCompanionCard?.cmc === "number" && Number.isFinite(selectedCompanionCard.cmc)
+            ? selectedCompanionCard.cmc
+            : null,
+        selectedCardImageUrl: getPreferredCardPreviewUrl(selectedCompanionCard),
+        selectedSetCode:
+          typeof selectedCompanionCard?.set === "string" && selectedCompanionCard.set
+            ? selectedCompanionCard.set
+            : selectedCompanionEntry?.setCode ?? null,
+        selectedCollectorNumber:
+          typeof selectedCompanionCard?.collector_number === "string" && selectedCompanionCard.collector_number
+            ? selectedCompanionCard.collector_number
+            : selectedCompanionEntry?.collectorNumber ?? null,
+        selectedPrintingId:
+          typeof selectedCompanionCard?.id === "string" && selectedCompanionCard.id
+            ? selectedCompanionCard.id
+            : selectedCompanionEntry?.printingId ?? null,
+        resolved: selectedCompanionResolved,
+        source: selectedCompanionEntry ? "section" : "none"
       },
       parsedDeck: parsedDeckView,
       unknownCards,

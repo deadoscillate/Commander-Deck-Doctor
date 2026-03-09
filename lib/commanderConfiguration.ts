@@ -143,6 +143,44 @@ export function evaluateCommanderConfiguration(
     };
   }
 
+  if (firstPartnerWith || secondPartnerWith) {
+    if (!firstPartnerWith || !secondPartnerWith) {
+      const namedCard = firstPartnerWith ? first : second;
+      const otherCard = firstPartnerWith ? second : first;
+      return {
+        ok: false,
+        pairType: null,
+        message: `${namedCard.name} uses "Partner with", but ${otherCard.name} does not name it back.`
+      };
+    }
+
+    return {
+      ok: false,
+      pairType: null,
+      message: `${first.name} and ${second.name} have "Partner with" text, but they are not paired with each other.`
+    };
+  }
+
+  if (hasGenericPartner(first) !== hasGenericPartner(second)) {
+    const partnerCard = hasGenericPartner(first) ? first : second;
+    const otherCard = hasGenericPartner(first) ? second : first;
+    return {
+      ok: false,
+      pairType: null,
+      message: `${partnerCard.name} has Partner, but ${otherCard.name} does not.`
+    };
+  }
+
+  if (hasFriendsForever(first) !== hasFriendsForever(second)) {
+    const friendsCard = hasFriendsForever(first) ? first : second;
+    const otherCard = hasFriendsForever(first) ? second : first;
+    return {
+      ok: false,
+      pairType: null,
+      message: `${friendsCard.name} has Friends forever, but ${otherCard.name} does not.`
+    };
+  }
+
   if (
     (isDoctor(first) && hasDoctorsCompanion(second)) ||
     (isDoctor(second) && hasDoctorsCompanion(first))
@@ -154,6 +192,40 @@ export function evaluateCommanderConfiguration(
     };
   }
 
+  if (isDoctor(first) || isDoctor(second) || hasDoctorsCompanion(first) || hasDoctorsCompanion(second)) {
+    if (isDoctor(first) && !hasDoctorsCompanion(second)) {
+      return {
+        ok: false,
+        pairType: null,
+        message: `${first.name} is a Doctor, but ${second.name} does not have Doctor's companion.`
+      };
+    }
+
+    if (isDoctor(second) && !hasDoctorsCompanion(first)) {
+      return {
+        ok: false,
+        pairType: null,
+        message: `${second.name} is a Doctor, but ${first.name} does not have Doctor's companion.`
+      };
+    }
+
+    if (hasDoctorsCompanion(first) && !isDoctor(second)) {
+      return {
+        ok: false,
+        pairType: null,
+        message: `${first.name} has Doctor's companion, but ${second.name} is not a Doctor.`
+      };
+    }
+
+    if (hasDoctorsCompanion(second) && !isDoctor(first)) {
+      return {
+        ok: false,
+        pairType: null,
+        message: `${second.name} has Doctor's companion, but ${first.name} is not a Doctor.`
+      };
+    }
+  }
+
   if (
     (hasChooseBackground(first) && isBackground(second)) ||
     (hasChooseBackground(second) && isBackground(first))
@@ -163,6 +235,40 @@ export function evaluateCommanderConfiguration(
       pairType: "background",
       message: `${first.name} and ${second.name} form a legal Choose a Background pairing.`
     };
+  }
+
+  if (hasChooseBackground(first) || hasChooseBackground(second) || isBackground(first) || isBackground(second)) {
+    if (hasChooseBackground(first) && !isBackground(second)) {
+      return {
+        ok: false,
+        pairType: null,
+        message: `${first.name} has Choose a Background, but ${second.name} is not a Background.`
+      };
+    }
+
+    if (hasChooseBackground(second) && !isBackground(first)) {
+      return {
+        ok: false,
+        pairType: null,
+        message: `${second.name} has Choose a Background, but ${first.name} is not a Background.`
+      };
+    }
+
+    if (isBackground(first) && !hasChooseBackground(second)) {
+      return {
+        ok: false,
+        pairType: null,
+        message: `${first.name} is a Background, but ${second.name} does not have Choose a Background.`
+      };
+    }
+
+    if (isBackground(second) && !hasChooseBackground(first)) {
+      return {
+        ok: false,
+        pairType: null,
+        message: `${second.name} is a Background, but ${first.name} does not have Choose a Background.`
+      };
+    }
   }
 
   return {

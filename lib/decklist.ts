@@ -7,12 +7,15 @@ export type DecklistParseResult = {
   entries: ParsedDeckEntry[];
   commanderFromSection: string | null;
   commandersFromSection: string[];
+  companionFromSection: string | null;
+  companionsFromSection: ParsedDeckEntry[];
 };
 
 // Common section headers that should be ignored when users paste deck exports.
 const COMMON_HEADINGS = new Set<string>([
   "commander",
   "commander(s)",
+  "companion",
   "deck",
   "mainboard",
   "sideboard",
@@ -90,8 +93,22 @@ function isCommanderHeading(line: string): boolean {
   return normalized === "commander" || normalized === "commanders";
 }
 
+function isCompanionHeading(line: string): boolean {
+  const normalized = normalizeHeadingCandidate(line);
+  return normalized === "companion" || normalized === "companions";
+}
+
 function parseInlineCommander(line: string): ParsedDeckEntry | null {
   const match = line.match(/^commander\s*[:\-]\s*(.+)$/i);
+  if (!match) {
+    return null;
+  }
+
+  return parseQuantityAndName(match[1].trim());
+}
+
+function parseInlineCompanion(line: string): ParsedDeckEntry | null {
+  const match = line.match(/^companions?\s*[:\-]\s*(.+)$/i);
   if (!match) {
     return null;
   }
@@ -304,9 +321,11 @@ export function parseDecklist(input: string): ParsedDeckEntry[] {
  */
 export function parseDecklistWithCommander(input: string): DecklistParseResult {
   const merged = new Map<string, ParsedDeckEntry>();
-  let inCommanderSection = false;
+  let activeSection: "commander" | "companion" | null = null;
   let commanderFromSection: string | null = null;
   const commandersFromSection: string[] = [];
+  let companionFromSection: string | null = null;
+  const companionsFromSection: ParsedDeckEntry[] = [];
 
   function addCommanderFromSection(name: string): void {
     if (!commanderFromSection) {
@@ -318,12 +337,18 @@ export function parseDecklistWithCommander(input: string): DecklistParseResult {
     }
   }
 
+  function addCompanionFromSection(entry: ParsedDeckEntry): void {
+    if (!companionFromSection) {
+      companionFromSection = entry.name;
+    }
+
+    companionsFromSection.push({ ...entry });
+  }
+
   for (const rawLine of input.split(/\r?\n/)) {
     const noComment = stripComment(rawLine);
     if (!noComment) {
-      if (inCommanderSection) {
-        inCommanderSection = false;
-      }
+      activeSection = null;
       continue;
     }
 
@@ -337,12 +362,23 @@ export function parseDecklistWithCommander(input: string): DecklistParseResult {
       } else {
         merged.set(key, inlineCommander);
       }
-      inCommanderSection = false;
+      activeSection = null;
+      continue;
+    }
+
+    const inlineCompanion = parseInlineCompanion(noComment);
+    if (inlineCompanion) {
+      addCompanionFromSection(inlineCompanion);
+      activeSection = null;
       continue;
     }
 
     if (isHeadingLine(noComment)) {
-      inCommanderSection = isCommanderHeading(noComment);
+      activeSection = isCommanderHeading(noComment)
+        ? "commander"
+        : isCompanionHeading(noComment)
+          ? "companion"
+          : null;
       continue;
     }
 
@@ -351,10 +387,18 @@ export function parseDecklistWithCommander(input: string): DecklistParseResult {
       continue;
     }
 
-    if (inCommanderSection && parsed.qty === 1 && commandersFromSection.length < 2) {
+    if (activeSection === "commander" && parsed.qty === 1 && commandersFromSection.length < 2) {
       addCommanderFromSection(parsed.name);
-    } else if (inCommanderSection) {
-      inCommanderSection = false;
+    } else if (activeSection === "commander") {
+      activeSection = null;
+    }
+
+    if (activeSection === "companion") {
+      addCompanionFromSection(parsed);
+      if (parsed.qty !== 1 || companionsFromSection.length > 1) {
+        activeSection = null;
+      }
+      continue;
     }
 
     const key = parsed.name.toLowerCase();
@@ -370,6 +414,8 @@ export function parseDecklistWithCommander(input: string): DecklistParseResult {
   return {
     entries: [...merged.values()],
     commanderFromSection,
-    commandersFromSection
+    commandersFromSection,
+    companionFromSection,
+    companionsFromSection
   };
 }

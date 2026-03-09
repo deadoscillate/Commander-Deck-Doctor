@@ -63,7 +63,8 @@ describe("Commander rules engine", () => {
     expect(report.status).toBe("PASS");
     expect(report.failedRules).toBe(0);
     expect(report.passedRules).toBe(8);
-    expect(report.rules.every((rule) => rule.outcome === "PASS")).toBe(true);
+    expect(report.skippedRules).toBe(1);
+    expect(report.rules.find((rule) => rule.id === "commander.companion-legality")?.outcome).toBe("SKIP");
   });
 
   it("fails deck size and singleton for illegal counts", () => {
@@ -493,5 +494,271 @@ describe("Commander rules engine", () => {
 
     expect(report.status).toBe("PASS");
     expect(report.rules.find((rule) => rule.id === "commander.commander-eligible")?.outcome).toBe("PASS");
+  });
+
+  it("surfaces pair-specific messaging for Partner with mismatches", () => {
+    const pir = buildCard({
+      name: "Pir, Imaginative Rascal",
+      type_line: "Legendary Creature - Human",
+      color_identity: ["G"],
+      colors: ["G"],
+      oracle_text: "Partner with Toothy, Imaginary Friend"
+    });
+    const edric = buildCard({
+      name: "Edric, Spymaster of Trest",
+      type_line: "Legendary Creature - Elf Rogue",
+      color_identity: ["G", "U"],
+      colors: ["G", "U"],
+      oracle_text:
+        "Whenever a creature deals combat damage to one of your opponents, its controller may draw a card."
+    });
+
+    const report = evaluateCommanderRules({
+      parsedDeck: [
+        { name: "Pir, Imaginative Rascal", qty: 1 },
+        { name: "Edric, Spymaster of Trest", qty: 1 },
+        { name: "Forest", qty: 98 }
+      ],
+      knownCards: [
+        { name: "Pir, Imaginative Rascal", qty: 1, card: pir },
+        { name: "Edric, Spymaster of Trest", qty: 1, card: edric },
+        buildDeckCard("Forest", 98, {
+          type_line: "Basic Land - Forest",
+          cmc: 0,
+          mana_cost: "",
+          color_identity: ["G"],
+          colors: []
+        })
+      ],
+      unknownCards: [],
+      commander: {
+        name: "Pir, Imaginative Rascal + Edric, Spymaster of Trest",
+        names: ["Pir, Imaginative Rascal", "Edric, Spymaster of Trest"],
+        colorIdentity: ["G", "U"],
+        resolved: true,
+        card: pir,
+        cards: [pir, edric]
+      }
+    });
+
+    const configurationRule = report.rules.find((rule) => rule.id === "commander.commander-eligible");
+    expect(configurationRule?.outcome).toBe("FAIL");
+    expect(configurationRule?.message).toContain("does not name it back");
+  });
+
+  it("passes a legal Lurrus companion shell", () => {
+    const tymna = buildCard({
+      name: "Tymna the Weaver",
+      type_line: "Legendary Creature - Human Cleric",
+      color_identity: ["W", "B"],
+      colors: ["W", "B"],
+      mana_cost: "{1}{W}{B}",
+      oracle_text: "Partner"
+    });
+    const report = evaluateCommanderRules({
+      parsedDeck: [
+        { name: "Tymna the Weaver", qty: 1 },
+        { name: "Soul Warden", qty: 1 },
+        { name: "Plains", qty: 98 }
+      ],
+      knownCards: [
+        { name: "Tymna the Weaver", qty: 1, card: tymna },
+        buildDeckCard("Soul Warden", 1, {
+          type_line: "Creature - Human Cleric",
+          cmc: 1,
+          mana_cost: "{W}",
+          color_identity: ["W"],
+          colors: ["W"]
+        }),
+        buildDeckCard("Plains", 98, {
+          type_line: "Basic Land - Plains",
+          cmc: 0,
+          mana_cost: "",
+          color_identity: ["W"],
+          colors: []
+        })
+      ],
+      unknownCards: [],
+      commander: {
+        name: "Tymna the Weaver",
+        colorIdentity: ["W", "B"],
+        resolved: true,
+        card: tymna
+      },
+      companion: {
+        name: "Lurrus of the Dream-Den",
+        entries: [{ name: "Lurrus of the Dream-Den", qty: 1 }],
+        resolved: true,
+        card: buildCard({
+          name: "Lurrus of the Dream-Den",
+          type_line: "Legendary Creature - Cat Nightmare",
+          cmc: 3,
+          mana_cost: "{1}{W/B}{W/B}",
+          color_identity: ["W", "B"],
+          colors: ["W", "B"]
+        })
+      }
+    });
+
+    const companionRule = report.rules.find((rule) => rule.id === "commander.companion-legality");
+    expect(report.status).toBe("PASS");
+    expect(companionRule?.outcome).toBe("PASS");
+    expect(companionRule?.message).toContain("Lurrus condition satisfied");
+  });
+
+  it("fails Yorion as a Commander companion", () => {
+    const brago = buildCard({
+      name: "Brago, King Eternal",
+      type_line: "Legendary Creature - Spirit",
+      color_identity: ["W", "U"],
+      colors: ["W", "U"],
+      mana_cost: "{2}{W}{U}"
+    });
+    const report = evaluateCommanderRules({
+      parsedDeck: [
+        { name: "Brago, King Eternal", qty: 1 },
+        { name: "Plains", qty: 99 }
+      ],
+      knownCards: [
+        { name: "Brago, King Eternal", qty: 1, card: brago },
+        buildDeckCard("Plains", 99, {
+          type_line: "Basic Land - Plains",
+          cmc: 0,
+          mana_cost: "",
+          color_identity: ["W"],
+          colors: []
+        })
+      ],
+      unknownCards: [],
+      commander: {
+        name: "Brago, King Eternal",
+        colorIdentity: ["W", "U"],
+        resolved: true,
+        card: brago
+      },
+      companion: {
+        name: "Yorion, Sky Nomad",
+        entries: [{ name: "Yorion, Sky Nomad", qty: 1 }],
+        resolved: true,
+        card: buildCard({
+          name: "Yorion, Sky Nomad",
+          type_line: "Legendary Creature - Bird Serpent",
+          cmc: 5,
+          mana_cost: "{3}{W}{U}",
+          color_identity: ["W", "U"],
+          colors: ["W", "U"]
+        })
+      }
+    });
+
+    const companionRule = report.rules.find((rule) => rule.id === "commander.companion-legality");
+    expect(report.status).toBe("FAIL");
+    expect(companionRule?.outcome).toBe("FAIL");
+    expect(companionRule?.message).toContain("fixed 100-card deck");
+  });
+
+  it("flags banned companions through the banlist rule", () => {
+    const niv = buildCard({
+      name: "Niv-Mizzet, Parun",
+      type_line: "Legendary Creature - Dragon Wizard",
+      color_identity: ["U", "R"],
+      colors: ["U", "R"],
+      mana_cost: "{U}{U}{U}{R}{R}{R}"
+    });
+    const report = evaluateCommanderRules({
+      parsedDeck: [
+        { name: "Niv-Mizzet, Parun", qty: 1 },
+        { name: "Island", qty: 99 }
+      ],
+      knownCards: [
+        { name: "Niv-Mizzet, Parun", qty: 1, card: niv },
+        buildDeckCard("Island", 99, {
+          type_line: "Basic Land - Island",
+          cmc: 0,
+          mana_cost: "",
+          color_identity: ["U"],
+          colors: []
+        })
+      ],
+      unknownCards: [],
+      commander: {
+        name: "Niv-Mizzet, Parun",
+        colorIdentity: ["U", "R"],
+        resolved: true,
+        card: niv
+      },
+      companion: {
+        name: "Lutri, the Spellchaser",
+        entries: [{ name: "Lutri, the Spellchaser", qty: 1 }],
+        resolved: true,
+        card: buildCard({
+          name: "Lutri, the Spellchaser",
+          type_line: "Legendary Creature - Elemental Otter",
+          cmc: 3,
+          mana_cost: "{1}{U/R}{U/R}",
+          color_identity: ["U", "R"],
+          colors: ["U", "R"]
+        })
+      }
+    });
+
+    const banlistRule = report.rules.find((rule) => rule.id === "commander.banlist");
+    expect(report.status).toBe("FAIL");
+    expect(banlistRule?.outcome).toBe("FAIL");
+    expect(banlistRule?.findings.some((entry) => entry.name === "Lutri, the Spellchaser")).toBe(true);
+  });
+
+  it("fails when a declared companion also appears in the 100-card deck", () => {
+    const tymna = buildCard({
+      name: "Tymna the Weaver",
+      type_line: "Legendary Creature - Human Cleric",
+      color_identity: ["W", "B"],
+      colors: ["W", "B"],
+      mana_cost: "{1}{W}{B}"
+    });
+    const lurrus = buildCard({
+      name: "Lurrus of the Dream-Den",
+      type_line: "Legendary Creature - Cat Nightmare",
+      color_identity: ["W", "B"],
+      colors: ["W", "B"],
+      cmc: 3,
+      mana_cost: "{1}{W/B}{W/B}"
+    });
+    const report = evaluateCommanderRules({
+      parsedDeck: [
+        { name: "Tymna the Weaver", qty: 1 },
+        { name: "Lurrus of the Dream-Den", qty: 1 },
+        { name: "Plains", qty: 98 }
+      ],
+      knownCards: [
+        { name: "Tymna the Weaver", qty: 1, card: tymna },
+        { name: "Lurrus of the Dream-Den", qty: 1, card: lurrus },
+        buildDeckCard("Plains", 98, {
+          type_line: "Basic Land - Plains",
+          cmc: 0,
+          mana_cost: "",
+          color_identity: ["W"],
+          colors: []
+        })
+      ],
+      unknownCards: [],
+      commander: {
+        name: "Tymna the Weaver",
+        colorIdentity: ["W", "B"],
+        resolved: true,
+        card: tymna
+      },
+      companion: {
+        name: "Lurrus of the Dream-Den",
+        entries: [{ name: "Lurrus of the Dream-Den", qty: 1 }],
+        resolved: true,
+        card: lurrus
+      }
+    });
+
+    const companionRule = report.rules.find((rule) => rule.id === "commander.companion-legality");
+    expect(report.status).toBe("FAIL");
+    expect(companionRule?.outcome).toBe("FAIL");
+    expect(companionRule?.message).toContain("cannot also be declared as the companion");
   });
 });

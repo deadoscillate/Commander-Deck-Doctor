@@ -17,6 +17,7 @@ export type DeckImportResult = {
   decklist: string;
   cardCount: number;
   commanderCount: number;
+  companionCount?: number;
 };
 
 function asString(value: unknown): string | null {
@@ -78,7 +79,7 @@ function mergeEntries(entries: DeckEntry[]): DeckEntry[] {
   return [...merged.values()];
 }
 
-function toDecklist(commanders: DeckEntry[], deckCards: DeckEntry[]): string {
+function toDecklist(commanders: DeckEntry[], companions: DeckEntry[], deckCards: DeckEntry[]): string {
   const formatEntry = (row: DeckEntry) => {
     if (row.setCode && row.collectorNumber) {
       return `${row.qty} ${row.name} (${row.setCode.toUpperCase()}) ${row.collectorNumber}`;
@@ -95,6 +96,14 @@ function toDecklist(commanders: DeckEntry[], deckCards: DeckEntry[]): string {
   if (commanders.length > 0) {
     lines.push("Commander");
     for (const row of commanders) {
+      lines.push(formatEntry(row));
+    }
+    lines.push("");
+  }
+
+  if (companions.length > 0) {
+    lines.push("Companion");
+    for (const row of companions) {
       lines.push(formatEntry(row));
     }
     lines.push("");
@@ -325,6 +334,7 @@ async function importFromArchidekt(id: string): Promise<DeckImportResult> {
   const categoryInclusionLookup = buildCategoryInclusionLookup(data?.categories);
 
   const commanders: DeckEntry[] = [];
+  const companions: DeckEntry[] = [];
   const mainboard: DeckEntry[] = [];
 
   for (const cardRow of cards) {
@@ -338,9 +348,11 @@ async function importFromArchidekt(id: string): Promise<DeckImportResult> {
       continue;
     }
 
-    const isCommander =
-      categoriesContainCommander(cardRowObj?.categories) || cardRowObj?.companion === true;
-    if (isCommander) {
+    const isCompanion = cardRowObj?.companion === true;
+    const isCommander = categoriesContainCommander(cardRowObj?.categories);
+    if (isCompanion) {
+      companions.push(entry);
+    } else if (isCommander) {
       commanders.push(entry);
     } else {
       mainboard.push(entry);
@@ -348,16 +360,18 @@ async function importFromArchidekt(id: string): Promise<DeckImportResult> {
   }
 
   const mergedCommanders = mergeEntries(commanders);
+  const mergedCompanions = mergeEntries(companions);
   const mergedMainboard = mergeEntries(mainboard);
 
   return {
     provider: "archidekt",
     providerDeckId: id,
     deckName: asString(data?.name),
-    decklist: toDecklist(mergedCommanders, mergedMainboard),
+    decklist: toDecklist(mergedCommanders, mergedCompanions, mergedMainboard),
     cardCount: mergedMainboard.reduce((sum, row) => sum + row.qty, 0) +
       mergedCommanders.reduce((sum, row) => sum + row.qty, 0),
-    commanderCount: mergedCommanders.reduce((sum, row) => sum + row.qty, 0)
+    commanderCount: mergedCommanders.reduce((sum, row) => sum + row.qty, 0),
+    companionCount: mergedCompanions.reduce((sum, row) => sum + row.qty, 0)
   };
 }
 

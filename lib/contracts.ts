@@ -203,6 +203,19 @@ export type CommanderInfo = {
   needsManualSelection: boolean;
 };
 
+export type CompanionInfo = {
+  detectedFromSection: string | null;
+  selectedName: string | null;
+  selectedManaCost: string | null;
+  selectedCmc: number | null;
+  selectedCardImageUrl: string | null;
+  selectedSetCode: string | null;
+  selectedCollectorNumber: string | null;
+  selectedPrintingId: string | null;
+  resolved: boolean;
+  source: "section" | "none";
+};
+
 export type RoleSuggestion = {
   key: Exclude<CountKey, "lands">;
   label: string;
@@ -328,6 +341,7 @@ export type AnalyzeResponse = {
     userHighPowerNoGCFlag: boolean;
   };
   commander: CommanderInfo;
+  companion?: CompanionInfo;
   parsedDeck: ParsedDeckCard[];
   unknownCards: string[];
   summary: DeckSummary;
