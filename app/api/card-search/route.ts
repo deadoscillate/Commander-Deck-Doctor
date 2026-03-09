@@ -38,12 +38,14 @@ async function parseBody(request: Request): Promise<{
   names: string[];
   allowedColors: string[];
   commanderOnly: boolean;
+  includePairs: boolean;
 }> {
   try {
     const payload = (await request.json()) as {
       names?: unknown;
       allowedColors?: unknown;
       commanderOnly?: unknown;
+      includePairs?: unknown;
     };
 
     const names = Array.isArray(payload.names)
@@ -62,13 +64,15 @@ async function parseBody(request: Request): Promise<{
     return {
       names,
       allowedColors,
-      commanderOnly: payload.commanderOnly === true
+      commanderOnly: payload.commanderOnly === true,
+      includePairs: payload.includePairs === true
     };
   } catch {
     return {
       names: [],
       allowedColors: [],
-      commanderOnly: false
+      commanderOnly: false,
+      includePairs: false
     };
   }
 }
@@ -92,7 +96,10 @@ export async function GET(request: Request) {
     .filter(Boolean);
   const colors = parseCsvColors(url.searchParams.get("colors"));
   const allowedColors = parseCsvColors(url.searchParams.get("allowedColors"));
+  const setCode = url.searchParams.get("set")?.trim().toUpperCase() ?? "";
+  const cardType = url.searchParams.get("type")?.trim().toLowerCase() ?? "";
   const commanderOnly = url.searchParams.get("commanderOnly") === "1";
+  const includePairs = url.searchParams.get("includePairs") === "1";
   const limit = parseLimit(url.searchParams.get("limit"));
 
   const items =
@@ -101,11 +108,14 @@ export async function GET(request: Request) {
           commanderOnly,
           allowedColors
         })
-      : searchCards({
+        : searchCards({
           query: q,
           commanderOnly,
           colors,
           allowedColors,
+          setCode,
+          cardType,
+          includePairs,
           limit
         });
 
@@ -130,7 +140,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const { names, allowedColors, commanderOnly } = await parseBody(request);
+  const { names, allowedColors, commanderOnly, includePairs } = await parseBody(request);
   if (names.length === 0) {
     return apiJson(
       { error: "At least one card name is required." },
@@ -140,7 +150,8 @@ export async function POST(request: Request) {
 
   const items = lookupCardsByNames(names, {
     allowedColors,
-    commanderOnly
+    commanderOnly,
+    includePairs
   });
 
   return apiJson(

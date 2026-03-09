@@ -22,6 +22,7 @@ const DATASETS = [
     label: "default-cards",
     compileCard: compileDefaultCard,
     dedupeByNormalizedName: true,
+    compileDataset: compileDefaultDataset,
     gzipOutput: true
   }
 ];
@@ -153,6 +154,64 @@ function mergeLookupNames(primary, duplicate) {
   };
 }
 
+function defaultPrintPenalty(card) {
+  let penalty = 0;
+  const frameEffects = Array.isArray(card?.frame_effects)
+    ? card.frame_effects.filter((value) => typeof value === "string").map((value) => value.toLowerCase())
+    : [];
+  const finishes = Array.isArray(card?.finishes)
+    ? card.finishes.filter((value) => typeof value === "string").map((value) => value.toLowerCase())
+    : [];
+  const setCode = typeof card?.set === "string" ? card.set.toLowerCase() : "";
+
+  if (card?.promo === true || setCode.startsWith("p")) {
+    penalty += 100;
+  }
+
+  if (card?.variation === true) {
+    penalty += 50;
+  }
+
+  if (frameEffects.some((effect) => ["showcase", "extendedart", "borderless", "inverted", "etched", "fullart"].includes(effect))) {
+    penalty += 30;
+  }
+
+  if (frameEffects.includes("etched") || (finishes.length > 0 && finishes.every((finish) => finish === "etched"))) {
+    penalty += 25;
+  }
+
+  if (frameEffects.includes("surgefoil") || frameEffects.includes("galaxyfoil")) {
+    penalty += 20;
+  }
+
+  return penalty;
+}
+
+function compareDefaultPrintPreference(left, right) {
+  const leftPenalty = defaultPrintPenalty(left);
+  const rightPenalty = defaultPrintPenalty(right);
+  if (leftPenalty !== rightPenalty) {
+    return leftPenalty - rightPenalty;
+  }
+
+  const collectorComparison = comparePrintPreference(
+    {
+      id: typeof left?.id === "string" ? left.id : "",
+      collector_number: typeof left?.collector_number === "string" ? left.collector_number : ""
+    },
+    {
+      id: typeof right?.id === "string" ? right.id : "",
+      collector_number: typeof right?.collector_number === "string" ? right.collector_number : ""
+    }
+  );
+
+  if (collectorComparison !== 0) {
+    return collectorComparison;
+  }
+
+  return String(left?.set ?? "").localeCompare(String(right?.set ?? ""));
+}
+
 function compileOracleCard(card) {
   const compiled = baseCompiledCard(card);
   if (!compiled) {
@@ -213,6 +272,43 @@ function compileDefaultCard(card) {
     prices: prices ?? null,
     purchase_uris: purchaseUris ?? null
   });
+}
+
+function compileDefaultDataset(raw) {
+  const deduped = new Map();
+
+  for (const card of raw) {
+    const compiled = compileDefaultCard(card);
+    if (!compiled) {
+      continue;
+    }
+
+    const key = normalizeLookupName(compiled.name);
+    if (!key) {
+      continue;
+    }
+
+    const existing = deduped.get(key);
+    if (!existing) {
+      deduped.set(key, { compiled, raw: card });
+      continue;
+    }
+
+    if (compareDefaultPrintPreference(card, existing.raw) < 0) {
+      deduped.set(key, {
+        compiled: mergeLookupNames(compiled, existing.compiled),
+        raw: card
+      });
+      continue;
+    }
+
+    deduped.set(key, {
+      compiled: mergeLookupNames(existing.compiled, compiled),
+      raw: existing.raw
+    });
+  }
+
+  return [...deduped.values()].map((entry) => entry.compiled);
 }
 
 function dedupeCompiledCardsByNormalizedName(cards) {

@@ -4,7 +4,7 @@ import { GET, POST } from "@/app/api/card-search/route";
 describe("GET /api/card-search", () => {
   it("returns commander-only results with legal pair metadata", async () => {
     const response = await GET(
-      new Request("http://localhost/api/card-search?q=Tymna&commanderOnly=1&limit=5")
+      new Request("http://localhost/api/card-search?q=Tymna&commanderOnly=1&includePairs=1&limit=5")
     );
 
     expect(response.status).toBe(200);
@@ -58,6 +58,22 @@ describe("GET /api/card-search", () => {
     expect(
       payload.items.every((item) => item.colorIdentity.every((color) => ["G", "U"].includes(color)))
     ).toBe(true);
+  });
+
+  it("supports browsing by set and type", async () => {
+    const response = await GET(
+      new Request("http://localhost/api/card-search?set=CLB&type=creature&q=Jon&limit=10")
+    );
+
+    expect(response.status).toBe(200);
+    const payload = (await response.json()) as {
+      items: Array<{ name: string; setCode: string | null; typeLine: string }>;
+    };
+
+    expect(payload.items.length).toBeGreaterThan(0);
+    expect(payload.items.some((item) => item.name === "Jon Irenicus, Shattered One")).toBe(true);
+    expect(payload.items.every((item) => item.setCode === "CLB")).toBe(true);
+    expect(payload.items.every((item) => item.typeLine.toLowerCase().includes("creature"))).toBe(true);
   });
 
   it("supports exact name lookup via POST", async () => {

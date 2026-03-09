@@ -83,6 +83,17 @@ const COMMANDER_STAPLES_BY_COLOR: Record<string, string[]> = {
   G: ["Nature's Lore", "Three Visits", "Heroic Intervention"]
 };
 
+const GENERIC_COMMANDER_STAPLES = [
+  "Sol Ring",
+  "Arcane Signet",
+  "Swiftfoot Boots",
+  "Lightning Greaves",
+  "Skullclamp",
+  "Sensei's Divining Top",
+  "The One Ring",
+  "Wayfarer's Bauble"
+];
+
 const ARCHETYPE_STAPLES: Record<string, string[]> = {
   Tokens: ["Skullclamp", "Mondrak, Glory Dominus", "Anointed Procession"],
   "Go Wide": ["Akroma's Will", "Moonshaker Cavalry", "Beastmaster Ascension"],
@@ -246,23 +257,35 @@ export function buildArchetypeLabel(report: DeckArchetypeReport | null | undefin
 }
 
 export function buildCommanderStapleSuggestionNames(
-  colors: string[],
-  archetypes: string[] = []
+  colors: string[] = []
 ): string[] {
   const normalizedColors = normalizeColorIdentity(colors);
-  const names = ["Sol Ring", "Arcane Signet"];
+  const names = [...GENERIC_COMMANDER_STAPLES];
 
   if (normalizedColors.length >= 2) {
-    names.push("Command Tower", "Path of Ancestry");
+    names.push("Fellwar Stone");
   }
 
   if (normalizedColors.length >= 3) {
-    names.push("Exotic Orchard");
+    names.push("Chromatic Lantern");
   }
+
+  return uniqueNames(names);
+}
+
+export function buildColorStapleSuggestionNames(colors: string[]): string[] {
+  const normalizedColors = normalizeColorIdentity(colors);
+  const names: string[] = [];
 
   for (const color of normalizedColors) {
     names.push(...(COMMANDER_STAPLES_BY_COLOR[color] ?? []));
   }
+
+  return uniqueNames(names);
+}
+
+export function buildArchetypeSynergySuggestionNames(archetypes: string[]): string[] {
+  const names: string[] = [];
 
   for (const archetype of archetypes) {
     names.push(...(ARCHETYPE_STAPLES[archetype] ?? []));

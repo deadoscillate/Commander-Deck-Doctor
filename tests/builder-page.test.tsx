@@ -230,12 +230,14 @@ describe("builder page", () => {
               typeLine: "Legendary Creature - Elf Rogue",
               oracleText: "Whenever a creature deals combat damage to one of your opponents, its controller may draw a card.",
               colorIdentity: ["G", "U"],
+              setCode: "CMD",
               commanderEligible: true,
               isBasicLand: false,
               duplicateLimit: null,
               previewImageUrl: null,
               artUrl: null,
-              pairOptions: []
+              pairOptions: [],
+              pairOptionsResolved: false
             }
           ]
         });
@@ -272,11 +274,14 @@ describe("builder page", () => {
           typeLine: name === "Counterspell" ? "Instant" : "",
           oracleText: "",
           colorIdentity: name === "Counterspell" ? ["U"] : [],
+          setCode: name === "Edric, Spymaster of Trest" ? "CMD" : null,
           commanderEligible: name === "Edric, Spymaster of Trest",
           isBasicLand: false,
           duplicateLimit: null,
           previewImageUrl: null,
-          artUrl: null
+          artUrl: null,
+          pairOptions: name === "Edric, Spymaster of Trest" ? [] : undefined,
+          pairOptionsResolved: name === "Edric, Spymaster of Trest"
         }));
 
         return jsonResponse({

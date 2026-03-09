@@ -41,12 +41,14 @@ export type CardSearchRecord = {
   typeLine: string;
   oracleText: string;
   colorIdentity: string[];
+  setCode: string | null;
   commanderEligible: boolean;
   isBasicLand: boolean;
   duplicateLimit: number | null;
   previewImageUrl: string | null;
   artUrl: string | null;
   pairOptions?: CommanderChoice["pairOptions"];
+  pairOptionsResolved?: boolean;
 };
 
 type SearchOptions = {
@@ -54,12 +56,16 @@ type SearchOptions = {
   commanderOnly?: boolean;
   colors?: string[];
   allowedColors?: string[];
+  setCode?: string;
+  cardType?: string;
+  includePairs?: boolean;
   limit?: number;
 };
 
 let searchIndex: CardSearchRecord[] | null = null;
 let searchIndexByName: Map<string, CardSearchRecord> | null = null;
 let commanderPool: ScryfallCard[] | null = null;
+let commanderSearchIndex: CardSearchRecord[] | null = null;
 
 function normalizeName(name: string): string {
   return name
@@ -128,6 +134,7 @@ function toSearchRecord(card: ScryfallCard): CardSearchRecord {
     typeLine: card.type_line,
     oracleText: card.oracle_text ?? "",
     colorIdentity: normalizedColorIdentity(card.color_identity ?? []),
+    setCode: typeof card.set === "string" && card.set ? card.set.toUpperCase() : null,
     commanderEligible: isCommanderEligible(card),
     isBasicLand: BASIC_LANDS.has(normalizeName(card.name)),
     duplicateLimit: duplicateLimitForCard(card),
@@ -145,6 +152,7 @@ function buildFallbackScryfallCard(record: CardSearchRecord): ScryfallCard {
     colors: [],
     color_identity: record.colorIdentity,
     oracle_text: record.oracleText,
+    set: record.setCode?.toLowerCase(),
     image_uris: null,
     card_faces: [],
     prices: null
@@ -220,6 +228,7 @@ function buildSearchIndex(): CardSearchRecord[] {
         typeLine: engineCard.typeLine,
         oracleText: engineCard.oracleText ?? "",
         colorIdentity: normalizedColorIdentity(engineCard.colorIdentity ?? []),
+        setCode: null,
         commanderEligible: isLegendaryCreature(engineCard.typeLine) || engineCard.oracleText.toLowerCase().includes("can be your commander"),
         isBasicLand: BASIC_LANDS.has(normalizeName(engineCard.name)),
         duplicateLimit: duplicateLimitForCard({
@@ -234,6 +243,7 @@ function buildSearchIndex(): CardSearchRecord[] {
 
   searchIndex = next;
   searchIndexByName = new Map(next.map((card) => [normalizeName(card.name), card]));
+  commanderSearchIndex = next.filter((card) => card.commanderEligible && !isDigitalVariantName(card.name));
   return next;
 }
 
@@ -290,9 +300,13 @@ export function searchCards(input: SearchOptions = {}): CardSearchRecord[] {
   const commanderOnly = Boolean(input.commanderOnly);
   const colors = normalizedColorIdentity(input.colors ?? []);
   const allowedColors = new Set(normalizedColorIdentity(input.allowedColors ?? []));
+  const setCode = input.setCode?.trim().toUpperCase() ?? "";
+  const cardType = input.cardType?.trim().toLowerCase() ?? "";
+  const includePairs = input.includePairs === true;
   const limit = Math.max(1, Math.min(50, Math.floor(input.limit ?? 24)));
+  const sourceRows = commanderOnly ? (commanderSearchIndex ?? buildSearchIndex().filter((card) => card.commanderEligible && !isDigitalVariantName(card.name))) : buildSearchIndex();
 
-  const rows = buildSearchIndex()
+  const rows = sourceRows
     .filter((card) => {
       if (commanderOnly && !card.commanderEligible) {
         return false;
@@ -308,6 +322,17 @@ export function searchCards(input: SearchOptions = {}): CardSearchRecord[] {
 
       if (allowedColors.size > 0 && !subsetOf(card.colorIdentity, allowedColors)) {
         return false;
+      }
+
+      if (setCode && card.setCode !== setCode) {
+        return false;
+      }
+
+      if (cardType) {
+        const normalizedTypeLine = card.typeLine.toLowerCase();
+        if (!normalizedTypeLine.includes(cardType)) {
+          return false;
+        }
       }
 
       if (!query) {
@@ -326,13 +351,14 @@ export function searchCards(input: SearchOptions = {}): CardSearchRecord[] {
     })
     .slice(0, limit)
     .map((card) => {
-      if (!commanderOnly || !card.commanderEligible) {
+      if (!commanderOnly || !card.commanderEligible || !includePairs) {
         return card;
       }
 
       const resolvedCard = getLocalDefaultCardByName(card.name) ?? buildFallbackScryfallCard(card);
       return {
         ...card,
+        pairOptionsResolved: true,
         pairOptions: getPairOptionsForCard(resolvedCard)
       };
     });
@@ -342,10 +368,11 @@ export function searchCards(input: SearchOptions = {}): CardSearchRecord[] {
 
 export function lookupCardsByNames(
   names: string[],
-  input: Pick<SearchOptions, "allowedColors" | "commanderOnly"> = {}
+  input: Pick<SearchOptions, "allowedColors" | "commanderOnly" | "includePairs"> = {}
 ): CardSearchRecord[] {
   const allowedColors = new Set(normalizedColorIdentity(input.allowedColors ?? []));
   const commanderOnly = Boolean(input.commanderOnly);
+  const includePairs = input.includePairs === true;
   const byName = buildSearchIndexByName();
   const seen = new Set<string>();
   const rows: CardSearchRecord[] = [];
@@ -370,7 +397,7 @@ export function lookupCardsByNames(
       continue;
     }
 
-    if (!commanderOnly || !card.commanderEligible) {
+    if (!commanderOnly || !card.commanderEligible || !includePairs) {
       rows.push(card);
       continue;
     }
@@ -378,6 +405,7 @@ export function lookupCardsByNames(
     const resolvedCard = getLocalDefaultCardByName(card.name) ?? buildFallbackScryfallCard(card);
     rows.push({
       ...card,
+      pairOptionsResolved: true,
       pairOptions: getPairOptionsForCard(resolvedCard)
     });
   }
@@ -389,4 +417,5 @@ export function clearCardSearchCache(): void {
   searchIndex = null;
   searchIndexByName = null;
   commanderPool = null;
+  commanderSearchIndex = null;
 }

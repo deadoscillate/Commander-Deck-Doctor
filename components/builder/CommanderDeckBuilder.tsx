@@ -9,9 +9,11 @@ import { CommanderHeroHeader } from "@/components/CommanderHeroHeader";
 import { ManaCost } from "@/components/ManaCost";
 import type { AnalyzeResponse, CommanderChoice, RoleBreakdown } from "@/lib/contracts";
 import {
+  buildArchetypeSynergySuggestionNames,
   buildArchetypeLabel,
   buildBuilderDecklist,
   buildCommanderStapleSuggestionNames,
+  buildColorStapleSuggestionNames,
   buildManaBaseSuggestionNames,
   categorizeBuilderDeckCards,
   computePreconSimilarity,
@@ -22,6 +24,7 @@ import {
   type BuilderCommanderSelection,
   type BuilderDeckCard
 } from "@/lib/builder";
+import { GAME_CHANGERS } from "@/lib/gameChangers";
 import type { PreconDeck } from "@/lib/preconTypes";
 
 const BUILDER_STORAGE_KEY = "commanderDeckDoctor.builderDecks.v1";
@@ -34,12 +37,14 @@ type CardSearchRecord = {
   typeLine: string;
   oracleText: string;
   colorIdentity: string[];
+  setCode: string | null;
   commanderEligible: boolean;
   isBasicLand: boolean;
   duplicateLimit: number | null;
   previewImageUrl: string | null;
   artUrl: string | null;
   pairOptions?: CommanderChoice["pairOptions"];
+  pairOptionsResolved?: boolean;
 };
 
 type CardSearchResponse = {
@@ -74,6 +79,42 @@ type SuggestionGroup = {
   label: string;
   description?: string;
   items: SuggestionCardItem[];
+};
+
+type SuggestionCollections = {
+  roleGroups: SuggestionGroup[];
+  comboGroups: SuggestionGroup[];
+  stapleGroup: SuggestionGroup | null;
+  colorStapleGroup: SuggestionGroup | null;
+  gameChangerGroup: SuggestionGroup | null;
+  manaBaseGroup: SuggestionGroup | null;
+};
+
+type BuilderCardTypeFilter = "" | "artifact" | "battle" | "creature" | "enchantment" | "instant" | "land" | "planeswalker" | "sorcery";
+
+const CARD_TYPE_FILTERS: Array<{ value: BuilderCardTypeFilter; label: string }> = [
+  { value: "", label: "All types" },
+  { value: "artifact", label: "Artifacts" },
+  { value: "battle", label: "Battles" },
+  { value: "creature", label: "Creatures" },
+  { value: "enchantment", label: "Enchantments" },
+  { value: "instant", label: "Instants" },
+  { value: "land", label: "Lands" },
+  { value: "planeswalker", label: "Planeswalkers" },
+  { value: "sorcery", label: "Sorceries" }
+];
+
+const ARCHETYPE_ROLE_PRIORITIES: Record<string, string[]> = {
+  Tokens: ["draw", "protection", "finishers"],
+  "Go Wide": ["draw", "protection", "finishers"],
+  Spellslinger: ["draw", "ramp", "protection"],
+  Storm: ["draw", "ramp", "protection"],
+  Artifacts: ["ramp", "draw", "protection"],
+  Enchantress: ["draw", "protection", "removal"],
+  "Kindred (Tribal)": ["draw", "protection", "finishers"],
+  Counters: ["protection", "draw", "finishers"],
+  Graveyard: ["draw", "ramp", "finishers"],
+  "Lands Matter": ["ramp", "draw", "finishers"]
 };
 
 const ROLE_FALLBACK_SUGGESTIONS: Record<string, Record<string, string[]>> = {
@@ -259,6 +300,7 @@ function basicCardTemplate(name: string, isBasicLand = false, duplicateLimit: nu
     typeLine: "",
     oracleText: "",
     colorIdentity: [],
+    setCode: null,
     commanderEligible: false,
     isBasicLand,
     duplicateLimit,
@@ -313,17 +355,35 @@ function buildCommanderRoleSuggestionGroups(
 ): SuggestionGroup[] {
   const colorKeys = ["C", ...colors];
   const groups: SuggestionGroup[] = [];
+  const roleKeys = new Set<string>(needs.map((need) => need.key));
 
-  for (const need of needs) {
-    if (!(need.key in ROLE_FALLBACK_SUGGESTIONS)) {
+  if (roleKeys.size === 0) {
+    for (const archetype of archetypes) {
+      for (const roleKey of ARCHETYPE_ROLE_PRIORITIES[archetype] ?? []) {
+        roleKeys.add(roleKey);
+      }
+    }
+  }
+
+  if (roleKeys.size === 0) {
+    for (const fallbackRole of ["ramp", "draw", "removal"]) {
+      roleKeys.add(fallbackRole);
+    }
+  }
+
+  for (const roleKey of roleKeys) {
+    if (!(roleKey in ROLE_FALLBACK_SUGGESTIONS)) {
       continue;
     }
 
-    const suggestions = colorKeys.flatMap((color) => ROLE_FALLBACK_SUGGESTIONS[need.key]?.[color] ?? []);
+    const need = needs.find((entry) => entry.key === roleKey) ?? null;
+    const suggestions = colorKeys.flatMap((color) => ROLE_FALLBACK_SUGGESTIONS[roleKey]?.[color] ?? []);
     groups.push({
-      key: `fallback-${need.key}`,
-      label: need.label,
-      description: `Builder fallback for ${need.label.toLowerCase()}. Target minimum: ${need.recommendedMin}.`,
+      key: `fallback-${roleKey}`,
+      label: need?.label ?? roleKey.charAt(0).toUpperCase() + roleKey.slice(1),
+      description: need
+        ? `Builder fallback for ${need.label.toLowerCase()}. Target minimum: ${need.recommendedMin}.`
+        : `Commander-first fallback picks for ${roleKey}.`,
       items: [...new Set(suggestions)].slice(0, 6).map((name) => ({ name }))
     });
   }
@@ -333,7 +393,7 @@ function buildCommanderRoleSuggestionGroups(
       key: "fallback-archetype-synergy",
       label: "Synergy Pieces",
       description: `Commander-driven synergy picks for ${archetypes.join(" / ")}.`,
-      items: buildCommanderStapleSuggestionNames(colors, archetypes)
+      items: buildArchetypeSynergySuggestionNames(archetypes)
         .slice(0, 6)
         .map((name) => ({ name }))
     });
@@ -364,14 +424,11 @@ function mergeSuggestionGroups(
 function buildSuggestionGroups(
   result: AnalyzeResponse | null,
   commanderStaples: string[],
+  colorStaples: string[],
+  gameChangerSuggestions: string[],
   manaBaseSuggestions: string[],
   fallbackRoleGroups: SuggestionGroup[]
-): {
-  roleGroups: SuggestionGroup[];
-  comboGroups: SuggestionGroup[];
-  stapleGroup: SuggestionGroup | null;
-  manaBaseGroup: SuggestionGroup | null;
-} {
+): SuggestionCollections {
   if (!result) {
     return {
       roleGroups: fallbackRoleGroups,
@@ -380,8 +437,24 @@ function buildSuggestionGroups(
         ? {
             key: "commander-staples",
             label: "Commander Staples",
-            description: "Fast-start staples and color staples for the current commander shell.",
+            description: "Common Commander play-pattern staples that fit most builds.",
             items: commanderStaples.slice(0, 8).map((name) => ({ name }))
+          }
+        : null,
+      colorStapleGroup: colorStaples.length > 0
+        ? {
+            key: "color-staples",
+            label: "Color Staples",
+            description: "Color-identity staples that usually overperform in these colors.",
+            items: colorStaples.slice(0, 8).map((name) => ({ name }))
+          }
+        : null,
+      gameChangerGroup: gameChangerSuggestions.length > 0
+        ? {
+            key: "game-changers",
+            label: "Game Changer Suggestions",
+            description: "Commander bracket game changers you could add if you want a stronger ceiling.",
+            items: gameChangerSuggestions.slice(0, 8).map((name) => ({ name }))
           }
         : null,
       manaBaseGroup: manaBaseSuggestions.length > 0
@@ -427,20 +500,48 @@ function buildSuggestionGroups(
         ? {
             key: "commander-staples",
             label: "Commander Staples",
-            description: "Fast-start staples and color staples for the current commander shell.",
+            description: "Common Commander play-pattern staples that fit most builds.",
             items: commanderStaples.slice(0, 8).map((name) => ({ name }))
+          }
+        : null,
+    colorStapleGroup:
+      colorStaples.length > 0
+        ? {
+            key: "color-staples",
+            label: "Color Staples",
+            description: "Color-identity staples that usually overperform in these colors.",
+            items: colorStaples.slice(0, 8).map((name) => ({ name }))
+          }
+        : null,
+    gameChangerGroup:
+      gameChangerSuggestions.length > 0
+        ? {
+            key: "game-changers",
+            label: "Game Changer Suggestions",
+            description: "Commander bracket game changers you could add if you want a stronger ceiling.",
+            items: gameChangerSuggestions.slice(0, 8).map((name) => ({ name }))
           }
         : null,
     manaBaseGroup:
       manaBaseSuggestions.length > 0
         ? {
-            key: "mana-base",
-            label: "Mana Base Suggestions",
+          key: "mana-base",
+          label: "Mana Base Suggestions",
             description: "Staple fixing lands, duals, and triomes for the current color identity.",
             items: manaBaseSuggestions.slice(0, 12).map((name) => ({ name }))
           }
         : null
   };
+}
+
+function canAddMoreCopies(record: CardSearchRecord, existingQty: number): boolean {
+  const duplicateLimit = record.duplicateLimit;
+  return (
+    existingQty === 0 ||
+    record.isBasicLand ||
+    duplicateLimit === Number.POSITIVE_INFINITY ||
+    (typeof duplicateLimit === "number" && existingQty < duplicateLimit)
+  );
 }
 
 function toCardMetaMap(records: Record<string, CardSearchRecord>): Record<string, BuilderCardMeta> {
@@ -465,6 +566,8 @@ export function CommanderDeckBuilder() {
   const [selectedPartnerName, setSelectedPartnerName] = useState("");
   const [deckCards, setDeckCards] = useState<BuilderDeckCard[]>([]);
   const [cardQuery, setCardQuery] = useState("");
+  const [cardTypeFilter, setCardTypeFilter] = useState<BuilderCardTypeFilter>("");
+  const [cardSetFilter, setCardSetFilter] = useState("");
   const [cardResults, setCardResults] = useState<CardSearchRecord[]>([]);
   const [cardSearchLoading, setCardSearchLoading] = useState(false);
   const [cardSearchError, setCardSearchError] = useState("");
@@ -519,7 +622,7 @@ export function CommanderDeckBuilder() {
       try {
         const params = new URLSearchParams({
           commanderOnly: "1",
-          limit: "18"
+          limit: "12"
         });
         params.set("q", query);
         if (commanderColors.length > 0) {
@@ -557,6 +660,50 @@ export function CommanderDeckBuilder() {
     };
   }, [commanderColors, commanderQuery]);
 
+  useEffect(() => {
+    if (!selectedCommander || selectedCommander.pairOptionsResolved) {
+      return;
+    }
+
+    const commanderName = selectedCommander.name;
+    let cancelled = false;
+
+    async function loadCommanderPairOptions() {
+      try {
+        const response = await fetch("/api/card-search", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            names: [commanderName],
+            commanderOnly: true,
+            includePairs: true
+          })
+        });
+        const payload = (await response.json()) as CardSearchResponse | { error: string };
+        if (cancelled || !response.ok) {
+          return;
+        }
+
+        const updatedCommander = (payload as CardSearchResponse).items?.[0];
+        if (!updatedCommander) {
+          return;
+        }
+
+        setSelectedCommander((current) =>
+          current && normalizeName(current.name) === normalizeName(updatedCommander.name) ? updatedCommander : current
+        );
+      } catch {
+        // Leave commander selection usable even if pair metadata fails to load.
+      }
+    }
+
+    void loadCommanderPairOptions();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedCommander]);
+
   const selectedPairOption = useMemo(
     () => selectedCommander?.pairOptions?.find((option) => option.name === selectedPartnerName) ?? null,
     [selectedCommander, selectedPartnerName]
@@ -591,7 +738,7 @@ export function CommanderDeckBuilder() {
       return;
     }
 
-    if (!cardQuery.trim()) {
+    if (!cardQuery.trim() && !cardTypeFilter && !cardSetFilter.trim()) {
       setCardResults([]);
       setCardSearchError("");
       return;
@@ -604,11 +751,19 @@ export function CommanderDeckBuilder() {
 
       try {
         const params = new URLSearchParams({
-          q: cardQuery.trim(),
           limit: "20"
         });
+        if (cardQuery.trim()) {
+          params.set("q", cardQuery.trim());
+        }
         if (allowedColorIdentity.length > 0) {
           params.set("allowedColors", allowedColorIdentity.join(","));
+        }
+        if (cardTypeFilter) {
+          params.set("type", cardTypeFilter);
+        }
+        if (cardSetFilter.trim()) {
+          params.set("set", cardSetFilter.trim().toUpperCase());
         }
 
         const response = await fetch(`/api/card-search?${params.toString()}`, { cache: "no-store" });
@@ -649,7 +804,7 @@ export function CommanderDeckBuilder() {
       cancelled = true;
       window.clearTimeout(timeoutId);
     };
-  }, [allowedColorIdentity, cardQuery, selectedCommander, selectedPairOption]);
+  }, [allowedColorIdentity, cardQuery, cardSetFilter, cardTypeFilter, selectedCommander, selectedPairOption]);
 
   useEffect(() => {
     if (!commanderSelection) {
@@ -833,11 +988,28 @@ export function CommanderDeckBuilder() {
   const commanderStaples = useMemo(
     () =>
       selectedCommander
-        ? buildCommanderStapleSuggestionNames(allowedColorIdentity, archetypeNames).filter(
+        ? buildCommanderStapleSuggestionNames(allowedColorIdentity).filter(
             (name) => !deckCards.some((card) => normalizeName(card.name) === normalizeName(name))
           )
         : [],
-    [allowedColorIdentity, archetypeNames, deckCards, selectedCommander]
+    [allowedColorIdentity, deckCards, selectedCommander]
+  );
+  const colorStaples = useMemo(
+    () =>
+      selectedCommander
+        ? buildColorStapleSuggestionNames(allowedColorIdentity).filter(
+            (name) => !deckCards.some((card) => normalizeName(card.name) === normalizeName(name))
+          )
+        : [],
+    [allowedColorIdentity, deckCards, selectedCommander]
+  );
+  const gameChangerSuggestions = useMemo(
+    () =>
+      selectedCommander
+        ? [...GAME_CHANGERS]
+            .filter((name) => !deckCards.some((card) => normalizeName(card.name) === normalizeName(name)))
+        : [],
+    [deckCards, selectedCommander]
   );
   const manaBaseSuggestions = useMemo(
     () =>
@@ -849,8 +1021,16 @@ export function CommanderDeckBuilder() {
     [allowedColorIdentity, deckCards, selectedCommander]
   );
   const suggestionGroups = useMemo(
-    () => buildSuggestionGroups(analysis, commanderStaples, manaBaseSuggestions, fallbackRoleGroups),
-    [analysis, commanderStaples, fallbackRoleGroups, manaBaseSuggestions]
+    () =>
+      buildSuggestionGroups(
+        analysis,
+        commanderStaples,
+        colorStaples,
+        gameChangerSuggestions,
+        manaBaseSuggestions,
+        fallbackRoleGroups
+      ),
+    [analysis, colorStaples, commanderStaples, fallbackRoleGroups, gameChangerSuggestions, manaBaseSuggestions]
   );
   const gameChangers = useMemo(
     () => analysis?.bracketReport?.gameChangersFound ?? [],
@@ -881,6 +1061,18 @@ export function CommanderDeckBuilder() {
             items: filterItems(suggestionGroups.stapleGroup.items)
           }
         : null,
+      colorStapleGroup: suggestionGroups.colorStapleGroup
+        ? {
+            ...suggestionGroups.colorStapleGroup,
+            items: filterItems(suggestionGroups.colorStapleGroup.items)
+          }
+        : null,
+      gameChangerGroup: suggestionGroups.gameChangerGroup
+        ? {
+            ...suggestionGroups.gameChangerGroup,
+            items: filterItems(suggestionGroups.gameChangerGroup.items)
+          }
+        : null,
       manaBaseGroup: suggestionGroups.manaBaseGroup
         ? {
             ...suggestionGroups.manaBaseGroup,
@@ -896,6 +1088,8 @@ export function CommanderDeckBuilder() {
       selectedCommander?.name ?? "",
       selectedPairOption?.name ?? "",
       ...commanderStaples,
+      ...colorStaples,
+      ...gameChangerSuggestions,
       ...manaBaseSuggestions,
       ...suggestionGroups.roleGroups.flatMap((group) => group.items.map((item) => item.name)),
       ...suggestionGroups.comboGroups.flatMap((group) => group.items.map((item) => item.name))
@@ -914,7 +1108,7 @@ export function CommanderDeckBuilder() {
     }
 
     return output;
-  }, [commanderStaples, deckCards, manaBaseSuggestions, selectedCommander, selectedPairOption, suggestionGroups]);
+  }, [colorStaples, commanderStaples, deckCards, gameChangerSuggestions, manaBaseSuggestions, selectedCommander, selectedPairOption, suggestionGroups]);
   const deckSections = useMemo(
     () => categorizeBuilderDeckCards(deckCards, roleBreakdown, toCardMetaMap(resolvedCardsByName)),
     [deckCards, resolvedCardsByName, roleBreakdown]
@@ -1060,6 +1254,9 @@ export function CommanderDeckBuilder() {
     setDeckName(`${commander.name} Builder`);
     setCommanderQuery("");
     setCommanderResults([]);
+    setCardQuery("");
+    setCardTypeFilter("");
+    setCardSetFilter("");
     setShowReportView(false);
     setAnalysis(null);
     setAnalysisError("");
@@ -1127,6 +1324,62 @@ export function CommanderDeckBuilder() {
     anchor.remove();
     URL.revokeObjectURL(url);
     setDecklistActionMessage("Decklist exported.");
+  }
+
+  function renderCardThumb(record: CardSearchRecord, className = "builder-card-thumb", fallbackLabel?: string) {
+    const imageUrl = record.artUrl ?? record.previewImageUrl ?? null;
+    return (
+      <div
+        className={className}
+        aria-hidden="true"
+        style={imageUrl ? { backgroundImage: `url("${imageUrl}")` } : undefined}
+      >
+        {!imageUrl ? <span>{fallbackLabel ?? record.name.charAt(0)}</span> : null}
+      </div>
+    );
+  }
+
+  function renderSuggestionGroupPanel(group: SuggestionGroup, prefix: string, open = false) {
+    return (
+      <details key={group.key} className="builder-suggestion-group builder-suggestion-group-collapsible" open={open}>
+        <summary className="builder-suggestion-summary">
+          <span>{group.label}</span>
+          <span className="muted">{group.items.length}</span>
+        </summary>
+        {group.description ? <p className="muted builder-suggestion-description">{group.description}</p> : null}
+        <div className="builder-suggestion-list">
+          {group.items.map((item) => {
+            const record = resolveCardRecord(item.name);
+            const existingQty =
+              deckCards.find((entry) => normalizeName(entry.name) === normalizeName(item.name))?.qty ?? 0;
+            const canAddMore = canAddMoreCopies(record, existingQty);
+
+            return (
+              <article key={`${prefix}-${group.key}-${item.name}`} className="builder-search-card builder-suggestion-card">
+                {renderCardThumb(record, "builder-search-thumb", item.name.charAt(0))}
+                <div className="builder-search-card-main">
+                  <strong><CardLink name={item.name} /></strong>
+                  <div className="builder-search-meta">
+                    {record.manaCost ? <ManaCost manaCost={record.manaCost} size={16} /> : null}
+                    {record.typeLine ? <span>{record.typeLine}</span> : null}
+                    {record.setCode ? <span>{record.setCode}</span> : null}
+                  </div>
+                  {item.note ? <p className="muted builder-suggestion-note">{item.note}</p> : null}
+                </div>
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  disabled={!canAddMore}
+                  onClick={() => addNamedCard(item.name)}
+                >
+                  {canAddMore ? "Add" : "In Deck"}
+                </button>
+              </article>
+            );
+          })}
+        </div>
+      </details>
+    );
   }
 
   return (
@@ -1197,36 +1450,33 @@ export function CommanderDeckBuilder() {
         ) : null}
       </section>
 
-      {heroCommander ? (
-        <CommanderHeroHeader
-          commander={heroCommander}
-          archetypeLabel={archetypeLabel}
-          bracketLabel={analysis?.bracketReport?.estimatedLabel ?? null}
-        />
-      ) : null}
-
-      <section className="builder-grid">
-        <aside className="panel builder-panel builder-panel-left">
+      {selectedCommander ? (
+        <section className="panel builder-status-row">
           <div className="builder-panel-head">
             <h2>Deck Status</h2>
-            {selectedCommander ? <button type="button" className="btn-tertiary" onClick={saveCurrentDeck}>Save Build</button> : null}
+            <button type="button" className="btn-tertiary" onClick={saveCurrentDeck}>Save Build</button>
           </div>
 
-          {!selectedCommander ? (
-            <p className="muted">Choose a commander to initialize an empty 99-card Commander build.</p>
-          ) : (
-            <>
-              <div className="builder-commander-summary">
-                <div>
-                  <p className="builder-kicker">Commander</p>
-                  <strong><CardLink name={selectedCommander.name} /></strong>
-                </div>
-                <div className="builder-search-meta">
-                  <ManaCost manaCost={selectedCommander.manaCost} size={16} />
-                  <ColorIdentityIcons identity={allowedColorIdentity} size={18} />
-                </div>
-              </div>
+          <div className="builder-stat-grid builder-stat-grid-wide">
+            <div className="summary-card"><span>Main Deck</span><strong>{currentMainDeckCount}/{expectedMainDeckSize}</strong></div>
+            <div className="summary-card"><span>Total Cards</span><strong>{totalDeckCount}</strong></div>
+            <div className="summary-card"><span>Legality</span><strong>{analysis?.rulesEngine?.status ?? "Pending"}</strong></div>
+            <div className="summary-card"><span>Bracket</span><strong>{analysis?.bracketReport?.estimatedLabel ?? "Pending"}</strong></div>
+            <div className="summary-card"><span>Combos</span><strong>{analysis?.comboReport.detected.length ?? 0}</strong></div>
+            <div className="summary-card"><span>Precon Match</span><strong>{preconSimilarity ? `${preconSimilarity.overlapPct}%` : "N/A"}</strong></div>
+          </div>
 
+          {analysisLoading ? <p className="muted">Refreshing live analysis...</p> : null}
+          {analysisError ? <p className="error">{analysisError}</p> : null}
+
+          <div className="builder-status-detail-grid">
+            <section className="builder-status-card">
+              <h3>Commander</h3>
+              <p><strong><CardLink name={selectedCommander.name} /></strong></p>
+              <div className="builder-search-meta">
+                <ManaCost manaCost={selectedCommander.manaCost} size={16} />
+                <span>{selectedCommander.typeLine}</span>
+              </div>
               {selectedCommander.pairOptions && selectedCommander.pairOptions.length > 0 ? (
                 <div className="builder-pair-picker">
                   <label htmlFor="builder-partner">Partner / Background</label>
@@ -1238,81 +1488,91 @@ export function CommanderDeckBuilder() {
                   </select>
                 </div>
               ) : null}
+            </section>
 
-              <div className="builder-stat-grid">
-                <div className="summary-card"><span>Main Deck</span><strong>{currentMainDeckCount}/{expectedMainDeckSize}</strong></div>
-                <div className="summary-card"><span>Total Cards</span><strong>{totalDeckCount}</strong></div>
-                <div className="summary-card"><span>Legality</span><strong>{analysis?.rulesEngine?.status ?? "Pending"}</strong></div>
-                <div className="summary-card"><span>Bracket</span><strong>{analysis?.bracketReport?.estimatedLabel ?? "Pending"}</strong></div>
-              </div>
-
-              {analysisLoading ? <p className="muted">Refreshing live analysis...</p> : null}
-              {analysisError ? <p className="error">{analysisError}</p> : null}
-
+            <section className="builder-status-card">
+              <h3>Live Snapshot</h3>
               {analysis ? (
                 <>
                   <div className="builder-stat-list">
                     <p>Color identity violations: <strong>{analysis.checks.colorIdentity.offColorCount}</strong></p>
-                    <p>Live combos detected: <strong>{analysis.comboReport.detected.length}</strong></p>
                     <p>Avg mana value: <strong>{typeof analysis.summary.averageManaValue === "number" ? analysis.summary.averageManaValue.toFixed(2) : "N/A"}</strong></p>
                     <p>Price coverage: <strong>{formatPercent(analysis.deckPrice?.coverage.usd ? analysis.deckPrice.coverage.usd * 100 : 0)}</strong></p>
                   </div>
-
                   <div className="builder-role-list">
                     {Object.entries(analysis.roles).map(([role, count]) => (<span key={role} className="chip">{role}: {count}</span>))}
                   </div>
-
-                  <div className="builder-curve">
-                    {Object.entries(analysis.summary.manaCurve).map(([bucket, count]) => (
-                      <div key={bucket} className="curve-row">
-                        <span className="curve-label">{bucket}</span>
-                        <div className="curve-bar-wrap">
-                          <div className="curve-bar" style={{ width: `${Math.min(100, ((count as number) / maxCurveCount) * 100)}%` }} />
-                        </div>
-                        <span className="curve-value">{count}</span>
-                      </div>
-                    ))}
-                  </div>
                 </>
-              ) : null}
+              ) : (
+                <p className="muted">Analysis will appear once the build initializes.</p>
+              )}
+            </section>
 
-              <section className="builder-needs-panel">
-                <h3>Needs</h3>
-                {needs.length === 0 ? <p className="muted">No low-count buckets detected yet.</p> : <ul className="builder-bullets">{needs.map((need) => (<li key={need.key}>{need.label}: needs {need.deficit} more to reach {need.recommendedMin}</li>))}</ul>}
-              </section>
+            <section className="builder-status-card">
+              <h3>Mana Curve</h3>
+              {analysis ? (
+                <div className="builder-curve">
+                  {Object.entries(analysis.summary.manaCurve).map(([bucket, count]) => (
+                    <div key={bucket} className="curve-row">
+                      <span className="curve-label">{bucket}</span>
+                      <div className="curve-bar-wrap">
+                        <div className="curve-bar" style={{ width: `${Math.min(100, ((count as number) / maxCurveCount) * 100)}%` }} />
+                      </div>
+                      <span className="curve-value">{count}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="muted">Mana curve appears after live analysis runs.</p>
+              )}
+            </section>
 
-              <section className="builder-needs-panel">
-                <h3>Precon Similarity</h3>
-                {preconLoading ? <p className="muted">Checking synced precons...</p> : null}
-                {preconError ? <p className="error-inline">{preconError}</p> : null}
-                {!preconLoading && !preconError && preconSimilarity ? <p>Closest stock match: <strong>{preconSimilarity.name}</strong> ({preconSimilarity.releaseDate}) with <strong>{preconSimilarity.overlapPct}%</strong> overlap ({preconSimilarity.overlapCount} shared cards).</p> : null}
-                {!preconLoading && !preconError && !preconSimilarity ? <p className="muted">No synced stock precon match for this commander yet.</p> : null}
-              </section>
+            <section className="builder-status-card">
+              <h3>Needs</h3>
+              {needs.length === 0 ? <p className="muted">No low-count buckets detected yet.</p> : <ul className="builder-bullets">{needs.map((need) => (<li key={need.key}>{need.label}: needs {need.deficit} more to reach {need.recommendedMin}</li>))}</ul>}
+            </section>
 
-              <section className="builder-needs-panel">
-                <h3>Game Changers</h3>
-                {gameChangers.length === 0 ? (
-                  <p className="muted">No Commander bracket game changers detected in the current list.</p>
-                ) : (
-                  <ul className="builder-bullets">
-                    {gameChangers.map((entry) => (
-                      <li key={entry.name}>
-                        <CardLink name={entry.name} />{entry.qty > 1 ? ` x${entry.qty}` : ""}
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </section>
-            </>
-          )}
+            <section className="builder-status-card">
+              <h3>Precon Similarity</h3>
+              {preconLoading ? <p className="muted">Checking synced precons...</p> : null}
+              {preconError ? <p className="error-inline">{preconError}</p> : null}
+              {!preconLoading && !preconError && preconSimilarity ? <p>Closest stock match: <strong>{preconSimilarity.name}</strong> ({preconSimilarity.releaseDate}) with <strong>{preconSimilarity.overlapPct}%</strong> overlap ({preconSimilarity.overlapCount} shared cards).</p> : null}
+              {!preconLoading && !preconError && !preconSimilarity ? <p className="muted">No synced stock precon match for this commander yet.</p> : null}
+            </section>
 
-          <section className="saved-decks-panel">
-            <h3>Saved Builds</h3>
-            {saveMessage ? <p className="muted">{saveMessage}</p> : null}
-            {savedDecks.length === 0 ? <p className="muted">No saved builder decks yet.</p> : <ul className="saved-decks-list">{savedDecks.map((saved) => (<li key={saved.id} className="saved-decks-item"><button type="button" className="saved-deck-load" onClick={() => loadSavedDeck(saved)}>{saved.name}</button><button type="button" className="saved-deck-remove" onClick={() => removeSavedDeck(saved.id)}>Remove</button></li>))}</ul>}
-          </section>
-        </aside>
+            <section className="builder-status-card">
+              <h3>Game Changers</h3>
+              {gameChangers.length === 0 ? (
+                <p className="muted">No Commander bracket game changers detected in the current list.</p>
+              ) : (
+                <ul className="builder-bullets">
+                  {gameChangers.map((entry) => (
+                    <li key={entry.name}>
+                      <CardLink name={entry.name} />{entry.qty > 1 ? ` x${entry.qty}` : ""}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
 
+            <section className="builder-status-card">
+              <h3>Saved Builds</h3>
+              {saveMessage ? <p className="muted">{saveMessage}</p> : null}
+              {savedDecks.length === 0 ? <p className="muted">No saved builder decks yet.</p> : <ul className="saved-decks-list">{savedDecks.map((saved) => (<li key={saved.id} className="saved-decks-item"><button type="button" className="saved-deck-load" onClick={() => loadSavedDeck(saved)}>{saved.name}</button><button type="button" className="saved-deck-remove" onClick={() => removeSavedDeck(saved.id)}>Remove</button></li>))}</ul>}
+            </section>
+          </div>
+        </section>
+      ) : null}
+
+      {heroCommander ? (
+        <CommanderHeroHeader
+          commander={heroCommander}
+          archetypeLabel={archetypeLabel}
+          bracketLabel={analysis?.bracketReport?.estimatedLabel ?? null}
+        />
+      ) : null}
+
+      <section className="builder-grid builder-grid-two-column">
         <section className="panel builder-panel builder-panel-center">
             <div className="builder-panel-head">
             <div>
@@ -1334,8 +1594,31 @@ export function CommanderDeckBuilder() {
               <div className="builder-deck-section">
                 <h3>Commander Zone</h3>
                 <ul className="builder-card-list">
-                  <li className="builder-card-row"><span className="builder-card-qty">1</span><CardLink name={selectedCommander.name} /></li>
-                  {selectedPairOption ? <li className="builder-card-row"><span className="builder-card-qty">1</span><CardLink name={selectedPairOption.name} /></li> : null}
+                  <li className="builder-card-row">
+                    <span className="builder-card-qty">1</span>
+                    {renderCardThumb(resolveCardRecord(selectedCommander.name), "builder-card-thumb", selectedCommander.name.charAt(0))}
+                    <div className="builder-card-main">
+                      <div className="builder-card-main-head">
+                        <strong><CardLink name={selectedCommander.name} /></strong>
+                        <div className="builder-search-meta">
+                          <ManaCost manaCost={selectedCommander.manaCost} size={16} />
+                        </div>
+                      </div>
+                      <p className="muted builder-card-subline">{selectedCommander.typeLine}</p>
+                    </div>
+                  </li>
+                  {selectedPairOption ? (
+                    <li className="builder-card-row">
+                      <span className="builder-card-qty">1</span>
+                      {renderCardThumb(resolveCardRecord(selectedPairOption.name), "builder-card-thumb", selectedPairOption.name.charAt(0))}
+                      <div className="builder-card-main">
+                        <div className="builder-card-main-head">
+                          <strong><CardLink name={selectedPairOption.name} /></strong>
+                        </div>
+                        <p className="muted builder-card-subline">{selectedPairOption.pairType}</p>
+                      </div>
+                    </li>
+                  ) : null}
                 </ul>
               </div>
 
@@ -1360,6 +1643,7 @@ export function CommanderDeckBuilder() {
                         return (
                           <li key={`${section.key}-${card.name}`} className="builder-card-row">
                             <span className="builder-card-qty">{card.qty}</span>
+                            {renderCardThumb(record, "builder-card-thumb", card.name.charAt(0))}
                             <div className="builder-card-main">
                               <div className="builder-card-main-head">
                                 <strong><CardLink name={card.name} /></strong>
@@ -1414,11 +1698,19 @@ export function CommanderDeckBuilder() {
           <div className="builder-panel-head">
             <div>
               <h2>Card Search</h2>
-              <p className="muted">Search the local Commander card library and add cards directly into the deck.</p>
+              <p className="muted">Search or browse the local Commander card library by name, set, and card type.</p>
             </div>
           </div>
 
-          <input type="search" value={cardQuery} onChange={(event) => setCardQuery(event.target.value)} placeholder={selectedCommander ? "Search cards to add" : "Select a commander first"} disabled={!selectedCommander} />
+          <div className="builder-search-controls">
+            <input type="search" value={cardQuery} onChange={(event) => setCardQuery(event.target.value)} placeholder={selectedCommander ? "Search cards to add" : "Select a commander first"} disabled={!selectedCommander} />
+            <select value={cardTypeFilter} onChange={(event) => setCardTypeFilter(event.target.value as BuilderCardTypeFilter)} disabled={!selectedCommander}>
+              {CARD_TYPE_FILTERS.map((option) => (
+                <option key={option.value || "all"} value={option.value}>{option.label}</option>
+              ))}
+            </select>
+            <input type="text" value={cardSetFilter} onChange={(event) => setCardSetFilter(event.target.value.toUpperCase().slice(0, 5))} placeholder="Set code" disabled={!selectedCommander} />
+          </div>
 
           {cardSearchLoading ? <p className="muted">Searching cards...</p> : null}
           {cardSearchError ? <p className="error">{cardSearchError}</p> : null}
@@ -1426,17 +1718,17 @@ export function CommanderDeckBuilder() {
           <div className="builder-search-results">
             {cardResults.map((card) => {
               const existingQty = deckCards.find((entry) => normalizeName(entry.name) === normalizeName(card.name))?.qty ?? 0;
-              const duplicateLimit = card.duplicateLimit;
-              const canAddMore = existingQty === 0 || card.isBasicLand || duplicateLimit === Number.POSITIVE_INFINITY || (typeof duplicateLimit === "number" && existingQty < duplicateLimit);
+              const canAddMore = canAddMoreCopies(card, existingQty);
 
               return (
                 <article key={card.name} className="builder-search-card">
-                  <div>
+                  {renderCardThumb(card, "builder-search-thumb", card.name.charAt(0))}
+                  <div className="builder-search-card-main">
                     <strong><CardLink name={card.name} /></strong>
                     <div className="builder-search-meta">
                       <ManaCost manaCost={card.manaCost} size={16} />
                       <span>{card.typeLine}</span>
-                      <ColorIdentityIcons identity={card.colorIdentity} size={16} />
+                      {card.setCode ? <span>{card.setCode}</span> : null}
                     </div>
                     {existingQty > 0 ? <p className="muted">In deck: {existingQty}</p> : null}
                   </div>
@@ -1444,7 +1736,7 @@ export function CommanderDeckBuilder() {
                 </article>
               );
             })}
-            {!cardSearchLoading && selectedCommander && cardQuery.trim() && cardResults.length === 0 ? <p className="muted">No legal cards match the current search.</p> : null}
+            {!cardSearchLoading && selectedCommander && (cardQuery.trim() || cardTypeFilter || cardSetFilter.trim()) && cardResults.length === 0 ? <p className="muted">No legal cards match the current search or browse filters.</p> : null}
           </div>
 
           <section className="builder-needs-panel">
@@ -1455,44 +1747,20 @@ export function CommanderDeckBuilder() {
               <p className="muted">Resolving commander staple suggestions...</p>
             ) : (
               <div className="builder-suggestion-groups">
-                <div className="builder-suggestion-group">
-                  <p className="muted builder-suggestion-description">
-                    {filteredSuggestionGroups.stapleGroup?.description}
-                  </p>
-                  <div className="builder-suggestion-list">
-                    {(filteredSuggestionGroups.stapleGroup?.items ?? []).map((item) => {
-                      const record = resolveCardRecord(item.name);
-                      const existingQty =
-                        deckCards.find((entry) => normalizeName(entry.name) === normalizeName(item.name))?.qty ?? 0;
-                      const duplicateLimit = record.duplicateLimit;
-                      const canAddMore =
-                        existingQty === 0 ||
-                        record.isBasicLand ||
-                        duplicateLimit === Number.POSITIVE_INFINITY ||
-                        (typeof duplicateLimit === "number" && existingQty < duplicateLimit);
+                {renderSuggestionGroupPanel(filteredSuggestionGroups.stapleGroup, "staple", true)}
+              </div>
+            )}
+          </section>
 
-                      return (
-                        <article key={`staple-${item.name}`} className="builder-search-card builder-suggestion-card">
-                          <div>
-                            <strong><CardLink name={item.name} /></strong>
-                            <div className="builder-search-meta">
-                              {record.manaCost ? <ManaCost manaCost={record.manaCost} size={16} /> : null}
-                              {record.typeLine ? <span>{record.typeLine}</span> : null}
-                            </div>
-                          </div>
-                          <button
-                            type="button"
-                            className="btn-secondary"
-                            disabled={!canAddMore}
-                            onClick={() => addNamedCard(item.name)}
-                          >
-                            {canAddMore ? "Add" : "In Deck"}
-                          </button>
-                        </article>
-                      );
-                    })}
-                  </div>
-                </div>
+          <section className="builder-needs-panel">
+            <h3>Color Staples</h3>
+            {!selectedCommander ? (
+              <p className="muted">Select a commander to surface color staples.</p>
+            ) : !filteredSuggestionGroups.colorStapleGroup || filteredSuggestionGroups.colorStapleGroup.items.length === 0 ? (
+              <p className="muted">Resolving color staple suggestions...</p>
+            ) : (
+              <div className="builder-suggestion-groups">
+                {renderSuggestionGroupPanel(filteredSuggestionGroups.colorStapleGroup, "color-staple")}
               </div>
             )}
           </section>
@@ -1500,52 +1768,10 @@ export function CommanderDeckBuilder() {
           <section className="builder-needs-panel">
             <h3>Smart Suggestions</h3>
             {filteredSuggestionGroups.roleGroups.length === 0 ? (
-              <p className="muted">Start adding cards to unlock role and archetype suggestions.</p>
+              <p className="muted">Select a commander and add cards to unlock role and archetype suggestions.</p>
             ) : (
               <div className="builder-suggestion-groups">
-                {filteredSuggestionGroups.roleGroups.map((group) => (
-                  <div key={group.key} className="builder-suggestion-group">
-                    <div className="builder-section-head">
-                      <strong>{group.label}</strong>
-                    </div>
-                    {group.description ? (
-                      <p className="muted builder-suggestion-description">{group.description}</p>
-                    ) : null}
-                    <div className="builder-suggestion-list">
-                      {group.items.map((item) => {
-                        const record = resolveCardRecord(item.name);
-                        const existingQty =
-                          deckCards.find((entry) => normalizeName(entry.name) === normalizeName(item.name))?.qty ?? 0;
-                        const duplicateLimit = record.duplicateLimit;
-                        const canAddMore =
-                          existingQty === 0 ||
-                          record.isBasicLand ||
-                          duplicateLimit === Number.POSITIVE_INFINITY ||
-                          (typeof duplicateLimit === "number" && existingQty < duplicateLimit);
-
-                        return (
-                          <article key={`${group.key}-${item.name}`} className="builder-search-card builder-suggestion-card">
-                            <div>
-                              <strong><CardLink name={item.name} /></strong>
-                              <div className="builder-search-meta">
-                                {record.manaCost ? <ManaCost manaCost={record.manaCost} size={16} /> : null}
-                                {record.typeLine ? <span>{record.typeLine}</span> : null}
-                              </div>
-                            </div>
-                            <button
-                              type="button"
-                              className="btn-secondary"
-                              disabled={!canAddMore}
-                              onClick={() => addNamedCard(item.name)}
-                            >
-                              {canAddMore ? "Add" : "In Deck"}
-                            </button>
-                          </article>
-                        );
-                      })}
-                    </div>
-                  </div>
-                ))}
+                {filteredSuggestionGroups.roleGroups.map((group, index) => renderSuggestionGroupPanel(group, "smart", index === 0))}
               </div>
             )}
           </section>
@@ -1556,50 +1782,20 @@ export function CommanderDeckBuilder() {
               <p className="muted">No near-miss combo packages detected yet.</p>
             ) : (
               <div className="builder-suggestion-groups">
-                {filteredSuggestionGroups.comboGroups.map((group) => (
-                  <div key={group.key} className="builder-suggestion-group">
-                    <div className="builder-section-head">
-                      <strong>{group.label}</strong>
-                    </div>
-                    {group.description ? (
-                      <p className="muted builder-suggestion-description">{group.description}</p>
-                    ) : null}
-                    <div className="builder-suggestion-list">
-                      {group.items.map((item) => {
-                        const record = resolveCardRecord(item.name);
-                        const existingQty =
-                          deckCards.find((entry) => normalizeName(entry.name) === normalizeName(item.name))?.qty ?? 0;
-                        const duplicateLimit = record.duplicateLimit;
-                        const canAddMore =
-                          existingQty === 0 ||
-                          record.isBasicLand ||
-                          duplicateLimit === Number.POSITIVE_INFINITY ||
-                          (typeof duplicateLimit === "number" && existingQty < duplicateLimit);
+                {filteredSuggestionGroups.comboGroups.map((group) => renderSuggestionGroupPanel(group, "combo"))}
+              </div>
+            )}
+          </section>
 
-                        return (
-                          <article key={`${group.key}-${item.name}`} className="builder-search-card builder-suggestion-card">
-                            <div>
-                              <strong><CardLink name={item.name} /></strong>
-                              <div className="builder-search-meta">
-                                {record.manaCost ? <ManaCost manaCost={record.manaCost} size={16} /> : null}
-                                {record.typeLine ? <span>{record.typeLine}</span> : null}
-                              </div>
-                              {item.note ? <p className="muted builder-suggestion-note">{item.note}</p> : null}
-                            </div>
-                            <button
-                              type="button"
-                              className="btn-secondary"
-                              disabled={!canAddMore}
-                              onClick={() => addNamedCard(item.name)}
-                            >
-                              {canAddMore ? "Add" : "In Deck"}
-                            </button>
-                          </article>
-                        );
-                      })}
-                    </div>
-                  </div>
-                ))}
+          <section className="builder-needs-panel">
+            <h3>Game Changer Suggestions</h3>
+            {!selectedCommander ? (
+              <p className="muted">Select a commander to see optional game changer adds.</p>
+            ) : !filteredSuggestionGroups.gameChangerGroup || filteredSuggestionGroups.gameChangerGroup.items.length === 0 ? (
+              <p className="muted">No color-safe game changer adds are missing from this build right now.</p>
+            ) : (
+              <div className="builder-suggestion-groups">
+                {renderSuggestionGroupPanel(filteredSuggestionGroups.gameChangerGroup, "game-changer")}
               </div>
             )}
           </section>
@@ -1612,44 +1808,7 @@ export function CommanderDeckBuilder() {
               <p className="muted">Resolving mana base suggestions...</p>
             ) : (
               <div className="builder-suggestion-groups">
-                <div className="builder-suggestion-group">
-                  <p className="muted builder-suggestion-description">
-                    {filteredSuggestionGroups.manaBaseGroup?.description}
-                  </p>
-                  <div className="builder-suggestion-list">
-                    {(filteredSuggestionGroups.manaBaseGroup?.items ?? []).map((item) => {
-                      const record = resolveCardRecord(item.name);
-                      const existingQty =
-                        deckCards.find((entry) => normalizeName(entry.name) === normalizeName(item.name))?.qty ?? 0;
-                      const duplicateLimit = record.duplicateLimit;
-                      const canAddMore =
-                        existingQty === 0 ||
-                        record.isBasicLand ||
-                        duplicateLimit === Number.POSITIVE_INFINITY ||
-                        (typeof duplicateLimit === "number" && existingQty < duplicateLimit);
-
-                      return (
-                        <article key={`land-${item.name}`} className="builder-search-card builder-suggestion-card">
-                          <div>
-                            <strong><CardLink name={item.name} /></strong>
-                            <div className="builder-search-meta">
-                              {record.manaCost ? <ManaCost manaCost={record.manaCost} size={16} /> : null}
-                              {record.typeLine ? <span>{record.typeLine}</span> : null}
-                            </div>
-                          </div>
-                          <button
-                            type="button"
-                            className="btn-secondary"
-                            disabled={!canAddMore}
-                            onClick={() => addNamedCard(item.name)}
-                          >
-                            {canAddMore ? "Add" : "In Deck"}
-                          </button>
-                        </article>
-                      );
-                    })}
-                  </div>
-                </div>
+                {renderSuggestionGroupPanel(filteredSuggestionGroups.manaBaseGroup, "mana-base")}
               </div>
             )}
           </section>

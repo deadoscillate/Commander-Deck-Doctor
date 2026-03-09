@@ -440,6 +440,12 @@ input[type="url"] {
   gap: 1rem;
 }
 
+.builder-status-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+}
+
 .builder-hero {
   margin-bottom: 0;
 }
@@ -511,6 +517,10 @@ input[type="url"] {
   align-items: start;
 }
 
+.builder-grid-two-column {
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 380px);
+}
+
 .builder-panel-left,
 .builder-panel-right {
   position: sticky;
@@ -545,6 +555,28 @@ input[type="url"] {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.55rem;
+}
+
+.builder-stat-grid-wide {
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+}
+
+.builder-status-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.7rem;
+}
+
+.builder-status-card {
+  border: 1px solid rgba(99, 132, 167, 0.5);
+  border-radius: 14px;
+  padding: 0.78rem 0.86rem;
+  background: linear-gradient(145deg, rgba(14, 23, 36, 0.92), rgba(19, 31, 47, 0.78));
+}
+
+.builder-status-card h3,
+.builder-status-card p {
+  margin-top: 0;
 }
 
 .builder-stat-list {
@@ -592,6 +624,12 @@ input[type="url"] {
   width: min(15rem, 100%);
 }
 
+.builder-search-controls {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(150px, 180px) minmax(110px, 140px);
+  gap: 0.5rem;
+}
+
 .builder-deck-section + .builder-deck-section {
   border-top: 1px solid var(--line);
   padding-top: 0.75rem;
@@ -633,7 +671,7 @@ input[type="url"] {
 
 .builder-card-row {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-columns: auto 58px minmax(0, 1fr) auto;
   align-items: center;
   gap: 0.55rem;
   border: 1px solid rgba(99, 132, 167, 0.5);
@@ -666,6 +704,39 @@ input[type="url"] {
   font-weight: 700;
 }
 
+.builder-card-thumb,
+.builder-search-thumb {
+  border-radius: 10px;
+  border: 1px solid rgba(99, 132, 167, 0.45);
+  background: linear-gradient(145deg, rgba(18, 30, 44, 0.95), rgba(16, 24, 36, 0.88));
+  background-size: cover;
+  background-position: center;
+  overflow: hidden;
+}
+
+.builder-card-thumb {
+  width: 58px;
+  min-width: 58px;
+  min-height: 72px;
+}
+
+.builder-search-thumb {
+  width: 64px;
+  min-width: 64px;
+  min-height: 82px;
+}
+
+.builder-card-thumb span,
+.builder-search-thumb span {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  color: var(--ink-muted);
+  font-weight: 700;
+}
+
 .builder-card-actions {
   display: inline-flex;
   align-items: center;
@@ -691,6 +762,13 @@ input[type="url"] {
   border-radius: 14px;
   padding: 0.7rem 0.8rem;
   background: linear-gradient(145deg, rgba(14, 23, 36, 0.92), rgba(19, 31, 47, 0.78));
+}
+
+.builder-search-card-main {
+  min-width: 0;
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
 }
 
 .builder-search-card strong,
@@ -755,6 +833,31 @@ input[type="url"] {
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
+}
+
+.builder-suggestion-group-collapsible {
+  border: 1px solid rgba(99, 132, 167, 0.42);
+  border-radius: 12px;
+  padding: 0.4rem 0.55rem 0.55rem;
+  background: rgba(10, 18, 28, 0.28);
+}
+
+.builder-suggestion-group-collapsible[open] {
+  background: rgba(10, 18, 28, 0.44);
+}
+
+.builder-suggestion-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  cursor: pointer;
+  list-style: none;
+  font-weight: 700;
+}
+
+.builder-suggestion-summary::-webkit-details-marker {
+  display: none;
 }
 
 .builder-suggestion-description,
@@ -3460,6 +3563,10 @@ ul {
     gap: 0.75rem;
   }
 
+  .builder-grid-two-column {
+    grid-template-columns: 1fr;
+  }
+
   .builder-panel-left,
   .builder-panel-right {
     position: static;
@@ -3485,6 +3592,10 @@ ul {
     align-items: stretch;
   }
 
+  .builder-search-controls {
+    grid-template-columns: 1fr;
+  }
+
   .builder-commander-card,
   .builder-commander-card-main {
     grid-template-columns: 1fr;
@@ -3494,6 +3605,13 @@ ul {
     width: 100%;
     min-width: 0;
     min-height: 140px;
+  }
+
+  .builder-card-thumb,
+  .builder-search-thumb {
+    width: 100%;
+    min-width: 0;
+    min-height: 120px;
   }
 
   .builder-section-head,
