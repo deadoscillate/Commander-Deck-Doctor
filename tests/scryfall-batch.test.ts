@@ -73,6 +73,7 @@ function mockEmptyLocalDefaultStore(): void {
 function mockEmptyLocalPrintIndexStore(): void {
   vi.doMock("@/lib/scryfallLocalPrintIndexStore", () => ({
     getLocalPrintCardById: vi.fn(() => null),
+    getLocalPrintCardByName: vi.fn(async () => null),
     getLocalPrintCardsByIds: vi.fn(async () => new Map()),
     getLocalPrintCardBySetCollector: vi.fn(() => null),
     getLocalPrintCardsBySetCollectors: vi.fn(async () => new Map()),
@@ -447,6 +448,57 @@ describe("scryfall set-batch lookup", () => {
     expect(fetchMock).toHaveBeenCalledTimes(0);
   });
 
+  it("uses collection batch only for oracle-default cards missing from the local default store", async () => {
+    mockEmptyLocalPrintIndexStore();
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === "string" ? input : input.toString();
+      if (url.includes("/cards/collection")) {
+        const body = JSON.parse(String(init?.body)) as {
+          identifiers: Array<{ name: string }>;
+        };
+        return jsonResponse({
+          object: "list",
+          data: body.identifiers.map((identifier) => toCard(identifier.name, "clb", "1"))
+        });
+      }
+
+      return jsonResponse({ object: "error", code: "unexpected_lookup" }, 500);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    vi.doMock("@/lib/scryfallLocalDefaultStore", () => ({
+      getLocalDefaultCardByName: vi.fn((name: string) =>
+        name === "Arcane Signet" ? toCard("Arcane Signet", "c20", "237") : null
+      ),
+      getLocalDefaultCardsByNames: vi.fn((names: string[]) => {
+        const rows = new Map();
+        for (const name of names) {
+          if (name === "Arcane Signet") {
+            rows.set("name:arcanesignet", toCard("Arcane Signet", "c20", "237"));
+          }
+        }
+        return rows;
+      })
+    }));
+
+    const { fetchDeckCards } = await import("@/lib/scryfall");
+    const parsedDeck = [
+      { name: "Arcane Signet", qty: 1 },
+      { name: "Mind Stone", qty: 1 }
+    ];
+
+    const result = await fetchDeckCards(parsedDeck, 8, { deckPriceMode: "oracle-default" });
+
+    expect(result.knownCards).toHaveLength(2);
+    expect(result.unknownCards).toHaveLength(0);
+    expect(
+      fetchMock.mock.calls.filter((call) => String(call[0]).includes("/cards/collection")).length
+    ).toBe(1);
+    const collectionBody = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body)) as {
+      identifiers: Array<{ name: string }>;
+    };
+    expect(collectionBody.identifiers).toEqual([{ name: "Mind Stone" }]);
+  });
+
   it("uses local oracle fallback before named lookup when collection misses in oracle-default mode", async () => {
     mockEmptyLocalDefaultStore();
     mockEmptyLocalPrintIndexStore();
@@ -500,6 +552,80 @@ describe("scryfall set-batch lookup", () => {
 
     expect(result.knownCards).toHaveLength(1);
     expect(result.knownCards[0]?.card.name).toBe("Arcane Signet");
+    expect(result.unknownCards).toHaveLength(0);
+    expect(
+      fetchMock.mock.calls.filter((call) => String(call[0]).includes("/cards/named")).length
+    ).toBe(0);
+  });
+
+  it("uses local print fallback before loading oracle fallback when default data misses in oracle-default mode", async () => {
+    mockEmptyLocalDefaultStore();
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = typeof input === "string" ? input : input.toString();
+      if (url.includes("/cards/collection")) {
+        return jsonResponse({ object: "error", code: "rate_limited" }, 429);
+      }
+
+      if (url.includes("/cards/named")) {
+        return jsonResponse({ object: "error", code: "unexpected_named_lookup" }, 500);
+      }
+
+      return jsonResponse({ object: "error", code: "not_found" }, 404);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    vi.doMock("@/lib/scryfallLocalPrintIndexStore", () => ({
+      getLocalPrintCardById: vi.fn(async () => null),
+      getLocalPrintCardByName: vi.fn(async (name: string) =>
+        name === "Elessar, the Elfstone"
+          ? {
+              id: "print-elessar-the-elfstone",
+              oracle_id: "oracle-elessar-the-elfstone",
+              name: "Elessar, the Elfstone",
+              set: "ltc",
+              collector_number: "349",
+              type_line: "Legendary Artifact",
+              cmc: 2,
+              mana_cost: "{1}{W}",
+              colors: ["W"],
+              color_identity: ["W"],
+              oracle_text: "Whenever a legendary creature enters the battlefield under your control, draw a card.",
+              keywords: [],
+              image_uris: null,
+              card_faces: [],
+              prices: {
+                usd: "0.65",
+                usd_foil: null,
+                usd_etched: null,
+                tix: null
+              },
+              purchase_uris: null
+            }
+          : null
+      ),
+      getLocalPrintCardsByIds: vi.fn(async () => new Map()),
+      getLocalPrintCardBySetCollector: vi.fn(async () => null),
+      getLocalPrintCardsBySetCollectors: vi.fn(async () => new Map()),
+      getLocalPrintCardByNameSet: vi.fn(async () => null),
+      getLocalPrintCardsByNameSets: vi.fn(async () => new Map())
+    }));
+    vi.doMock("@/engine/cards/CardDatabase", () => ({
+      CardDatabase: {
+        loadFromCompiledFile: vi.fn(() => {
+          throw new Error("unexpected_oracle_load");
+        }),
+        createWithEngineSet: vi.fn(() => {
+          throw new Error("unexpected_oracle_load");
+        })
+      }
+    }));
+
+    const { fetchDeckCards } = await import("@/lib/scryfall");
+    const parsedDeck = [{ name: "Elessar, the Elfstone", qty: 1 }];
+
+    const result = await fetchDeckCards(parsedDeck, 8, { deckPriceMode: "oracle-default" });
+
+    expect(result.knownCards).toHaveLength(1);
+    expect(result.knownCards[0]?.card.name).toBe("Elessar, the Elfstone");
     expect(result.unknownCards).toHaveLength(0);
     expect(
       fetchMock.mock.calls.filter((call) => String(call[0]).includes("/cards/named")).length

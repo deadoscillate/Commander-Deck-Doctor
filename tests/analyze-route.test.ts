@@ -405,6 +405,134 @@ describe("POST /api/analyze", () => {
     expect(body.checks?.colorIdentity?.commanderName).toBe("Atraxa, Praetors' Voice");
   });
 
+  it("auto-selects the unique largest fitting color identity candidate", async () => {
+    vi.doMock("@/lib/scryfall", () => ({
+      fetchDeckCards: vi.fn(async () => ({
+        knownCards: [
+          {
+            name: "Atraxa, Praetors' Voice",
+            qty: 1,
+            card: buildCard({
+              name: "Atraxa, Praetors' Voice",
+              type_line: "Legendary Creature - Phyrexian Angel Horror",
+              cmc: 4,
+              mana_cost: "{G}{W}{U}{B}",
+              colors: ["G", "W", "U", "B"],
+              color_identity: ["G", "W", "U", "B"],
+              oracle_text: "Flying, vigilance, deathtouch, lifelink"
+            })
+          },
+          {
+            name: "Edric, Spymaster of Trest",
+            qty: 1,
+            card: buildCard({
+              name: "Edric, Spymaster of Trest",
+              type_line: "Legendary Creature - Elf Rogue",
+              cmc: 3,
+              mana_cost: "{1}{G}{U}",
+              colors: ["G", "U"],
+              color_identity: ["G", "U"],
+              oracle_text: "Whenever a creature deals combat damage to one of your opponents, its controller may draw a card."
+            })
+          },
+          {
+            name: "Sol Ring",
+            qty: 98,
+            card: buildCard({
+              name: "Sol Ring",
+              type_line: "Artifact",
+              cmc: 1,
+              mana_cost: "{1}",
+              oracle_text: "{T}: Add {C}{C}."
+            })
+          }
+        ],
+        unknownCards: []
+      })),
+      getCardById: vi.fn(async () => null),
+      getCardByName: vi.fn(async () => null),
+      getCardByNameWithSet: vi.fn(async () => null)
+    }));
+
+    const { POST } = await import("@/app/api/analyze/route");
+    const response = await POST(
+      buildRequest({
+        decklist: "1 Atraxa, Praetors' Voice\n1 Edric, Spymaster of Trest\n98 Sol Ring"
+      })
+    );
+    const body = (await response.json()) as {
+      commander?: { selectedName?: string | null; source?: string };
+    };
+
+    expect(response.status).toBe(200);
+    expect(body.commander?.selectedName).toBe("Atraxa, Praetors' Voice");
+    expect(body.commander?.source).toBe("auto");
+  });
+
+  it("uses deck order as a tie-break for equally large fitting commander candidates", async () => {
+    vi.doMock("@/lib/scryfall", () => ({
+      fetchDeckCards: vi.fn(async () => ({
+        knownCards: [
+          {
+            name: "Godo, Bandit Warlord",
+            qty: 1,
+            card: buildCard({
+              name: "Godo, Bandit Warlord",
+              type_line: "Legendary Creature - Human Barbarian",
+              cmc: 6,
+              mana_cost: "{5}{R}",
+              colors: ["R"],
+              color_identity: ["R"],
+              oracle_text: "When Godo, Bandit Warlord enters the battlefield, you may search your library for an Equipment card."
+            })
+          },
+          {
+            name: "Kiki-Jiki, Mirror Breaker",
+            qty: 1,
+            card: buildCard({
+              name: "Kiki-Jiki, Mirror Breaker",
+              type_line: "Legendary Creature - Goblin Shaman",
+              cmc: 5,
+              mana_cost: "{2}{R}{R}{R}",
+              colors: ["R"],
+              color_identity: ["R"],
+              oracle_text: "{T}: Create a token that's a copy of another target nonlegendary creature you control."
+            })
+          },
+          {
+            name: "Sol Ring",
+            qty: 98,
+            card: buildCard({
+              name: "Sol Ring",
+              type_line: "Artifact",
+              cmc: 1,
+              mana_cost: "{1}",
+              oracle_text: "{T}: Add {C}{C}."
+            })
+          }
+        ],
+        unknownCards: []
+      })),
+      getCardById: vi.fn(async () => null),
+      getCardByName: vi.fn(async () => null),
+      getCardByNameWithSet: vi.fn(async () => null)
+    }));
+
+    const { POST } = await import("@/app/api/analyze/route");
+    const response = await POST(
+      buildRequest({
+        decklist: "1 Godo, Bandit Warlord\n1 Kiki-Jiki, Mirror Breaker\n98 Sol Ring"
+      })
+    );
+    const body = (await response.json()) as {
+      commander?: { selectedName?: string | null; source?: string };
+    };
+
+    expect(response.status).toBe(200);
+    expect(body.commander?.selectedName).toBe("Godo, Bandit Warlord");
+    expect(body.commander?.source).toBe("auto");
+  });
+
   it("does not precompute opening hand simulation metrics in analyze responses", async () => {
     vi.doMock("@/lib/scryfall", () => ({
       fetchDeckCards: vi.fn(async () => ({

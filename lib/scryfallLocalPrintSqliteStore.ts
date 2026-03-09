@@ -13,6 +13,7 @@ let sqliteUnavailable = false;
 let byIdStatement: SqliteStatement | null = null;
 let bySetCollectorStatement: SqliteStatement | null = null;
 let byNameSetStatement: SqliteStatement | null = null;
+let byNameStatement: SqliteStatement | null = null;
 let printCardsSelectClause: string | null = null;
 let printCardsFromClause = "FROM print_cards";
 
@@ -277,6 +278,7 @@ async function ensureDb(): Promise<SqliteDatabase | null> {
       byIdStatement = null;
       bySetCollectorStatement = null;
       byNameSetStatement = null;
+      byNameStatement = null;
       const queryParts = buildQueryParts(db);
       printCardsSelectClause = queryParts.selectClause;
       printCardsFromClause = queryParts.fromClause;
@@ -359,6 +361,30 @@ async function getByNameSetStatement(): Promise<SqliteStatement | null> {
   }
 
   return byNameSetStatement;
+}
+
+async function getByNameStatement(): Promise<SqliteStatement | null> {
+  const database = await ensureDb();
+  if (!database) {
+    return null;
+  }
+
+  if (!byNameStatement) {
+    const queryParts = printCardsSelectClause
+      ? { selectClause: printCardsSelectClause, fromClause: printCardsFromClause }
+      : buildQueryParts(database);
+    byNameStatement = database.prepare(
+      `
+      SELECT ${queryParts.selectClause}
+      ${queryParts.fromClause}
+      WHERE normalized_name = ?
+      ORDER BY collector_sort_rank ASC, collector_sort_suffix ASC, printing_id ASC
+      LIMIT 1
+    `
+    );
+  }
+
+  return byNameStatement;
 }
 
 export async function getSqlitePrintCardById(printingId: string): Promise<LocalPrintCardRecord | null> {
@@ -490,6 +516,18 @@ export async function getSqlitePrintCardByNameSet(
   return toLocalPrintCardRecord(row);
 }
 
+export async function getSqlitePrintCardByName(name: string): Promise<LocalPrintCardRecord | null> {
+  const statement = await getByNameStatement();
+  const normalizedName = normalizeLookupName(name);
+  if (!statement || !normalizedName) {
+    return null;
+  }
+
+  const row = statement.get(normalizedName) as PrintRow | undefined;
+
+  return toLocalPrintCardRecord(row);
+}
+
 export async function getSqlitePrintCardsByNameSets(
   lookups: NameSetLookup[]
 ): Promise<Map<string, LocalPrintCardRecord>> {
@@ -551,6 +589,11 @@ export async function prewarmSqlitePrintStore(): Promise<{ available: boolean }>
     return { available: false };
   }
 
-  await Promise.all([getByIdStatement(), getBySetCollectorStatement(), getByNameSetStatement()]);
+  await Promise.all([
+    getByIdStatement(),
+    getBySetCollectorStatement(),
+    getByNameSetStatement(),
+    getByNameStatement()
+  ]);
   return { available: true };
 }

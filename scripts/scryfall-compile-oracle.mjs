@@ -137,6 +137,22 @@ function compactRecord(record) {
   return Object.fromEntries(Object.entries(record).filter(([, value]) => value !== undefined));
 }
 
+function mergeLookupNames(primary, duplicate) {
+  const merged = [
+    ...(Array.isArray(primary.lookup_names) ? primary.lookup_names : []),
+    ...(Array.isArray(duplicate.lookup_names) ? duplicate.lookup_names : [])
+  ].filter((value, index, array) => typeof value === "string" && value && array.indexOf(value) === index);
+
+  if (merged.length === 0) {
+    return primary;
+  }
+
+  return {
+    ...primary,
+    lookup_names: merged
+  };
+}
+
 function compileOracleCard(card) {
   const compiled = baseCompiledCard(card);
   if (!compiled) {
@@ -154,6 +170,11 @@ function compileDefaultCard(card) {
   if (!compiled) {
     return null;
   }
+
+  const lookupNames = [
+    typeof card.name === "string" ? card.name : null,
+    typeof card.flavor_name === "string" ? card.flavor_name : null
+  ].filter((value, index, array) => typeof value === "string" && value && array.indexOf(value) === index);
 
   const prices =
     card.prices && typeof card.prices === "object"
@@ -188,9 +209,31 @@ function compileDefaultCard(card) {
     collector_number: typeof card.collector_number === "string" ? card.collector_number : undefined,
     image_uris: pickImageUris(card.image_uris, ["normal", "art_crop"]) ?? null,
     card_faces: pickCardFaces(card, { includeImages: true }) ?? [],
+    lookup_names: lookupNames.length > 0 ? lookupNames : undefined,
     prices: prices ?? null,
     purchase_uris: purchaseUris ?? null
   });
+}
+
+function dedupeCompiledCardsByNormalizedName(cards) {
+  const deduped = new Map();
+
+  for (const card of cards) {
+    const key = normalizeLookupName(card.name);
+    if (!key) {
+      continue;
+    }
+
+    const existing = deduped.get(key);
+    if (!existing) {
+      deduped.set(key, card);
+      continue;
+    }
+
+    deduped.set(key, mergeLookupNames(existing, card));
+  }
+
+  return [...deduped.values()];
 }
 
 function normalizeCollectorNumber(value) {
@@ -453,6 +496,9 @@ async function compilePrintSqliteArtifact() {
 
       CREATE INDEX idx_print_cards_set_name_rank
         ON print_cards (set_code, normalized_name, collector_sort_rank, collector_sort_suffix, printing_id);
+
+      CREATE INDEX idx_print_cards_name_rank
+        ON print_cards (normalized_name, collector_sort_rank, collector_sort_suffix, printing_id);
     `);
 
     const insertOracle = database.prepare(`
@@ -570,9 +616,7 @@ async function compileDataset(dataset) {
     ? dataset.compileDataset(raw)
     : (() => {
         const compiled = raw.map((card) => dataset.compileCard(card)).filter(Boolean);
-        return dataset.dedupeByNormalizedName
-          ? [...new Map(compiled.map((card) => [normalizeLookupName(card.name), card])).values()]
-          : compiled;
+        return dataset.dedupeByNormalizedName ? dedupeCompiledCardsByNormalizedName(compiled) : compiled;
       })();
   const json = JSON.stringify(finalized);
   if (dataset.gzipOutput) {

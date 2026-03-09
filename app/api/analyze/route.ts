@@ -333,6 +333,23 @@ function extractCommanderTelemetry(
   };
 }
 
+function uniqueLargestCommanderCandidate(candidates: ScryfallCard[]): ScryfallCard | null {
+  if (candidates.length === 0) {
+    return null;
+  }
+
+  const sizes = candidates
+    .map((candidate) => candidate.color_identity.length)
+    .sort((a, b) => b - a);
+  const topSize = sizes[0] ?? 0;
+  const secondSize = sizes[1] ?? -1;
+  if (topSize <= secondSize) {
+    return null;
+  }
+
+  return candidates.find((candidate) => candidate.color_identity.length === topSize) ?? null;
+}
+
 function getPreferredArtUrl(card: ScryfallCard | null): string | null {
   if (!card) {
     return null;
@@ -731,7 +748,34 @@ export async function POST(request: Request) {
               const legalCandidates = commanderCandidates.filter((candidate) =>
                 buildColorIdentityCheck(knownCards, candidate.name, candidate.color_identity).ok
               );
-              return legalCandidates.length === 1 ? legalCandidates[0] : null;
+              if (legalCandidates.length === 1) {
+                return legalCandidates[0];
+              }
+
+              const largestIdentityCandidate = uniqueLargestCommanderCandidate(legalCandidates);
+              if (largestIdentityCandidate) {
+                return largestIdentityCandidate;
+              }
+
+              const firstDeckEntry = effectiveParsedDeck[0];
+              if (!firstDeckEntry || firstDeckEntry.qty !== 1 || inputDeckSize < 95) {
+                return null;
+              }
+
+              const topIdentitySize = Math.max(0, ...legalCandidates.map((candidate) => candidate.color_identity.length));
+              if (topIdentitySize <= 0) {
+                return null;
+              }
+
+              const sameSizeCandidates = legalCandidates.filter(
+                (candidate) => candidate.color_identity.length === topIdentitySize
+              );
+              return (
+                sameSizeCandidates.find(
+                  (candidate) =>
+                    normalizeLookupName(candidate.name) === normalizeLookupName(firstDeckEntry.name)
+                ) ?? null
+              );
             })();
 
     const selectedCommanderName =

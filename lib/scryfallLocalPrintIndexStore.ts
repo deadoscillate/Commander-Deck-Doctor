@@ -4,6 +4,7 @@ import zlib from "node:zlib";
 import type { ScryfallCardFace, ScryfallImageUris, ScryfallPrices, ScryfallPurchaseUris } from "./types";
 import {
   getSqlitePrintCardById,
+  getSqlitePrintCardByName,
   getSqlitePrintCardsByIds,
   getSqlitePrintCardsByNameSets,
   getSqlitePrintCardsBySetCollectors,
@@ -295,6 +296,15 @@ export async function getLocalPrintCardByNameSet(
   const store = loadShard(getPrintIndexBucketId(setCode));
   const key = buildNameSetKey(name, setCode);
   return resolveRecord(store, store.byNameSet.get(key));
+}
+
+export async function getLocalPrintCardByName(name: string): Promise<LocalPrintCardRecord | null> {
+  const sqliteCard = await getSqlitePrintCardByName(name);
+  if (sqliteCard) {
+    return normalizeRecord(sqliteCard);
+  }
+
+  return null;
 }
 
 export async function getLocalPrintCardsByNameSets(

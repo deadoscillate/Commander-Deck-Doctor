@@ -17,6 +17,7 @@ import {
 } from "./scryfallLocalDefaultStore";
 import {
   getLocalPrintCardById,
+  getLocalPrintCardByName,
   getLocalPrintCardByNameSet,
   getLocalPrintCardBySetCollector,
   type LocalPrintCardRecord
@@ -609,6 +610,38 @@ async function getLocalPrintLookupMaps(parsedDeck: ParsedDeckEntry[]): Promise<L
   return lookups;
 }
 
+async function getLocalPrintFallbackCardsByNames(names: string[]): Promise<Map<string, ScryfallCard>> {
+  const rows = new Map<string, ScryfallCard>();
+
+  for (const name of names) {
+    const trimmed = typeof name === "string" ? name.trim() : "";
+    if (!trimmed) {
+      continue;
+    }
+
+    const key = buildNameKey(trimmed);
+    if (rows.has(key)) {
+      continue;
+    }
+
+    const record = await getLocalPrintCardByName(trimmed);
+    if (!record) {
+      continue;
+    }
+
+    const card = toScryfallCardFromLocalPrintRecord(record);
+    if (!card) {
+      continue;
+    }
+
+    rows.set(key, card);
+    primeMemoryCache(card);
+  }
+
+  persistCards([...rows.values()]);
+  return rows;
+}
+
 async function fetchNamedCard(
   key: "exact" | "fuzzy",
   name: string,
@@ -708,7 +741,23 @@ export async function getCardByName(name: string): Promise<ScryfallCard | null> 
     return cached.get(key) ?? null;
   }
 
+  const localDefault = getLocalDefaultCardByName(name);
+  if (localDefault) {
+    primeMemoryCache(localDefault);
+    return localDefault;
+  }
+
   const pending = (async () => {
+    const localPrint = await getLocalPrintCardByName(name);
+    if (localPrint) {
+      const localCard = toScryfallCardFromLocalPrintRecord(localPrint);
+      if (localCard) {
+        primeMemoryCache(localCard);
+        persistCards([localCard]);
+        return localCard;
+      }
+    }
+
     const exact = await fetchNamedCard("exact", name);
     if (exact) {
       primeMemoryCache(exact);
@@ -721,12 +770,6 @@ export async function getCardByName(name: string): Promise<ScryfallCard | null> 
       primeMemoryCache(fuzzy);
       persistCards([fuzzy]);
       return fuzzy;
-    }
-
-    const localDefault = getLocalDefaultCardByName(name);
-    if (localDefault) {
-      primeMemoryCache(localDefault);
-      return localDefault;
     }
 
     return null;
@@ -793,6 +836,12 @@ export async function getCardByNameWithSet(name: string, setCode: string): Promi
     }
   }
 
+  const localDefault = getLocalDefaultCardByName(name);
+  if (localDefault?.set === normalizedSet) {
+    primeMemoryCache(localDefault);
+    return localDefault;
+  }
+
   const pending = (async () => {
     const exact = await fetchNamedCard("exact", name, { setCode: normalizedSet });
     if (exact) {
@@ -806,12 +855,6 @@ export async function getCardByNameWithSet(name: string, setCode: string): Promi
       primeMemoryCache(fuzzy);
       persistCards([fuzzy]);
       return fuzzy;
-    }
-
-    const localDefault = getLocalDefaultCardByName(name);
-    if (localDefault?.set === normalizedSet) {
-      primeMemoryCache(localDefault);
-      return localDefault;
     }
 
     return null;
@@ -977,27 +1020,41 @@ export async function fetchDeckCards(
   let localPrintLookups = createEmptyLocalPrintLookupMaps();
   let preciseLookups = createEmptyBatchLookupMaps();
   let nameLookups: BatchLookupMaps | null = null;
+  let localPrintFallbacks = new Map<string, ScryfallCard>();
   let localOracleFallbacks = new Map<string, ScryfallCard>();
 
   if (mode === "oracle-default") {
-    preciseLookups = await fetchCardsByBatchIdentifiers(parsedDeck, {
-      lookupMode: "name"
+    localDefaultLookups = getLocalDefaultCardsByNames(parsedDeck.map((entry) => entry.name));
+    const unresolvedForBatch = parsedDeck.filter((entry) => {
+      const byDefault = localDefaultLookups.get(buildNameKey(entry.name)) ?? null;
+      return !byDefault;
     });
+    if (unresolvedForBatch.length > 0) {
+      const batchLookups = await fetchCardsByBatchIdentifiers(unresolvedForBatch, {
+        lookupMode: "name"
+      });
+      for (const card of batchLookups.byName.values()) {
+        applyCardToLookupMaps(preciseLookups, card);
+      }
+    }
     nameLookups = preciseLookups;
 
-    const unresolvedForLocalDefault = parsedDeck.filter(
-      (entry) => !resolveCardFromBatchLookups(entry, mode, preciseLookups, nameLookups)
-    );
-    if (unresolvedForLocalDefault.length > 0) {
-      localDefaultLookups = getLocalDefaultCardsByNames(
-        unresolvedForLocalDefault.map((entry) => entry.name)
+    const unresolvedForLocalPrint = parsedDeck.filter((entry) => {
+      const resolvedFromBatch = resolveCardFromBatchLookups(entry, mode, preciseLookups, nameLookups);
+      const resolvedFromDefault = localDefaultLookups.get(buildNameKey(entry.name)) ?? null;
+      return !resolvedFromBatch && !resolvedFromDefault;
+    });
+    if (unresolvedForLocalPrint.length > 0) {
+      localPrintFallbacks = await getLocalPrintFallbackCardsByNames(
+        unresolvedForLocalPrint.map((entry) => entry.name)
       );
     }
 
     const unresolvedForLocalOracle = parsedDeck.filter((entry) => {
       const resolvedFromBatch = resolveCardFromBatchLookups(entry, mode, preciseLookups, nameLookups);
       const resolvedFromDefault = localDefaultLookups.get(buildNameKey(entry.name)) ?? null;
-      return !resolvedFromBatch && !resolvedFromDefault;
+      const resolvedFromLocalPrint = localPrintFallbacks.get(buildNameKey(entry.name)) ?? null;
+      return !resolvedFromBatch && !resolvedFromDefault && !resolvedFromLocalPrint;
     });
     if (unresolvedForLocalOracle.length > 0) {
       localOracleFallbacks = getLocalOracleFallbackCardsByNames(
@@ -1037,11 +1094,14 @@ export async function fetchDeckCards(
         : null;
     const batchByName = nameLookups?.byName.get(buildNameKey(entry.name)) ?? null;
     const localDefault = localDefaultLookups.get(buildNameKey(entry.name)) ?? null;
+    const localPrintFallback = localPrintFallbacks.get(buildNameKey(entry.name)) ?? null;
     const localFallback = localOracleFallbacks.get(buildNameKey(entry.name)) ?? null;
     const localPrint = resolveCardFromLocalPrintLookups(entry, localPrintLookups);
     let card: ScryfallCard | null =
       mode === "oracle-default"
-        ? localDefault ?? resolveCardFromBatchLookups(entry, mode, preciseLookups, nameLookups)
+        ? localDefault ??
+          resolveCardFromBatchLookups(entry, mode, preciseLookups, nameLookups) ??
+          localPrintFallback
         : localPrint ?? resolveCardFromBatchLookups(entry, mode, preciseLookups, nameLookups);
 
     if (mode === "decklist-set" && !card && setCode) {

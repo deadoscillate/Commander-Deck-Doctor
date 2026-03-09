@@ -2874,6 +2874,11 @@ ul {
     padding: 1rem 0.72rem 2rem;
   }
 
+  .panel-grid {
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+  }
+
   .hero {
     margin-bottom: 0.75rem;
     padding: 0.95rem 0.95rem 1rem;
@@ -2891,10 +2896,6 @@ ul {
 
   .hero-actions {
     margin-top: 0.65rem;
-  }
-
-  .panel-grid {
-    gap: 0.75rem;
   }
 
   .panel {
@@ -3166,7 +3167,7 @@ ul {
   }
 }
 
-@media (max-width: 1280px) {
+@media (min-width: 961px) and (max-width: 1280px) {
   .page {
     padding: 1.4rem 1rem 2.4rem;
   }

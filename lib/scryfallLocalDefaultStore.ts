@@ -56,17 +56,25 @@ function loadCardsByName(): Map<string, ScryfallCard> {
       continue;
     }
 
-    const card = row as ScryfallCard;
+    const card = row as ScryfallCard & { lookup_names?: string[] };
     if (typeof card.name !== "string" || !card.name.trim()) {
       continue;
     }
 
-    const key = buildNameKey(card.name);
-    if (!key || next.has(key)) {
-      continue;
-    }
+    const normalizedCard = normalizeLocalCard(card);
+    const lookupNames =
+      Array.isArray(card.lookup_names) && card.lookup_names.length > 0
+        ? card.lookup_names
+        : [card.name];
 
-    next.set(key, normalizeLocalCard(card));
+    for (const lookupName of lookupNames) {
+      const key = buildNameKey(lookupName);
+      if (!key || next.has(key)) {
+        continue;
+      }
+
+      next.set(key, normalizedCard);
+    }
   }
 
   cardsByNormalizedName = next;
