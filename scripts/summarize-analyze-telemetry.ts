@@ -77,6 +77,29 @@ type CommanderOptionsColdRow = {
   p95_lookup_ms: string | null;
 };
 
+type CardSearchTotalsRow = {
+  requests: string;
+  first_seen: string | null;
+  last_seen: string | null;
+};
+
+type CardSearchKindRow = {
+  route_kind: string;
+  requests: string;
+  avg_total_ms: string | null;
+  p50_total_ms: string | null;
+  p95_total_ms: string | null;
+  p95_lookup_ms: string | null;
+};
+
+type CardSearchColdRow = {
+  cold_start: boolean;
+  requests: string;
+  avg_total_ms: string | null;
+  p50_total_ms: string | null;
+  p95_total_ms: string | null;
+};
+
 function parseArgs(argv: string[]): SummaryOptions {
   const options: SummaryOptions = {};
 
@@ -283,6 +306,7 @@ async function main(): Promise<void> {
   const windowLabel = describeWindow(options);
   const filtered = buildFilteredTelemetryQuery(options);
   const commanderOptionsFiltered = buildFilteredQueryForTable(options, "commander_options_telemetry");
+  const cardSearchFiltered = buildFilteredQueryForTable(options, "card_search_telemetry");
   const pool = new Pool({
     connectionString: getConnectionString(),
     max: 1
@@ -438,8 +462,63 @@ async function main(): Promise<void> {
         ])
       : null;
 
+    const cardSearchTableCheck = await pool.query<{ exists: string | null }>(
+      `select to_regclass('public.card_search_telemetry') as exists`
+    );
+    const cardSearchAvailable = Boolean(cardSearchTableCheck.rows[0]?.exists);
+    const cardSearchSummary = cardSearchAvailable
+      ? await Promise.all([
+          pool.query<CardSearchKindRow>(
+            `
+            ${cardSearchFiltered.sql}
+            select
+              route_kind,
+              count(*) as requests,
+              round(avg(total_ms)::numeric, 1) as avg_total_ms,
+              round(percentile_cont(0.5) within group (order by total_ms)::numeric, 1) as p50_total_ms,
+              round(percentile_cont(0.95) within group (order by total_ms)::numeric, 1) as p95_total_ms,
+              round(percentile_cont(0.95) within group (order by lookup_ms)::numeric, 1) as p95_lookup_ms
+            from filtered
+            where commander_only = true
+            group by route_kind
+            order by route_kind
+          `,
+            cardSearchFiltered.params
+          ),
+          pool.query<CardSearchColdRow>(
+            `
+            ${cardSearchFiltered.sql}
+            select
+              cold_start,
+              count(*) as requests,
+              round(avg(total_ms)::numeric, 1) as avg_total_ms,
+              round(percentile_cont(0.5) within group (order by total_ms)::numeric, 1) as p50_total_ms,
+              round(percentile_cont(0.95) within group (order by total_ms)::numeric, 1) as p95_total_ms
+            from filtered
+            where commander_only = true
+            group by cold_start
+            order by cold_start desc
+          `,
+            cardSearchFiltered.params
+          ),
+          pool.query<CardSearchTotalsRow>(
+            `
+            ${cardSearchFiltered.sql}
+            select
+              count(*) as requests,
+              to_char(min(created_at), 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as first_seen,
+              to_char(max(created_at), 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as last_seen
+            from filtered
+            where commander_only = true
+          `,
+            cardSearchFiltered.params
+          )
+        ])
+      : null;
+
     const totalRow = totals.rows[0] ?? { requests: "0", first_seen: null, last_seen: null };
     const commanderOptionsTotalRow = commanderOptionsSummary?.[2].rows[0] ?? null;
+    const cardSearchTotalRow = cardSearchSummary?.[2].rows[0] ?? null;
     const markdown = [
       `# Analyze Telemetry Summary`,
       ``,
@@ -513,6 +592,31 @@ async function main(): Promise<void> {
             )
           ]
         : []),
+      ``,
+      `## Builder Commander Search Telemetry`,
+      cardSearchAvailable
+        ? `Requests sampled: ${toDisplayInt(cardSearchTotalRow?.requests)} | First sample: ${cardSearchTotalRow?.first_seen ?? "n/a"} | Last sample: ${cardSearchTotalRow?.last_seen ?? "n/a"}`
+        : `Card-search telemetry table not available yet.`,
+      ...(cardSearchSummary
+        ? [
+            ``,
+            `### Commander Search By Route Kind`,
+            `| Route Kind | Requests | Avg Total (ms) | P50 Total (ms) | P95 Total (ms) | P95 Lookup (ms) |`,
+            `| --- | ---: | ---: | ---: | ---: | ---: |`,
+            ...cardSearchSummary[0].rows.map(
+              (row) =>
+                `| ${row.route_kind} | ${toDisplayInt(row.requests)} | ${toDisplayNumber(row.avg_total_ms)} | ${toDisplayNumber(row.p50_total_ms)} | ${toDisplayNumber(row.p95_total_ms)} | ${toDisplayNumber(row.p95_lookup_ms)} |`
+            ),
+            ``,
+            `### Commander Search Cold Starts`,
+            `| Cold Start | Requests | Avg Total (ms) | P50 Total (ms) | P95 Total (ms) |`,
+            `| --- | ---: | ---: | ---: | ---: |`,
+            ...cardSearchSummary[1].rows.map(
+              (row) =>
+                `| ${row.cold_start ? "yes" : "no"} | ${toDisplayInt(row.requests)} | ${toDisplayNumber(row.avg_total_ms)} | ${toDisplayNumber(row.p50_total_ms)} | ${toDisplayNumber(row.p95_total_ms)} |`
+            )
+          ]
+        : []),
       ``
     ].join("\n");
 
@@ -536,6 +640,13 @@ async function main(): Promise<void> {
               totals: commanderOptionsTotalRow,
               cacheMix: commanderOptionsSummary[0].rows,
               coldStartMisses: commanderOptionsSummary[1].rows
+            }
+          : null,
+        cardSearch: cardSearchSummary
+          ? {
+              totals: cardSearchTotalRow,
+              byRouteKind: cardSearchSummary[0].rows,
+              coldStarts: cardSearchSummary[1].rows
             }
           : null
       },

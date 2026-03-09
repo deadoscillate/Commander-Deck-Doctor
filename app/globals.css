@@ -720,6 +720,7 @@ input[type="url"] {
 
 .builder-card-thumb,
 .builder-search-thumb {
+  position: relative;
   border-radius: 10px;
   border: 1px solid rgba(99, 132, 167, 0.45);
   background: linear-gradient(145deg, rgba(18, 30, 44, 0.95), rgba(16, 24, 36, 0.88));

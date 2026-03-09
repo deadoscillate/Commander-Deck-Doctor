@@ -34,6 +34,9 @@ describe("GET /api/card-search", () => {
         (option) => option.name === "Thrasios, Triton Hero" && option.pairType === "partner"
       )
     ).toBe(true);
+    expect(response.headers.get("x-card-search-kind")).toBe("commander-search");
+    expect(response.headers.get("x-card-search-results")).toBeTruthy();
+    expect(response.headers.get("x-card-search-total-ms")).toBeTruthy();
   });
 
   it("respects exact color identity filters for commander search", async () => {
@@ -107,5 +110,6 @@ describe("GET /api/card-search", () => {
 
     expect(payload.count).toBe(2);
     expect(payload.items.map((item) => item.name)).toEqual(["Sol Ring", "Counterspell"]);
+    expect(response.headers.get("x-card-search-kind")).toBe("card-lookup");
   });
 });

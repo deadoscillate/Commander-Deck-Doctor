@@ -1,6 +1,8 @@
 import { apiJson, getRequestId } from "@/lib/api/http";
 import { buildRateLimitHeaders, checkRateLimit } from "@/lib/api/rateLimit";
+import { recordCardSearchTelemetry } from "@/lib/cardSearchTelemetryStore";
 import { listSearchSetOptions, lookupCardsByNames, searchCards } from "@/lib/cardSearch";
+import { consumeRuntimeColdStart } from "@/lib/runtimeWarmState";
 
 export const runtime = "nodejs";
 
@@ -32,6 +34,32 @@ function parseLimit(value: string | null): number | undefined {
   }
 
   return Math.floor(parsed);
+}
+
+function buildCardSearchHeaders(metrics: {
+  routeKind: string;
+  coldStart: boolean;
+  totalMs: number;
+  lookupMs?: number;
+  serializeMs?: number;
+  resultsCount: number;
+}): Record<string, string> {
+  const headers: Record<string, string> = {
+    "x-card-search-kind": metrics.routeKind,
+    "x-card-search-cold-start": metrics.coldStart ? "1" : "0",
+    "x-card-search-total-ms": metrics.totalMs.toFixed(1),
+    "x-card-search-results": String(Math.max(0, Math.floor(metrics.resultsCount)))
+  };
+
+  if (typeof metrics.lookupMs === "number") {
+    headers["x-card-search-lookup-ms"] = metrics.lookupMs.toFixed(1);
+  }
+
+  if (typeof metrics.serializeMs === "number") {
+    headers["x-card-search-serialize-ms"] = metrics.serializeMs.toFixed(1);
+  }
+
+  return headers;
 }
 
 async function parseBody(request: Request): Promise<{
@@ -78,7 +106,9 @@ async function parseBody(request: Request): Promise<{
 }
 
 export async function GET(request: Request) {
+  const requestStartedAt = performance.now();
   const requestId = getRequestId(request);
+  const runtimeWarmSnapshot = consumeRuntimeColdStart();
   const rateLimit = await checkRateLimit(request, CARD_SEARCH_RATE_LIMIT);
   const rateLimitHeaders = buildRateLimitHeaders(rateLimit);
   if (!rateLimit.allowed) {
@@ -90,12 +120,26 @@ export async function GET(request: Request) {
 
   const url = new URL(request.url);
   if (url.searchParams.get("meta") === "sets") {
-    return apiJson(
-      {
-        items: listSearchSetOptions()
-      },
-      { requestId, headers: rateLimitHeaders }
-    );
+    const body = {
+      items: listSearchSetOptions()
+    };
+    const serializeStartedAt = performance.now();
+    JSON.stringify(body);
+    const totalMs = performance.now() - requestStartedAt;
+    const serializeMs = performance.now() - serializeStartedAt;
+    return apiJson(body, {
+      requestId,
+      headers: {
+        ...rateLimitHeaders,
+        ...buildCardSearchHeaders({
+          routeKind: "meta-sets",
+          coldStart: runtimeWarmSnapshot.coldStart,
+          totalMs,
+          serializeMs,
+          resultsCount: body.items.length
+        })
+      }
+    });
   }
 
   const q = url.searchParams.get("q")?.trim() ?? "";
@@ -110,6 +154,7 @@ export async function GET(request: Request) {
   const commanderOnly = url.searchParams.get("commanderOnly") === "1";
   const includePairs = url.searchParams.get("includePairs") === "1";
   const limit = parseLimit(url.searchParams.get("limit"));
+  const lookupStartedAt = performance.now();
 
   const items =
     names.length > 0
@@ -127,19 +172,64 @@ export async function GET(request: Request) {
           includePairs,
           limit
         });
+  const lookupMs = performance.now() - lookupStartedAt;
+  const body = {
+    query: q,
+    count: items.length,
+    items
+  };
+  const serializeStartedAt = performance.now();
+  const responseBytes = Buffer.byteLength(JSON.stringify(body), "utf8");
+  const serializeMs = performance.now() - serializeStartedAt;
+  const totalMs = performance.now() - requestStartedAt;
+  const routeKind =
+    names.length > 0
+      ? commanderOnly
+        ? "commander-lookup"
+        : "card-lookup"
+      : commanderOnly
+        ? "commander-search"
+        : "card-search";
 
-  return apiJson(
-    {
-      query: q,
-      count: items.length,
-      items
-    },
-    { requestId, headers: rateLimitHeaders }
-  );
+  void recordCardSearchTelemetry({
+    requestId,
+    routeKind,
+    coldStart: runtimeWarmSnapshot.coldStart,
+    totalMs,
+    lookupMs,
+    serializeMs,
+    responseBytes,
+    queryLength: q.length || undefined,
+    namesCount: names.length || undefined,
+    colorsCount: colors.length,
+    allowedColorsCount: allowedColors.length,
+    resultsCount: items.length,
+    commanderOnly,
+    includePairs,
+    setFilter: Boolean(setCode),
+    typeFilter: Boolean(cardType)
+  });
+
+  return apiJson(body, {
+    requestId,
+    headers: {
+      ...rateLimitHeaders,
+      ...buildCardSearchHeaders({
+        routeKind,
+        coldStart: runtimeWarmSnapshot.coldStart,
+        totalMs,
+        lookupMs,
+        serializeMs,
+        resultsCount: items.length
+      })
+    }
+  });
 }
 
 export async function POST(request: Request) {
+  const requestStartedAt = performance.now();
   const requestId = getRequestId(request);
+  const runtimeWarmSnapshot = consumeRuntimeColdStart();
   const rateLimit = await checkRateLimit(request, CARD_SEARCH_RATE_LIMIT);
   const rateLimitHeaders = buildRateLimitHeaders(rateLimit);
   if (!rateLimit.allowed) {
@@ -157,18 +247,54 @@ export async function POST(request: Request) {
     );
   }
 
+  const lookupStartedAt = performance.now();
   const items = lookupCardsByNames(names, {
     allowedColors,
     commanderOnly,
     includePairs
   });
+  const lookupMs = performance.now() - lookupStartedAt;
+  const body = {
+    query: "",
+    count: items.length,
+    items
+  };
+  const serializeStartedAt = performance.now();
+  const responseBytes = Buffer.byteLength(JSON.stringify(body), "utf8");
+  const serializeMs = performance.now() - serializeStartedAt;
+  const totalMs = performance.now() - requestStartedAt;
+  const routeKind = commanderOnly ? "commander-lookup" : "card-lookup";
 
-  return apiJson(
-    {
-      query: "",
-      count: items.length,
-      items
-    },
-    { requestId, headers: rateLimitHeaders }
-  );
+  void recordCardSearchTelemetry({
+    requestId,
+    routeKind,
+    coldStart: runtimeWarmSnapshot.coldStart,
+    totalMs,
+    lookupMs,
+    serializeMs,
+    responseBytes,
+    namesCount: names.length,
+    colorsCount: 0,
+    allowedColorsCount: allowedColors.length,
+    resultsCount: items.length,
+    commanderOnly,
+    includePairs,
+    setFilter: false,
+    typeFilter: false
+  });
+
+  return apiJson(body, {
+    requestId,
+    headers: {
+      ...rateLimitHeaders,
+      ...buildCardSearchHeaders({
+        routeKind,
+        coldStart: runtimeWarmSnapshot.coldStart,
+        totalMs,
+        lookupMs,
+        serializeMs,
+        resultsCount: items.length
+      })
+    }
+  });
 }

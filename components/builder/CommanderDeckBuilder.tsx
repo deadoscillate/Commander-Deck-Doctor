@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AnalysisReport } from "@/components/AnalysisReport";
@@ -1257,7 +1258,17 @@ export function CommanderDeckBuilder() {
         className={className}
         aria-hidden="true"
       >
-        {imageUrl ? <img src={imageUrl} alt="" loading="lazy" /> : <span>{fallbackLabel ?? record.name.charAt(0)}</span>}
+        {imageUrl ? (
+          <Image
+            src={imageUrl}
+            alt=""
+            fill
+            sizes={className === "builder-search-thumb" ? "64px" : "58px"}
+            unoptimized
+          />
+        ) : (
+          <span>{fallbackLabel ?? record.name.charAt(0)}</span>
+        )}
       </div>
     );
   }
