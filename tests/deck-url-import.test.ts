@@ -90,4 +90,12 @@ describe("deck URL import", () => {
       importDeckFromUrl("https://www.moxfield.com/decks/example")
     ).rejects.toThrow("Unsupported deck URL. Supported provider: Archidekt.");
   });
+
+  it("rejects spoofed Archidekt hostnames", async () => {
+    const { importDeckFromUrl } = await import("@/lib/deckUrlImport");
+
+    await expect(
+      importDeckFromUrl("https://archidekt.com.evil.example/decks/8976321/edric-flyers")
+    ).rejects.toThrow("Unsupported deck URL. Supported provider: Archidekt.");
+  });
 });

@@ -8,6 +8,7 @@ type RateLimitRule = {
     | "share-report"
     | "simulate"
     | "card-printings"
+    | "card-search"
     | "improvement-suggestions"
     | "commander-options"
     | "precons";

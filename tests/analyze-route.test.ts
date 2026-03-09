@@ -32,6 +32,7 @@ function buildCard(overrides: Partial<ScryfallCard> = {}): ScryfallCard {
 }
 
 afterEach(() => {
+  delete process.env.PUBLIC_APP_URL;
   vi.clearAllMocks();
   vi.resetModules();
   vi.unmock("@/lib/scryfall");
@@ -198,6 +199,7 @@ describe("POST /api/analyze", () => {
   }, 15000);
 
   it("keeps oracle-default summaries shareable when local default data is used", async () => {
+    process.env.PUBLIC_APP_URL = "https://deck-doctor.example";
     const fetchMock = vi.fn(async () => {
       throw new Error("unexpected_network_lookup");
     });
@@ -244,10 +246,11 @@ describe("POST /api/analyze", () => {
         })
       })
     );
-    const shareBody = (await shareResponse.json()) as { hash?: string; error?: string };
+    const shareBody = (await shareResponse.json()) as { hash?: string; url?: string; error?: string };
 
     expect(shareResponse.status).toBe(200);
     expect(shareBody.hash).toBe("0123456789abcdef0123");
+    expect(shareBody.url).toBe("https://deck-doctor.example/report/0123456789abcdef0123");
     expect(saveReportMock).toHaveBeenCalledTimes(1);
   }, 15000);
 

@@ -3,6 +3,7 @@ import { saveReport } from "@/lib/reportStore";
 import { apiJson, getRequestId, parseJsonBody } from "@/lib/api/http";
 import { buildRateLimitHeaders, checkRateLimit } from "@/lib/api/rateLimit";
 import { reportApiError } from "@/lib/api/monitoring";
+import { getPublicAppOrigin } from "@/lib/security/url";
 
 export const runtime = "nodejs";
 
@@ -169,8 +170,15 @@ export async function POST(request: Request) {
   try {
     const { hash } = await saveReport(decklist, payload.analysis);
     const path = `/report/${hash}`;
-    const origin = new URL(request.url).origin;
-    return apiJson({ hash, path, url: `${origin}${path}` }, { status: 200, requestId, headers: rateLimitHeaders });
+    const publicOrigin = getPublicAppOrigin(request);
+    return apiJson(
+      {
+        hash,
+        path,
+        url: publicOrigin ? `${publicOrigin}${path}` : path
+      },
+      { status: 200, requestId, headers: rateLimitHeaders }
+    );
   } catch (error) {
     reportApiError(error, {
       requestId,

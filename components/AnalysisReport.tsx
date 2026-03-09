@@ -19,6 +19,7 @@ import type {
   RoleBreakdown,
   TutorSummary
 } from "@/lib/contracts";
+import { toSafeExternalUrl } from "@/lib/security/url";
 import { getStatusMeta } from "@/lib/ui/statusStyles";
 
 const CURVE_ORDER = ["0", "1", "2", "3", "4", "5", "6", "7+"];
@@ -1202,9 +1203,10 @@ export function AnalysisReport({
             const usdPrice = entry.prices?.usd ?? null;
             const usdFoilPrice = entry.prices?.usdFoil ?? null;
             const usdEtchedPrice = entry.prices?.usdEtched ?? null;
-            const tcgplayerLink = entry.sellerLinks?.tcgplayer ?? null;
+            const tcgplayerLink = toSafeExternalUrl(entry.sellerLinks?.tcgplayer ?? null);
             const cardName = cardLabel(entry);
-            const cardKingdomLink = entry.sellerLinks?.cardKingdom ?? cardKingdomSearchUrl(cardName);
+            const cardKingdomLink =
+              toSafeExternalUrl(entry.sellerLinks?.cardKingdom ?? null) ?? cardKingdomSearchUrl(cardName);
 
             return (
               <article className="detected-card-tile" key={entry.name.toLowerCase()}>
@@ -1316,7 +1318,11 @@ export function AnalysisReport({
                 {comboReport.detected.map((combo) => (
                   <li key={`${combo.comboName}-${combo.commanderSpellbookUrl}`}>
                     <strong>{combo.comboName}</strong>{" "}
-                    <a href={combo.commanderSpellbookUrl} target="_blank" rel="noreferrer noopener">
+                    <a
+                      href={toSafeExternalUrl(combo.commanderSpellbookUrl) ?? "https://commanderspellbook.com/"}
+                      target="_blank"
+                      rel="noreferrer noopener"
+                    >
                       [Commander Spellbook]
                     </a>
                     <div className="combo-card-strip">
@@ -1347,7 +1353,11 @@ export function AnalysisReport({
                 {comboReport.conditional.map((combo) => (
                   <li key={`conditional-${combo.comboName}-${combo.commanderSpellbookUrl}`}>
                     <strong>{combo.comboName}</strong>{" "}
-                    <a href={combo.commanderSpellbookUrl} target="_blank" rel="noreferrer noopener">
+                    <a
+                      href={toSafeExternalUrl(combo.commanderSpellbookUrl) ?? "https://commanderspellbook.com/"}
+                      target="_blank"
+                      rel="noreferrer noopener"
+                    >
                       [Commander Spellbook]
                     </a>
                     <div className="combo-card-strip">
@@ -1384,7 +1394,11 @@ export function AnalysisReport({
                   return (
                     <li key={`potential-${combo.comboName}-${combo.commanderSpellbookUrl}`}>
                       <strong>{combo.comboName}</strong>{" "}
-                      <a href={combo.commanderSpellbookUrl} target="_blank" rel="noreferrer noopener">
+                      <a
+                        href={toSafeExternalUrl(combo.commanderSpellbookUrl) ?? "https://commanderspellbook.com/"}
+                        target="_blank"
+                        rel="noreferrer noopener"
+                      >
                         [Commander Spellbook]
                       </a>{" "}
                       <span className="muted">

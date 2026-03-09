@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { AnalysisReport } from "@/components/AnalysisReport";
 import { ExportButtons } from "@/components/ExportButtons";
@@ -934,6 +935,9 @@ export default function Page() {
           <button type="button" className="btn-secondary" onClick={() => void onTrySampleDeck()}>
             Try a sample deck
           </button>
+          <Link href="/builder" className="btn-tertiary">
+            Open Deck Builder
+          </Link>
         </div>
       </div>
 

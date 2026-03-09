@@ -228,7 +228,7 @@ function parseProvider(urlInput: string): { provider: Provider; id: string } {
   const host = parsedUrl.hostname.toLowerCase();
   const path = parsedUrl.pathname;
 
-  if (host.includes("archidekt.com")) {
+  if (host === "archidekt.com" || host.endsWith(".archidekt.com")) {
     const match = path.match(/\/(?:api\/)?decks\/(\d+)/i);
     if (!match) {
       throw new Error("Could not parse Archidekt deck ID from URL.");

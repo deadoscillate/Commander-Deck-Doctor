@@ -34,6 +34,7 @@ npm run telemetry:summary -- --days 7
 - Paste free-form Commander decklists, including `Commander:` and `Companion:` sections.
 - Import public Archidekt decks as print-aware decklists.
 - Load stock Commander precons from a synced local library with full-list browse and search.
+- Build decks from a commander-first workflow with live deck stats, legality, and suggestions.
 - Compare an upgraded deck against matching stock precons for the same commander.
 - Analyze:
   - mana curve and summary stats
@@ -113,6 +114,7 @@ The precon browser now loads the full synced library, keeps search visible while
 - Improvement suggestions load after the initial report from `POST /api/improvement-suggestions`.
 - Card previews, seller links, pricing confidence, and print pickers are available in the report UI.
 - Matching stock precons load in the report for side-by-side comparison without replacing the current analysis.
+- The `/builder` workflow starts from a commander search, keeps a live 99-card decklist, runs analysis continuously, and saves local builder states separately from analyzer deck saves.
 
 ## Ethics and Trust
 
@@ -183,6 +185,7 @@ Recommended deploy flow:
 
 - `POST /api/analyze`
 - `POST /api/card-printings`
+- `GET /api/card-search`
 - `POST /api/commander-options`
 - `POST /api/import-url`
 - `POST /api/improvement-suggestions`
@@ -196,6 +199,7 @@ Recommended deploy flow:
 Current MVP state:
 
 - Core analyze flow is live.
+- Commander-first deck builder is live behind `/builder`.
 - Precon browsing is built in, scrollable, and print-aware.
 - Stock-precon comparison is built in for commander-matched decks.
 - Commander pairing flows now support legal pre-analyze pair selection instead of exposing the whole deck as possible pair choices.
@@ -267,6 +271,7 @@ Practical target:
 - Expand telemetry dashboards and release gates
 - Keep privacy and ethics disclosures aligned with telemetry and sharing behavior
 - Maintain automated dataset refresh workflows
+- Completed: commander-first builder workflow with live local search, legality, and saved local builds
 - Next: add centralized affiliate-link decoration for seller URLs without changing analyzer logic
 - Next: add visible in-product affiliate disclosure once seller-link monetization is enabled
 - Next: add richer stock-vs-current comparison views and release-quality telemetry dashboards
