@@ -37,6 +37,22 @@ Commander
     );
   });
 
+  it("captures both commanders from a paired Commander section", () => {
+    const parsed = parseDecklistWithCommander(`
+Commander
+1 Tymna the Weaver
+1 Thrasios, Triton Hero
+
+98 Island
+    `);
+
+    expect(parsed.commanderFromSection).toBe("Tymna the Weaver");
+    expect(parsed.commandersFromSection).toEqual([
+      "Tymna the Weaver",
+      "Thrasios, Triton Hero"
+    ]);
+  });
+
   it("does not strip split cards when parsing comment markers", () => {
     const entries = parseDecklist(`
 1 Fire // Ice

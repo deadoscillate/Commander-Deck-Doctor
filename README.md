@@ -2,7 +2,7 @@
 
 Commander deck analysis app built with Next.js and TypeScript.
 
-It analyzes pasted or imported Commander lists, loads synced stock precons, and produces a player-facing report with legality, mana curve, role coverage, archetypes, combos, Rule 0 signals, pricing, and on-demand simulations.
+It analyzes pasted or imported Commander lists, loads synced stock precons, compares upgrades against stock lists, and produces a player-facing report with legality, mana curve, role coverage, archetypes, combos, Rule 0 signals, pricing, and on-demand simulations.
 
 ## Quick Start
 
@@ -33,7 +33,8 @@ npm run telemetry:summary -- --days 7
 
 - Paste free-form Commander decklists, including `Commander:` sections.
 - Import public decks from Moxfield and Archidekt.
-- Load stock Commander precons from a synced local library.
+- Load stock Commander precons from a synced local library with full-list browse and search.
+- Compare an upgraded deck against matching stock precons for the same commander.
 - Analyze:
   - mana curve and summary stats
   - role composition
@@ -96,14 +97,17 @@ npm run precons:update
 
 The current sync includes Commander Deck and MTGO Commander Deck products, with duplicate collector-edition variants filtered out.
 Synced precon decklists now include set and collector metadata, so loading a stock precon automatically runs set-aware analysis and pricing.
+The precon browser now loads the full synced library, keeps search visible while scrolling, and uses the same dark/glass styling as the rest of the app.
 
 ## Product Notes
 
 - `oracle-default` is the fast name-based pricing path.
 - `[SET]` tags enable set-aware pricing and print selection.
+- Pre-analyze commander selection now uses commander-eligible candidates only, resolves them from local card data first, and only shows a second selector when the chosen commander has legal pair options.
 - Simulations do not block initial analyze.
 - Improvement suggestions load after the initial report from `POST /api/improvement-suggestions`.
 - Card previews, seller links, and print pickers are available in the report UI.
+- Matching stock precons load in the report for side-by-side comparison without replacing the current analysis.
 
 ## Deployment And Operations
 
@@ -127,6 +131,8 @@ Captured fields include:
 - known / unknown card counts
 - pricing mode
 - commander-selection metadata
+
+`/api/commander-options` also records its own telemetry so the pre-analyze commander-selection path can be optimized separately from `/api/analyze`.
 
 Useful commands:
 
@@ -176,7 +182,9 @@ Recommended deploy flow:
 Current MVP state:
 
 - Core analyze flow is live.
-- Precon browsing is built in.
+- Precon browsing is built in, scrollable, and print-aware.
+- Stock-precon comparison is built in for commander-matched decks.
+- Commander pairing flows now support legal pre-analyze pair selection instead of exposing the whole deck as possible pair choices.
 - Legality, archetypes, combos, Rule 0, pricing, and simulations are all present.
 - Regression safety is materially better than earlier iterations: CI, smoke coverage, accessibility checks, and telemetry are in place.
 
@@ -208,7 +216,9 @@ Practical target:
 - Completed: persistent resolved-card caching
 - Completed: deferred improvement suggestions and on-demand simulations
 - Completed: cold-start telemetry plus scheduled warmup
-- Ongoing: reduce the remaining `oracle-default` cold-miss lookup cost
+- Completed: pre-analyze commander selection now uses commander-eligible candidates instead of scanning the whole list after analyze
+- Completed: separate telemetry and local-only lookup path for `/api/commander-options`
+- Ongoing: reduce the remaining `oracle-default` cold-miss lookup cost in `/api/analyze`
 
 ### Phase 2: Analyzer Quality
 
@@ -216,11 +226,16 @@ Practical target:
 - Started: refreshed Commander Spellbook combo dataset with better combo ranking
 - Started: smarter add/cut recommendation ranking with short rationales
 - Completed: tabbed `Adds` / `Cuts` suggestion UI
-- Completed: synced Commander precon library
+- Completed: synced Commander precon library with print-aware auto-analysis and full-library browse/search
+- Completed: stock-precon comparison for commander-matched decks
+- Completed: commander-options telemetry and local-only lookup path for the pre-analyze commander picker
+- Next: improve suggestion quality with more real deck fixtures and stronger commander-aware ranking
 
 ### Phase 3: Commander Rules Completeness
 
-- Continue tightening commander legality edge cases
+- Completed: stricter commander validation for commander presence in the decklist and commander eligibility
+- Completed: legal paired commander flows for Partner, Partner With, Friends forever, Doctor's companion, and Choose a Background in the pre-analyze picker and rules engine
+- Continue tightening commander legality edge cases such as companions and broader pair-specific messaging
 - Expand deterministic test coverage for pair rules, companions, and banlist handling
 - Keep rules datasets synced and verified
 
@@ -229,3 +244,4 @@ Practical target:
 - Expand telemetry dashboards and release gates
 - Keep privacy and ethics disclosures aligned with telemetry and sharing behavior
 - Maintain automated dataset refresh workflows
+- Next: add richer stock-vs-current comparison views and release-quality telemetry dashboards

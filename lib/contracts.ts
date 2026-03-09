@@ -157,11 +157,23 @@ export type RulesEngineReport = {
 export type CommanderChoice = {
   name: string;
   colorIdentity: string[];
+  pairOptions?: Array<{
+    name: string;
+    colorIdentity: string[];
+    combinedColorIdentity: string[];
+    pairType:
+      | "partner"
+      | "partner-with"
+      | "friends-forever"
+      | "doctor-companion"
+      | "background";
+  }>;
 };
 
 export type CommanderInfo = {
   detectedFromSection: string | null;
   selectedName: string | null;
+  selectedNames?: string[];
   selectedColorIdentity: string[];
   selectedManaCost: string | null;
   selectedCmc: number | null;
@@ -170,6 +182,14 @@ export type CommanderInfo = {
   selectedSetCode: string | null;
   selectedCollectorNumber: string | null;
   selectedPrintingId: string | null;
+  pairType?:
+    | "single"
+    | "partner"
+    | "partner-with"
+    | "friends-forever"
+    | "doctor-companion"
+    | "background"
+    | null;
   source: "section" | "manual" | "auto" | "none";
   options: CommanderChoice[];
   needsManualSelection: boolean;

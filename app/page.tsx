@@ -162,6 +162,47 @@ function normalizeCardKey(name: string): string {
     .replace(/[^a-z0-9]/g, "");
 }
 
+function splitCommanderSelection(value: string | null | undefined): string[] {
+  if (typeof value !== "string" || !value.trim()) {
+    return [];
+  }
+
+  return value
+    .split(/\s+\+\s+/)
+    .map((name) => name.trim())
+    .filter(Boolean);
+}
+
+function joinCommanderSelection(
+  primary: string | null | undefined,
+  secondary?: string | null
+): string | null {
+  const names = [primary, secondary]
+    .map((name) => (typeof name === "string" ? name.trim() : ""))
+    .filter(Boolean);
+
+  return names.length > 0 ? names.join(" + ") : null;
+}
+
+function labelCommanderPairType(
+  pairType: NonNullable<CommanderChoice["pairOptions"]>[number]["pairType"]
+): string {
+  switch (pairType) {
+    case "partner":
+      return "Partner";
+    case "partner-with":
+      return "Partner With";
+    case "friends-forever":
+      return "Friends Forever";
+    case "doctor-companion":
+      return "Doctor's Companion";
+    case "background":
+      return "Background";
+    default:
+      return "Paired";
+  }
+}
+
 function parsePrintingOverrides(raw: unknown): Record<string, DeckPrintingOverride> {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
     return {};
@@ -237,6 +278,7 @@ export default function Page() {
   const [targetBracket, setTargetBracket] = useState("");
   const [expectedWinTurn, setExpectedWinTurn] = useState("");
   const [commanderName, setCommanderName] = useState("");
+  const [commanderPartnerName, setCommanderPartnerName] = useState("");
   const [userCedhFlag, setUserCedhFlag] = useState(false);
   const [userHighPowerNoGCFlag, setUserHighPowerNoGCFlag] = useState(false);
   const [savedDecks, setSavedDecks] = useState<SavedDeck[]>([]);
@@ -255,9 +297,25 @@ export default function Page() {
   const printingCloseButtonRef = useRef<HTMLButtonElement | null>(null);
   const parsedDeckInput = useMemo(() => parseDecklistWithCommander(decklist), [decklist]);
   const parsedDeckEntries = parsedDeckInput.entries;
-  const commanderFromDecklist = parsedDeckInput.commanderFromSection;
+  const commanderFromDecklist = joinCommanderSelection(
+    parsedDeckInput.commandersFromSection[0] ?? parsedDeckInput.commanderFromSection,
+    parsedDeckInput.commandersFromSection[1] ?? null
+  );
   const selectedCommanderName = commanderName.trim();
-  const effectiveCommanderName = commanderFromDecklist ?? selectedCommanderName;
+  const selectedCommanderOption = useMemo(
+    () =>
+      commanderOptions.find(
+        (option) => normalizeCardKey(option.name) === normalizeCardKey(selectedCommanderName)
+      ) ?? null,
+    [commanderOptions, selectedCommanderName]
+  );
+  const selectedCommanderPairOptions = useMemo(
+    () => selectedCommanderOption?.pairOptions ?? [],
+    [selectedCommanderOption]
+  );
+  const selectedCommanderPartnerName = commanderPartnerName.trim();
+  const effectiveCommanderName =
+    commanderFromDecklist ?? joinCommanderSelection(selectedCommanderName, selectedCommanderPartnerName);
   const commanderSelectionRequired = !commanderFromDecklist && parsedDeckEntries.length > 0;
   const canAnalyze =
     Boolean(decklist.trim()) &&
@@ -311,7 +369,7 @@ export default function Page() {
       printingOverrides,
       targetBracket,
       expectedWinTurn,
-      commanderName: effectiveCommanderName,
+      commanderName: effectiveCommanderName ?? "",
       userCedhFlag,
       userHighPowerNoGCFlag,
       updatedAt: now
@@ -340,7 +398,9 @@ export default function Page() {
     setActivePrintingPicker(null);
     setTargetBracket(saved.targetBracket);
     setExpectedWinTurn(saved.expectedWinTurn);
-    setCommanderName(saved.commanderName);
+    const savedCommanderSelection = splitCommanderSelection(saved.commanderName);
+    setCommanderName(savedCommanderSelection[0] ?? "");
+    setCommanderPartnerName(savedCommanderSelection[1] ?? "");
     setUserCedhFlag(saved.userCedhFlag);
     setUserHighPowerNoGCFlag(saved.userHighPowerNoGCFlag);
     setResult(null);
@@ -405,8 +465,14 @@ export default function Page() {
       setPrintingLoadByCard({});
       setPrintingErrorByCard({});
       setActivePrintingPicker(null);
-      const importedCommander = parseDecklistWithCommander(imported.decklist).commanderFromSection;
-      setCommanderName(importedCommander ?? "");
+      const importedCommanderDeck = parseDecklistWithCommander(imported.decklist);
+      const importedCommander = joinCommanderSelection(
+        importedCommanderDeck.commandersFromSection[0] ?? importedCommanderDeck.commanderFromSection,
+        importedCommanderDeck.commandersFromSection[1] ?? null
+      );
+      const importedCommanderSelection = splitCommanderSelection(importedCommander);
+      setCommanderName(importedCommanderSelection[0] ?? "");
+      setCommanderPartnerName(importedCommanderSelection[1] ?? "");
       setResult(null);
       const label = imported.provider === "moxfield" ? "Moxfield" : "Archidekt";
       setImportInfo(
@@ -428,7 +494,12 @@ export default function Page() {
       (result.commander.source === "section" || result.commander.source === "auto") &&
       result.commander.selectedName
     ) {
-      setCommanderName(result.commander.selectedName);
+      const nextCommanderSelection =
+        result.commander.selectedNames && result.commander.selectedNames.length > 0
+          ? result.commander.selectedNames
+          : splitCommanderSelection(result.commander.selectedName);
+      setCommanderName(nextCommanderSelection[0] ?? "");
+      setCommanderPartnerName(nextCommanderSelection[1] ?? "");
     }
   }, [result]);
 
@@ -437,9 +508,9 @@ export default function Page() {
       setCommanderOptions([]);
       setCommanderOptionsLoading(false);
       setCommanderOptionsError("");
-      setCommanderName((previous) =>
-        previous === commanderFromDecklist ? previous : commanderFromDecklist
-      );
+      const decklistCommanderSelection = splitCommanderSelection(commanderFromDecklist);
+      setCommanderName(decklistCommanderSelection[0] ?? "");
+      setCommanderPartnerName(decklistCommanderSelection[1] ?? "");
       return;
     }
 
@@ -448,6 +519,7 @@ export default function Page() {
       setCommanderOptionsLoading(false);
       setCommanderOptionsError("");
       setCommanderName("");
+      setCommanderPartnerName("");
       return;
     }
 
@@ -496,6 +568,7 @@ export default function Page() {
 
           return "";
         });
+        setCommanderPartnerName("");
       } catch {
         if (cancelled) {
           return;
@@ -532,6 +605,23 @@ export default function Page() {
       return availableCommanderKeys.has(normalizeCardKey(previous)) ? previous : "";
     });
   }, [commanderFromDecklist, commanderOptions]);
+
+  useEffect(() => {
+    if (commanderFromDecklist) {
+      return;
+    }
+
+    const validPairKeys = new Set(
+      selectedCommanderPairOptions.map((option) => normalizeCardKey(option.name))
+    );
+    setCommanderPartnerName((previous) => {
+      if (!previous) {
+        return "";
+      }
+
+      return validPairKeys.has(normalizeCardKey(previous)) ? previous : "";
+    });
+  }, [commanderFromDecklist, selectedCommanderPairOptions]);
 
   const tuningSummary = targetBracket && expectedWinTurn
     ? `Target: Bracket ${targetBracket} | Win/Lock: ${expectedWinTurn}`
@@ -776,7 +866,13 @@ export default function Page() {
   }
 
   async function onTrySampleDeck() {
-    const sampleCommander = parseDecklistWithCommander(SAMPLE_DECKLIST).commanderFromSection ?? "";
+    const sampleDeck = parseDecklistWithCommander(SAMPLE_DECKLIST);
+    const sampleCommander =
+      joinCommanderSelection(
+        sampleDeck.commandersFromSection[0] ?? sampleDeck.commanderFromSection,
+        sampleDeck.commandersFromSection[1] ?? null
+      ) ?? "";
+    const sampleCommanderSelection = splitCommanderSelection(sampleCommander);
     setDeckName(SAMPLE_DECK_NAME);
     setDecklist(SAMPLE_DECKLIST);
     setPrintingOverrides({});
@@ -784,17 +880,24 @@ export default function Page() {
     setPrintingLoadByCard({});
     setPrintingErrorByCard({});
     setActivePrintingPicker(null);
-    setCommanderName(sampleCommander);
+    setCommanderName(sampleCommanderSelection[0] ?? "");
+    setCommanderPartnerName(sampleCommanderSelection[1] ?? "");
     setImportError("");
     setImportInfo("Loaded sample deck. Running analysis...");
     await runAnalysis({ decklist: SAMPLE_DECKLIST, commanderName: sampleCommander || null });
   }
 
   async function onLoadPrecon(precon: PreconDeck) {
+    const preconDeck = parseDecklistWithCommander(precon.decklist);
     const preconCommander =
-      parseDecklistWithCommander(precon.decklist).commanderFromSection ??
-      precon.commanderNames[0] ??
-      "";
+      joinCommanderSelection(
+        preconDeck.commandersFromSection[0] ??
+          preconDeck.commanderFromSection ??
+          precon.commanderNames[0] ??
+          "",
+        preconDeck.commandersFromSection[1] ?? null
+      ) ?? "";
+    const preconCommanderSelection = splitCommanderSelection(preconCommander);
     setDeckName(precon.name);
     setDecklist(precon.decklist);
     setDeckPriceMode("decklist-set");
@@ -805,7 +908,8 @@ export default function Page() {
     setActivePrintingPicker(null);
     setTargetBracket("");
     setExpectedWinTurn("");
-    setCommanderName(preconCommander);
+    setCommanderName(preconCommanderSelection[0] ?? "");
+    setCommanderPartnerName(preconCommanderSelection[1] ?? "");
     setUserCedhFlag(false);
     setUserHighPowerNoGCFlag(false);
     setResult(null);
@@ -945,6 +1049,7 @@ export default function Page() {
                   disabled={loading || commanderOptionsLoading || commanderOptions.length === 0}
                   onChange={(event) => {
                     setCommanderName(event.target.value);
+                    setCommanderPartnerName("");
                     setError("");
                   }}
                 >
@@ -969,6 +1074,30 @@ export default function Page() {
                 {commanderOptionsError ? <p className="error-inline">{commanderOptionsError}</p> : null}
                 {commanderSelectionRequired && !selectedCommanderName ? (
                   <p className="error-inline">Commander selection is required before analysis.</p>
+                ) : null}
+                {selectedCommanderPairOptions.length > 0 ? (
+                  <>
+                    <label htmlFor="commander-pair-name">Partner / Background</label>
+                    <select
+                      id="commander-pair-name"
+                      value={selectedCommanderPartnerName}
+                      disabled={loading || commanderOptionsLoading}
+                      onChange={(event) => {
+                        setCommanderPartnerName(event.target.value);
+                        setError("");
+                      }}
+                    >
+                      <option value="">No paired commander</option>
+                      {selectedCommanderPairOptions.map((option) => (
+                        <option key={option.name} value={option.name}>
+                          {option.name} ({labelCommanderPairType(option.pairType)})
+                        </option>
+                      ))}
+                    </select>
+                    <p className="muted">
+                      Only legal pairings for {selectedCommanderName} are shown here.
+                    </p>
+                  </>
                 ) : null}
               </>
             )}

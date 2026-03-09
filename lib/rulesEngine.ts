@@ -1,6 +1,7 @@
 import { buildColorIdentityCheck, buildDeckChecks } from "./checks";
+import { evaluateCommanderConfiguration } from "./commanderConfiguration";
 import type { RulesEngineReport, RulesEngineRuleResult } from "./contracts";
-import type { DeckCard, ParsedDeckEntry } from "./types";
+import type { DeckCard, ParsedDeckEntry, ScryfallCard } from "./types";
 import banlistDataset from "./rules/datasets/banlist.json";
 import officialRulesDataset from "./rules/datasets/officialRules.json";
 
@@ -8,8 +9,11 @@ const RULES_ENGINE_VERSION = `2026.03.07-official-${banlistDataset.versionDate}`
 
 type CommanderSelection = {
   name: string | null;
+  names?: string[];
   colorIdentity: string[];
   resolved: boolean;
+  card?: ScryfallCard | null;
+  cards?: ScryfallCard[];
 };
 
 export type CommanderRulesEngineInput = {
@@ -54,7 +58,7 @@ function normalizeName(name: string): string {
 
 function buildBanlistFindings(
   parsedDeck: ParsedDeckEntry[],
-  commanderName: string | null
+  commanderNames: string[]
 ): Array<{ name: string; qty: number }> {
   const bannedByNormalizedName = new Map(
     banlistDataset.bannedNames.map((name) => [normalizeName(name), name] as const)
@@ -71,7 +75,7 @@ function buildBanlistFindings(
     findingsByCardName.set(bannedName, (findingsByCardName.get(bannedName) ?? 0) + entry.qty);
   }
 
-  if (commanderName) {
+  for (const commanderName of commanderNames) {
     const normalizedCommanderName = normalizeName(commanderName);
     const bannedCommanderName = bannedByNormalizedName.get(normalizedCommanderName);
     if (bannedCommanderName && !findingsByCardName.has(bannedCommanderName)) {
@@ -84,10 +88,45 @@ function buildBanlistFindings(
     .map(([name, qty]) => ({ name, qty }));
 }
 
+function commanderExistsInDeck(parsedDeck: ParsedDeckEntry[], commanderName: string | null): boolean {
+  if (!commanderName) {
+    return false;
+  }
+
+  const normalizedCommander = normalizeName(commanderName);
+  return parsedDeck.some((entry) => normalizeName(entry.name) === normalizedCommander);
+}
+
 /**
  * Evaluates Commander legality rules and returns structured findings.
  */
 export function evaluateCommanderRules(input: CommanderRulesEngineInput): RulesEngineReport {
+  const selectedCommanderName = input.commander.name;
+  const selectedCommanderNames =
+    Array.isArray(input.commander.names) && input.commander.names.length > 0
+      ? input.commander.names
+      : selectedCommanderName
+        ? [selectedCommanderName]
+        : [];
+  const resolvedCommanderCard =
+    input.commander.card ??
+    (selectedCommanderName
+      ? input.knownCards.find(
+          (entry) => normalizeName(entry.card.name) === normalizeName(selectedCommanderName)
+        )
+          ?.card ?? null
+      : null);
+  const resolvedCommanderCards =
+    Array.isArray(input.commander.cards) && input.commander.cards.length > 0
+      ? input.commander.cards
+      : resolvedCommanderCard
+        ? [resolvedCommanderCard]
+        : [];
+  const commanderConfiguration = evaluateCommanderConfiguration(
+    selectedCommanderNames,
+    resolvedCommanderCards,
+    input.commander.resolved
+  );
   const checks = buildDeckChecks(input.parsedDeck, input.unknownCards);
   const colorIdentityCheck = input.commander.name
     ? input.commander.resolved
@@ -102,7 +141,7 @@ export function evaluateCommanderRules(input: CommanderRulesEngineInput): RulesE
           message: `Commander "${input.commander.name}" could not be resolved for color identity validation.`
         }
     : checks.colorIdentity;
-  const banlistFindings = buildBanlistFindings(input.parsedDeck, input.commander.name);
+  const banlistFindings = buildBanlistFindings(input.parsedDeck, selectedCommanderNames);
 
   const rules: RulesEngineRuleResult[] = [
     buildRule({
@@ -157,9 +196,52 @@ export function evaluateCommanderRules(input: CommanderRulesEngineInput): RulesE
       severity: "WARN",
       outcome: input.commander.name ? "PASS" : "FAIL",
       message: input.commander.name
-        ? `Commander selected: ${input.commander.name}.`
+        ? `Commander selected: ${selectedCommanderNames.join(" + ")}.`
         : "Commander not selected. Add a commander to unlock full rules validation.",
-      findings: input.commander.name ? [{ name: input.commander.name, qty: 1 }] : []
+      findings: selectedCommanderNames.map((name) => ({ name, qty: 1 }))
+    }),
+    buildRule({
+      id: "commander.commander-present-in-deck",
+      name: "Commander Present In Deck",
+      description: "The selected commander should exist in the submitted decklist.",
+      domain: "COMMANDER_RULES",
+      severity: "ERROR",
+      outcome: selectedCommanderNames.length > 0
+        ? input.commander.resolved
+          ? selectedCommanderNames.every((name) => commanderExistsInDeck(input.parsedDeck, name))
+            ? "PASS"
+            : "FAIL"
+          : "SKIP"
+        : "SKIP",
+      message: selectedCommanderNames.length > 0
+        ? input.commander.resolved
+          ? selectedCommanderNames.every((name) => commanderExistsInDeck(input.parsedDeck, name))
+            ? `Commander selection is present in the decklist: ${selectedCommanderNames.join(" + ")}.`
+            : `One or more selected commanders are not present in the submitted decklist: ${selectedCommanderNames.join(" + ")}.`
+          : `Commander selection could not be resolved for deck-presence validation: ${selectedCommanderNames.join(" + ")}.`
+        : "No commander selected, so deck-presence validation was skipped.",
+      findings: selectedCommanderNames.map((name) => ({ name, qty: 1 }))
+    }),
+    buildRule({
+      id: "commander.commander-eligible",
+      name: "Commander Configuration",
+      description:
+        "The selected commander must be legal as a single commander, or the selected pair must form a legal two-commander configuration.",
+      domain: "COMMANDER_RULES",
+      severity: "ERROR",
+      outcome: selectedCommanderNames.length > 0
+        ? input.commander.resolved
+          ? commanderConfiguration.ok
+            ? "PASS"
+            : "FAIL"
+          : "SKIP"
+        : "SKIP",
+      message: selectedCommanderNames.length > 0
+        ? input.commander.resolved
+          ? commanderConfiguration.message
+          : `Commander selection could not be resolved for configuration validation: ${selectedCommanderNames.join(" + ")}.`
+        : "No commander selected, so commander eligibility validation was skipped.",
+      findings: selectedCommanderNames.map((name) => ({ name, qty: 1 }))
     }),
     buildRule({
       id: "commander.color-identity",

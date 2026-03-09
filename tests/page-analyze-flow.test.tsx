@@ -191,6 +191,78 @@ describe("app page analyze flow", () => {
     expect(payload.commanderName).toBe("Atraxa, Praetors' Voice");
   });
 
+  it("shows a legal pair selector only when the chosen commander has legal pair options", async () => {
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({
+        commanderFromSection: null,
+        options: [
+          {
+            name: "Tymna the Weaver",
+            colorIdentity: ["W", "B"],
+            pairOptions: [
+              {
+                name: "Thrasios, Triton Hero",
+                colorIdentity: ["G", "U"],
+                combinedColorIdentity: ["W", "U", "B", "G"],
+                pairType: "partner"
+              }
+            ]
+          },
+          {
+            name: "Edric, Spymaster of Trest",
+            colorIdentity: ["G", "U"],
+            pairOptions: []
+          }
+        ],
+        suggestedCommanderName: null
+      })
+    );
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse(
+        createAnalyzeResponse({
+          commander: {
+            selectedName: "Tymna the Weaver + Thrasios, Triton Hero",
+            selectedNames: ["Tymna the Weaver", "Thrasios, Triton Hero"],
+            source: "manual",
+            needsManualSelection: false
+          }
+        })
+      )
+    );
+
+    const user = userEvent.setup();
+    const { default: Page } = await import("@/app/page");
+    render(<Page />);
+
+    await user.type(
+      screen.getByLabelText(/Decklist \(paste here\)/i),
+      "1 Tymna the Weaver\n1 Thrasios, Triton Hero\n1 Edric, Spymaster of Trest\n97 Island"
+    );
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
+
+    expect(screen.queryByLabelText(/Partner \/ Background/i)).toBeNull();
+
+    await user.selectOptions(screen.getByLabelText(/^Commander$/i), "Tymna the Weaver");
+    expect(screen.getByLabelText(/Partner \/ Background/i)).toBeTruthy();
+
+    await user.selectOptions(
+      screen.getByLabelText(/Partner \/ Background/i),
+      "Thrasios, Triton Hero"
+    );
+    await user.click(screen.getByRole("button", { name: /Analyze Deck/i }));
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+    });
+
+    const [, request] = fetchMock.mock.calls[1] as [string, RequestInit];
+    const payload = JSON.parse(String(request.body));
+    expect(payload.commanderName).toBe("Tymna the Weaver + Thrasios, Triton Hero");
+  });
+
   it("keeps pre-analyze commander flow working at mobile viewport width", async () => {
     Object.defineProperty(window, "innerWidth", {
       configurable: true,

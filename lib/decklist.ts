@@ -6,6 +6,7 @@ import { ParsedDeckEntry } from "./types";
 export type DecklistParseResult = {
   entries: ParsedDeckEntry[];
   commanderFromSection: string | null;
+  commandersFromSection: string[];
 };
 
 // Common section headers that should be ignored when users paste deck exports.
@@ -305,6 +306,17 @@ export function parseDecklistWithCommander(input: string): DecklistParseResult {
   const merged = new Map<string, ParsedDeckEntry>();
   let inCommanderSection = false;
   let commanderFromSection: string | null = null;
+  const commandersFromSection: string[] = [];
+
+  function addCommanderFromSection(name: string): void {
+    if (!commanderFromSection) {
+      commanderFromSection = name;
+    }
+
+    if (!commandersFromSection.includes(name)) {
+      commandersFromSection.push(name);
+    }
+  }
 
   for (const rawLine of input.split(/\r?\n/)) {
     const noComment = stripComment(rawLine);
@@ -317,9 +329,7 @@ export function parseDecklistWithCommander(input: string): DecklistParseResult {
 
     const inlineCommander = parseInlineCommander(noComment);
     if (inlineCommander) {
-      if (!commanderFromSection) {
-        commanderFromSection = inlineCommander.name;
-      }
+      addCommanderFromSection(inlineCommander.name);
       const key = inlineCommander.name.toLowerCase();
       const existing = merged.get(key);
       if (existing) {
@@ -341,8 +351,10 @@ export function parseDecklistWithCommander(input: string): DecklistParseResult {
       continue;
     }
 
-    if (inCommanderSection && !commanderFromSection) {
-      commanderFromSection = parsed.name;
+    if (inCommanderSection && parsed.qty === 1 && commandersFromSection.length < 2) {
+      addCommanderFromSection(parsed.name);
+    } else if (inCommanderSection) {
+      inCommanderSection = false;
     }
 
     const key = parsed.name.toLowerCase();
@@ -357,6 +369,7 @@ export function parseDecklistWithCommander(input: string): DecklistParseResult {
 
   return {
     entries: [...merged.values()],
-    commanderFromSection
+    commanderFromSection,
+    commandersFromSection
   };
 }

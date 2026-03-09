@@ -378,6 +378,50 @@ input[type="url"] {
   color: var(--ink);
 }
 
+.stock-precon-comparison {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+}
+
+.stock-precon-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.9rem;
+}
+
+.stock-precon-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  min-width: min(22rem, 100%);
+}
+
+.stock-precon-picker span {
+  font-size: 0.8rem;
+  color: var(--ink-muted);
+}
+
+.stock-precon-diff-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.9rem;
+}
+
+.stock-precon-role-delta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem 0.85rem;
+  list-style: none;
+  padding: 0;
+  margin: 0.2rem 0 0;
+}
+
+.stock-precon-role-delta li {
+  color: var(--ink);
+}
+
 .precon-item-main strong,
 .precon-item-main p {
   overflow-wrap: anywhere;
@@ -3356,6 +3400,16 @@ ul {
 @media (max-width: 760px) {
   .summary-grid {
     grid-template-columns: 1fr;
+  }
+
+  .stock-precon-head,
+  .stock-precon-diff-grid {
+    grid-template-columns: 1fr;
+    display: grid;
+  }
+
+  .stock-precon-picker {
+    min-width: 0;
   }
 
   .detected-cards-grid,

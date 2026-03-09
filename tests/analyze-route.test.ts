@@ -56,7 +56,8 @@ describe("POST /api/analyze", () => {
       }),
       getCardById: vi.fn(async () => null),
       getCardByName: vi.fn(async () => null),
-      getCardByNameWithSet: vi.fn(async () => null)
+      getCardByNameWithSet: vi.fn(async () => null),
+      getLocalCardByName: vi.fn(async () => null)
     }));
 
     const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
@@ -117,7 +118,8 @@ describe("POST /api/analyze", () => {
       fetchDeckCards: fetchDeckCardsMock,
       getCardById: vi.fn(async () => null),
       getCardByName: vi.fn(async () => null),
-      getCardByNameWithSet: vi.fn(async () => null)
+      getCardByNameWithSet: vi.fn(async () => null),
+      getLocalCardByName: vi.fn(async () => null)
     }));
 
     const { POST } = await import("@/app/api/analyze/route");
@@ -281,7 +283,8 @@ describe("POST /api/analyze", () => {
       fetchDeckCards: fetchDeckCardsMock,
       getCardById: vi.fn(async () => null),
       getCardByName: vi.fn(async () => null),
-      getCardByNameWithSet: vi.fn(async () => null)
+      getCardByNameWithSet: vi.fn(async () => null),
+      getLocalCardByName: vi.fn(async () => null)
     }));
 
     const { POST } = await import("@/app/api/analyze/route");
@@ -342,7 +345,8 @@ describe("POST /api/analyze", () => {
       fetchDeckCards: fetchDeckCardsMock,
       getCardById: vi.fn(async () => null),
       getCardByName: vi.fn(async () => null),
-      getCardByNameWithSet: vi.fn(async () => null)
+      getCardByNameWithSet: vi.fn(async () => null),
+      getLocalCardByName: vi.fn(async () => null)
     }));
     vi.doMock("@/lib/analyzeTelemetryStore", () => ({
       recordAnalyzeTelemetry: recordAnalyzeTelemetryMock
@@ -430,7 +434,8 @@ describe("POST /api/analyze", () => {
       })),
       getCardById: vi.fn(async () => null),
       getCardByName: vi.fn(async () => null),
-      getCardByNameWithSet: vi.fn(async () => null)
+      getCardByNameWithSet: vi.fn(async () => null),
+      getLocalCardByName: vi.fn(async () => null)
     }));
 
     const { POST } = await import("@/app/api/analyze/route");
@@ -457,6 +462,92 @@ describe("POST /api/analyze", () => {
     expect(body.commander?.options?.some((option) => option.name === "Atraxa, Praetors' Voice")).toBe(true);
     expect(body.checks?.colorIdentity?.enabled).toBe(true);
     expect(body.checks?.colorIdentity?.commanderName).toBe("Atraxa, Praetors' Voice");
+  });
+
+  it("supports legal paired commanders selected before analyze", async () => {
+    vi.doMock("@/lib/scryfall", () => ({
+      fetchDeckCards: vi.fn(async () => ({
+        knownCards: [
+          {
+            name: "Tymna the Weaver",
+            qty: 1,
+            card: buildCard({
+              name: "Tymna the Weaver",
+              type_line: "Legendary Creature - Human Cleric",
+              cmc: 3,
+              mana_cost: "{1}{W}{B}",
+              colors: ["W", "B"],
+              color_identity: ["W", "B"],
+              oracle_text: "Partner"
+            })
+          },
+          {
+            name: "Thrasios, Triton Hero",
+            qty: 1,
+            card: buildCard({
+              name: "Thrasios, Triton Hero",
+              type_line: "Legendary Creature - Merfolk Wizard",
+              cmc: 2,
+              mana_cost: "{G}{U}",
+              colors: ["G", "U"],
+              color_identity: ["G", "U"],
+              oracle_text: "Partner"
+            })
+          },
+          {
+            name: "Island",
+            qty: 98,
+            card: buildCard({
+              name: "Island",
+              type_line: "Basic Land - Island",
+              cmc: 0,
+              mana_cost: "",
+              oracle_text: "({T}: Add {U}.)",
+              color_identity: ["U"],
+              colors: []
+            })
+          }
+        ],
+        unknownCards: []
+      })),
+      getCardById: vi.fn(async () => null),
+      getCardByName: vi.fn(async () => null),
+      getCardByNameWithSet: vi.fn(async () => null),
+      getLocalCardByName: vi.fn(async () => null)
+    }));
+
+    const { POST } = await import("@/app/api/analyze/route");
+    const response = await POST(
+      buildRequest({
+        decklist: "1 Tymna the Weaver\n1 Thrasios, Triton Hero\n98 Island",
+        commanderName: "Tymna the Weaver + Thrasios, Triton Hero"
+      })
+    );
+    const body = (await response.json()) as {
+      commander?: {
+        selectedName?: string | null;
+        selectedNames?: string[];
+        pairType?: string | null;
+        source?: string;
+      };
+      rulesEngine?: {
+        status?: string;
+        rules?: Array<{ id?: string; outcome?: string }>;
+      };
+    };
+
+    expect(response.status).toBe(200);
+    expect(body.commander?.selectedName).toBe("Tymna the Weaver + Thrasios, Triton Hero");
+    expect(body.commander?.selectedNames).toEqual([
+      "Tymna the Weaver",
+      "Thrasios, Triton Hero"
+    ]);
+    expect(body.commander?.pairType).toBe("partner");
+    expect(body.commander?.source).toBe("manual");
+    expect(body.rulesEngine?.status).toBe("PASS");
+    expect(
+      body.rulesEngine?.rules?.find((rule) => rule.id === "commander.commander-eligible")?.outcome
+    ).toBe("PASS");
   });
 
   it("auto-selects the unique largest fitting color identity candidate", async () => {
@@ -505,7 +596,8 @@ describe("POST /api/analyze", () => {
       })),
       getCardById: vi.fn(async () => null),
       getCardByName: vi.fn(async () => null),
-      getCardByNameWithSet: vi.fn(async () => null)
+      getCardByNameWithSet: vi.fn(async () => null),
+      getLocalCardByName: vi.fn(async () => null)
     }));
 
     const { POST } = await import("@/app/api/analyze/route");
@@ -569,7 +661,8 @@ describe("POST /api/analyze", () => {
       })),
       getCardById: vi.fn(async () => null),
       getCardByName: vi.fn(async () => null),
-      getCardByNameWithSet: vi.fn(async () => null)
+      getCardByNameWithSet: vi.fn(async () => null),
+      getLocalCardByName: vi.fn(async () => null)
     }));
 
     const { POST } = await import("@/app/api/analyze/route");
@@ -639,7 +732,8 @@ describe("POST /api/analyze", () => {
           color_identity: ["G", "U"]
         })
       ),
-      getCardByNameWithSet: vi.fn(async () => null)
+      getCardByNameWithSet: vi.fn(async () => null),
+      getLocalCardByName: vi.fn(async () => null)
     }));
 
     const { POST } = await import("@/app/api/analyze/route");
@@ -692,7 +786,8 @@ describe("POST /api/analyze", () => {
       fetchDeckCards: fetchDeckCardsMock,
       getCardById: vi.fn(async () => null),
       getCardByName: vi.fn(async () => null),
-      getCardByNameWithSet: vi.fn(async () => null)
+      getCardByNameWithSet: vi.fn(async () => null),
+      getLocalCardByName: vi.fn(async () => null)
     }));
 
     const { POST } = await import("@/app/api/analyze/route");
@@ -745,7 +840,8 @@ describe("POST /api/analyze", () => {
       })),
       getCardById: getCardByIdMock,
       getCardByName: vi.fn(async () => null),
-      getCardByNameWithSet: vi.fn(async () => null)
+      getCardByNameWithSet: vi.fn(async () => null),
+      getLocalCardByName: vi.fn(async () => null)
     }));
 
     const { POST } = await import("@/app/api/analyze/route");
@@ -815,7 +911,8 @@ describe("POST /api/analyze", () => {
       })),
       getCardById: getCardByIdMock,
       getCardByName: vi.fn(async () => null),
-      getCardByNameWithSet: vi.fn(async () => null)
+      getCardByNameWithSet: vi.fn(async () => null),
+      getLocalCardByName: vi.fn(async () => null)
     }));
 
     const { POST } = await import("@/app/api/analyze/route");
@@ -846,3 +943,5 @@ describe("POST /api/analyze", () => {
     expect(body.commander?.selectedPrintingId).toBe("override-printing-id");
   });
 });
+
+

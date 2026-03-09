@@ -54,6 +54,29 @@ type DailyTrendRow = {
   p95_lookup_ms: string | null;
 };
 
+type CommanderOptionsTotalsRow = {
+  requests: string;
+  first_seen: string | null;
+  last_seen: string | null;
+};
+
+type CommanderOptionsCacheRow = {
+  cache_status: string;
+  requests: string;
+  avg_total_ms: string | null;
+  p50_total_ms: string | null;
+  p95_total_ms: string | null;
+};
+
+type CommanderOptionsColdRow = {
+  cold_start: boolean;
+  requests: string;
+  avg_total_ms: string | null;
+  p50_total_ms: string | null;
+  p95_total_ms: string | null;
+  p95_lookup_ms: string | null;
+};
+
 function parseArgs(argv: string[]): SummaryOptions {
   const options: SummaryOptions = {};
 
@@ -205,6 +228,13 @@ function describeWindow(options: SummaryOptions): string {
 }
 
 function buildFilteredTelemetryQuery(options: SummaryOptions): { sql: string; params: string[] } {
+  return buildFilteredQueryForTable(options, "analyze_telemetry");
+}
+
+function buildFilteredQueryForTable(
+  options: SummaryOptions,
+  tableName: string
+): { sql: string; params: string[] } {
   const whereClauses: string[] = [];
   const params: string[] = [];
 
@@ -228,7 +258,7 @@ function buildFilteredTelemetryQuery(options: SummaryOptions): { sql: string; pa
     sql: `
       with filtered as (
         select *
-        from analyze_telemetry
+        from ${tableName}
         ${whereClause}
         ${orderAndLimit}
       )
@@ -252,6 +282,7 @@ async function main(): Promise<void> {
   const generatedAt = new Date().toISOString();
   const windowLabel = describeWindow(options);
   const filtered = buildFilteredTelemetryQuery(options);
+  const commanderOptionsFiltered = buildFilteredQueryForTable(options, "commander_options_telemetry");
   const pool = new Pool({
     connectionString: getConnectionString(),
     max: 1
@@ -355,7 +386,60 @@ async function main(): Promise<void> {
       )
     ]);
 
+    const commanderOptionsTableCheck = await pool.query<{ exists: string | null }>(
+      `select to_regclass('public.commander_options_telemetry') as exists`
+    );
+    const commanderOptionsAvailable = Boolean(commanderOptionsTableCheck.rows[0]?.exists);
+    const commanderOptionsSummary = commanderOptionsAvailable
+      ? await Promise.all([
+          pool.query<CommanderOptionsCacheRow>(
+            `
+            ${commanderOptionsFiltered.sql}
+            select
+              cache_status,
+              count(*) as requests,
+              round(avg(total_ms)::numeric, 1) as avg_total_ms,
+              round(percentile_cont(0.5) within group (order by total_ms)::numeric, 1) as p50_total_ms,
+              round(percentile_cont(0.95) within group (order by total_ms)::numeric, 1) as p95_total_ms
+            from filtered
+            group by cache_status
+            order by cache_status
+          `,
+            commanderOptionsFiltered.params
+          ),
+          pool.query<CommanderOptionsColdRow>(
+            `
+            ${commanderOptionsFiltered.sql}
+            select
+              cold_start,
+              count(*) as requests,
+              round(avg(total_ms)::numeric, 1) as avg_total_ms,
+              round(percentile_cont(0.5) within group (order by total_ms)::numeric, 1) as p50_total_ms,
+              round(percentile_cont(0.95) within group (order by total_ms)::numeric, 1) as p95_total_ms,
+              round(percentile_cont(0.95) within group (order by lookup_ms)::numeric, 1) as p95_lookup_ms
+            from filtered
+            where cache_status = 'miss'
+            group by cold_start
+            order by cold_start desc
+          `,
+            commanderOptionsFiltered.params
+          ),
+          pool.query<CommanderOptionsTotalsRow>(
+            `
+            ${commanderOptionsFiltered.sql}
+            select
+              count(*) as requests,
+              to_char(min(created_at), 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as first_seen,
+              to_char(max(created_at), 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as last_seen
+            from filtered
+          `,
+            commanderOptionsFiltered.params
+          )
+        ])
+      : null;
+
     const totalRow = totals.rows[0] ?? { requests: "0", first_seen: null, last_seen: null };
+    const commanderOptionsTotalRow = commanderOptionsSummary?.[2].rows[0] ?? null;
     const markdown = [
       `# Analyze Telemetry Summary`,
       ``,
@@ -404,6 +488,31 @@ async function main(): Promise<void> {
         (row) =>
           `| ${row.day} | ${toDisplayInt(row.requests)} | ${toDisplayNumber(row.p95_total_ms)} | ${toDisplayNumber(row.p95_lookup_ms)} |`
       ),
+      ``,
+      `## Commander Options Telemetry`,
+      commanderOptionsAvailable
+        ? `Requests sampled: ${toDisplayInt(commanderOptionsTotalRow?.requests)} | First sample: ${commanderOptionsTotalRow?.first_seen ?? "n/a"} | Last sample: ${commanderOptionsTotalRow?.last_seen ?? "n/a"}`
+        : `Commander options telemetry table not available yet.`,
+      ...(commanderOptionsSummary
+        ? [
+            ``,
+            `### Commander Options Cache Mix`,
+            `| Cache | Requests | Avg Total (ms) | P50 Total (ms) | P95 Total (ms) |`,
+            `| --- | ---: | ---: | ---: | ---: |`,
+            ...commanderOptionsSummary[0].rows.map(
+              (row) =>
+                `| ${row.cache_status} | ${toDisplayInt(row.requests)} | ${toDisplayNumber(row.avg_total_ms)} | ${toDisplayNumber(row.p50_total_ms)} | ${toDisplayNumber(row.p95_total_ms)} |`
+            ),
+            ``,
+            `### Commander Options Cold Start Misses`,
+            `| Cold Start | Requests | Avg Total (ms) | P50 Total (ms) | P95 Total (ms) | P95 Lookup (ms) |`,
+            `| --- | ---: | ---: | ---: | ---: | ---: |`,
+            ...commanderOptionsSummary[1].rows.map(
+              (row) =>
+                `| ${row.cold_start ? "yes" : "no"} | ${toDisplayInt(row.requests)} | ${toDisplayNumber(row.avg_total_ms)} | ${toDisplayNumber(row.p50_total_ms)} | ${toDisplayNumber(row.p95_total_ms)} | ${toDisplayNumber(row.p95_lookup_ms)} |`
+            )
+          ]
+        : []),
       ``
     ].join("\n");
 
@@ -421,7 +530,14 @@ async function main(): Promise<void> {
         byPricingMode: byPricingMode.rows,
         coldStartMisses: coldStartMisses.rows,
         slowShapes: slowShapes.rows,
-        dailyTrend: dailyTrend.rows
+        dailyTrend: dailyTrend.rows,
+        commanderOptions: commanderOptionsSummary
+          ? {
+              totals: commanderOptionsTotalRow,
+              cacheMix: commanderOptionsSummary[0].rows,
+              coldStartMisses: commanderOptionsSummary[1].rows
+            }
+          : null
       },
       null,
       2

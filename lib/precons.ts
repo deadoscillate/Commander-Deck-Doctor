@@ -40,13 +40,22 @@ export function clearPreconLibraryCache(): void {
 export async function listPrecons(input?: {
   query?: string | null;
   limit?: number;
+  commanderName?: string | null;
 }): Promise<{ meta: PreconLibraryFile["meta"]; items: PreconSummary[] }> {
   const library = await getPreconLibrary();
   const query = normalizeSearchText(input?.query ?? "");
+  const commanderName = normalizeSearchText(input?.commanderName ?? "");
   const limit = Math.max(1, Math.min(200, Math.floor(input?.limit ?? 24)));
 
   const items = library.data
     .filter((deck) => {
+      if (commanderName) {
+        const commanderPool = [...deck.commanderNames, ...deck.displayCommanderNames].map(normalizeSearchText);
+        if (!commanderPool.includes(commanderName)) {
+          return false;
+        }
+      }
+
       if (!query) {
         return true;
       }

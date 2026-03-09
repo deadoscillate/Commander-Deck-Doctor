@@ -13,9 +13,16 @@ import { buildDeckHealthReport } from "@/lib/deckHealth";
 import { parseDecklistWithCommander } from "@/lib/decklist";
 import { GAME_CHANGERS_VERSION, findGameChangerName } from "@/lib/gameChangers";
 import { buildColorIdentityCheck, buildDeckChecks } from "@/lib/checks";
+import { evaluateCommanderConfiguration } from "@/lib/commanderConfiguration";
 import { computePlayerHeuristics } from "@/lib/playerHeuristics";
 import { evaluateCommanderRules } from "@/lib/rulesEngine";
-import { fetchDeckCards, getCardById, getCardByName, getCardByNameWithSet } from "@/lib/scryfall";
+import {
+  fetchDeckCards,
+  getCardById,
+  getCardByName,
+  getCardByNameWithSet,
+  getLocalCardByName
+} from "@/lib/scryfall";
 import { recordAnalyzeTelemetry } from "@/lib/analyzeTelemetryStore";
 import { deriveCommanderOptions } from "@/lib/commanderOptions";
 import type { ScryfallCard } from "@/lib/types";
@@ -296,14 +303,21 @@ function extractCommanderTelemetry(
   const row = payload as {
     commander?: {
       selectedName?: string | null;
+      selectedNames?: string[] | null;
       source?: "section" | "manual" | "auto" | "none";
     };
   };
 
+  const selectedNames = Array.isArray(row.commander?.selectedNames)
+    ? row.commander.selectedNames.filter(
+        (name): name is string => typeof name === "string" && name.trim().length > 0
+      )
+    : [];
   const selectedName =
-    typeof row.commander?.selectedName === "string" && row.commander.selectedName.trim()
+    selectedNames[0] ??
+    (typeof row.commander?.selectedName === "string" && row.commander.selectedName.trim()
       ? row.commander.selectedName
-      : null;
+      : null);
   const commanderSource =
     row.commander?.source === "section" ||
     row.commander?.source === "manual" ||
@@ -315,6 +329,48 @@ function extractCommanderTelemetry(
     commanderSelected: Boolean(selectedName),
     commanderSource
   };
+}
+
+function splitCommanderSelection(value: string | null): string[] {
+  if (!value) {
+    return [];
+  }
+
+  return value
+    .split(/\s+\+\s+/)
+    .map((name) => name.trim())
+    .filter(Boolean);
+}
+
+function dedupeCommanderNames(names: string[]): string[] {
+  const unique = new Map<string, string>();
+  for (const name of names) {
+    const normalized = normalizeLookupName(name);
+    if (!normalized || unique.has(normalized)) {
+      continue;
+    }
+
+    unique.set(normalized, name);
+  }
+
+  return [...unique.values()];
+}
+
+function buildCommanderDisplayName(names: string[]): string | null {
+  return names.length > 0 ? names.join(" + ") : null;
+}
+
+function combineColorIdentity(cards: ScryfallCard[]): string[] {
+  const order = ["W", "U", "B", "R", "G", "C"];
+  return [...new Set(cards.flatMap((card) => card.color_identity ?? []))].sort((left, right) => {
+    const leftIndex = order.indexOf(left);
+    const rightIndex = order.indexOf(right);
+    if (leftIndex === -1 || rightIndex === -1) {
+      return left.localeCompare(right);
+    }
+
+    return leftIndex - rightIndex;
+  });
 }
 
 function getPreferredArtUrl(card: ScryfallCard | null): string | null {
@@ -531,9 +587,14 @@ export async function POST(request: Request) {
     const targetBracket = parseOptionalBracket(payload.targetBracket);
     const expectedWinTurn = parseExpectedWinTurn(payload.expectedWinTurn);
     const manualCommanderName = parseCommanderName(payload.commanderName);
+    const manualCommanderNames = dedupeCommanderNames(splitCommanderSelection(manualCommanderName));
     const userCedhFlag = Boolean(payload.userCedhFlag);
     const userHighPowerNoGCFlag = Boolean(payload.userHighPowerNoGCFlag);
-    const { entries: parsedDeck, commanderFromSection } = parseDecklistWithCommander(decklist);
+    const {
+      entries: parsedDeck,
+      commanderFromSection,
+      commandersFromSection
+    } = parseDecklistWithCommander(decklist);
     if (parsedDeck.length === 0) {
       return apiJson(
         { error: "No valid deck entries found. Check formatting and try again." },
@@ -542,10 +603,13 @@ export async function POST(request: Request) {
     }
 
     const setOverridesByCardName = parseSetOverrides(payload.setOverrides);
-    const selectedCommanderForCache = commanderFromSection ?? manualCommanderName ?? null;
-    const requestedCommanderSource = commanderFromSection
+    const sectionCommanderNames = dedupeCommanderNames(commandersFromSection);
+    const detectedCommanderFromSection = buildCommanderDisplayName(sectionCommanderNames);
+    const selectedCommanderForCache =
+      detectedCommanderFromSection ?? buildCommanderDisplayName(manualCommanderNames) ?? null;
+    const requestedCommanderSource = sectionCommanderNames.length > 0
       ? "section"
-      : manualCommanderName
+      : manualCommanderNames.length > 0
         ? "manual"
         : "none";
     const cacheKey = buildAnalyzeCacheKey({
@@ -689,56 +753,110 @@ export async function POST(request: Request) {
     const autoCommanderCard =
       requestedCommanderSource !== "none" ? null : commanderSelection.suggestedCommanderCard;
 
-    const selectedCommanderName =
-      commanderFromSection ?? manualCommanderName ?? autoCommanderCard?.name ?? null;
-    const resolvedCommanderSource = commanderFromSection
+    const selectedCommanderNames = sectionCommanderNames.length > 0
+      ? sectionCommanderNames
+      : manualCommanderNames.length > 0
+        ? manualCommanderNames
+        : autoCommanderCard
+          ? [autoCommanderCard.name]
+          : [];
+    const selectedCommanderName = buildCommanderDisplayName(selectedCommanderNames);
+    const resolvedCommanderSource = sectionCommanderNames.length > 0
       ? "section"
-      : manualCommanderName
+      : manualCommanderNames.length > 0
         ? "manual"
         : autoCommanderCard
           ? "auto"
           : "none";
-    const selectedCommanderOverride = selectedCommanderName
-      ? setOverridesByCardName.get(normalizeLookupName(selectedCommanderName)) ?? null
-      : null;
-
-    const knownCommander = selectedCommanderName
-      ? knownCards.find(
+    const selectedCommanderOverridesByName = new Map(
+      selectedCommanderNames.map((name) => [
+        name,
+        setOverridesByCardName.get(normalizeLookupName(name)) ?? null
+      ])
+    );
+    const knownCommanderCardsByName = new Map(
+      selectedCommanderNames.map((name) => [
+        name,
+        knownCards.find(
           (entry) =>
-            normalizeLookupName(entry.name) === normalizeLookupName(selectedCommanderName) ||
-            normalizeLookupName(entry.card.name) === normalizeLookupName(selectedCommanderName)
-        )?.card
-      : null;
+            normalizeLookupName(entry.name) === normalizeLookupName(name) ||
+            normalizeLookupName(entry.card.name) === normalizeLookupName(name)
+        )?.card ?? null
+      ])
+    );
+    const selectedCommanderCards = (
+      await Promise.all(
+        selectedCommanderNames.map(async (name) => {
+          const normalizedName = normalizeLookupName(name);
+          if (
+            autoCommanderCard &&
+            normalizeLookupName(autoCommanderCard.name) === normalizedName
+          ) {
+            return autoCommanderCard;
+          }
 
-    let selectedCommanderCard: ScryfallCard | null = autoCommanderCard ?? knownCommander ?? null;
-    if (selectedCommanderName && resolvedCommanderSource !== "auto") {
-      if (selectedCommanderOverride?.printingId) {
-        selectedCommanderCard =
-          (await getCardById(selectedCommanderOverride.printingId)) ??
-          knownCommander ??
-          (await getCardByName(selectedCommanderName));
-      } else if (selectedCommanderOverride?.setCode) {
-        selectedCommanderCard =
-          (await getCardByNameWithSet(selectedCommanderName, selectedCommanderOverride.setCode)) ??
-          knownCommander ??
-          (await getCardByName(selectedCommanderName));
-      } else if (!selectedCommanderCard) {
-        selectedCommanderCard = await getCardByName(selectedCommanderName);
-      }
-    }
+          const selectedCommanderOverride =
+            selectedCommanderOverridesByName.get(name) ?? null;
+          const knownCommander = knownCommanderCardsByName.get(name) ?? null;
 
-    const colorIdentityCheck = selectedCommanderCard
+          if (selectedCommanderOverride?.printingId) {
+            return (
+              (await getLocalCardByName(name, {
+                printingId: selectedCommanderOverride.printingId,
+                setCode: selectedCommanderOverride.setCode ?? null
+              })) ??
+              (await getCardById(selectedCommanderOverride.printingId)) ??
+              knownCommander ??
+              (await getCardByName(name))
+            );
+          }
+
+          if (selectedCommanderOverride?.setCode) {
+            return (
+              (await getLocalCardByName(name, {
+                setCode: selectedCommanderOverride.setCode
+              })) ??
+              (await getCardByNameWithSet(name, selectedCommanderOverride.setCode)) ??
+              knownCommander ??
+              (await getCardByName(name))
+            );
+          }
+
+          return (
+            knownCommander ??
+            (await getLocalCardByName(name)) ??
+            (await getCardByName(name))
+          );
+        })
+      )
+    ).filter((card): card is ScryfallCard => Boolean(card));
+    const allSelectedCommandersResolved =
+      selectedCommanderCards.length === selectedCommanderNames.length;
+    const selectedCommanderCard = selectedCommanderCards[0] ?? null;
+    const selectedCommanderOverride = selectedCommanderCard
+      ? selectedCommanderOverridesByName.get(selectedCommanderCard.name) ??
+        selectedCommanderOverridesByName.get(selectedCommanderNames[0] ?? "") ??
+        null
+      : selectedCommanderOverridesByName.get(selectedCommanderNames[0] ?? "") ?? null;
+    const commanderColorIdentity = combineColorIdentity(selectedCommanderCards);
+    const commanderConfiguration = evaluateCommanderConfiguration(
+      selectedCommanderNames,
+      selectedCommanderCards,
+      allSelectedCommandersResolved
+    );
+
+    const colorIdentityCheck = selectedCommanderNames.length > 0 && allSelectedCommandersResolved
       ? buildColorIdentityCheck(
           knownCards,
-          selectedCommanderCard.name,
-          selectedCommanderCard.color_identity
+          selectedCommanderName,
+          commanderColorIdentity
         )
       : selectedCommanderName
         ? {
             ok: false,
             enabled: false,
             commanderName: selectedCommanderName,
-            commanderColorIdentity: [],
+            commanderColorIdentity: commanderColorIdentity,
             offColorCount: 0,
             offColorCards: [],
             message: `Could not resolve commander card data for "${selectedCommanderName}".`
@@ -754,9 +872,12 @@ export async function POST(request: Request) {
       knownCards,
       unknownCards,
       commander: {
-        name: selectedCommanderCard?.name ?? selectedCommanderName,
-        colorIdentity: selectedCommanderCard?.color_identity ?? [],
-        resolved: Boolean(selectedCommanderCard)
+        name: selectedCommanderName,
+        names: selectedCommanderNames,
+        colorIdentity: commanderColorIdentity,
+        resolved: allSelectedCommandersResolved,
+        card: selectedCommanderCard,
+        cards: selectedCommanderCards
       }
     });
     const roundedSummary = {
@@ -800,7 +921,7 @@ export async function POST(request: Request) {
         entry.resolvedName ? [entry.name, entry.resolvedName] : [entry.name]
       ),
       {
-        commanderColorIdentity: selectedCommanderCard?.color_identity ?? [],
+        commanderColorIdentity: commanderColorIdentity,
         maxPotentialResults: 15,
         cardMetadataLookup: comboMetadataLookup
       }
@@ -819,8 +940,8 @@ export async function POST(request: Request) {
     });
 
     const suggestionColorIdentity =
-      selectedCommanderCard?.color_identity && selectedCommanderCard.color_identity.length > 0
-        ? selectedCommanderCard.color_identity
+      commanderColorIdentity.length > 0
+        ? commanderColorIdentity
         : roundedSummary.colors;
 
     const improvementSuggestions = {
@@ -874,12 +995,16 @@ export async function POST(request: Request) {
         userHighPowerNoGCFlag
       },
       commander: {
-        detectedFromSection: commanderFromSection,
-        selectedName: selectedCommanderCard?.name ?? selectedCommanderName,
-        selectedColorIdentity: selectedCommanderCard?.color_identity ?? [],
-        selectedManaCost: getPreferredManaCost(selectedCommanderCard),
+        detectedFromSection: detectedCommanderFromSection ?? commanderFromSection,
+        selectedName: selectedCommanderName,
+        selectedNames: selectedCommanderNames,
+        selectedColorIdentity: commanderColorIdentity,
+        selectedManaCost:
+          selectedCommanderCards.length === 1 ? getPreferredManaCost(selectedCommanderCard) : null,
         selectedCmc:
-          typeof selectedCommanderCard?.cmc === "number" && Number.isFinite(selectedCommanderCard.cmc)
+          selectedCommanderCards.length === 1 &&
+          typeof selectedCommanderCard?.cmc === "number" &&
+          Number.isFinite(selectedCommanderCard.cmc)
             ? selectedCommanderCard.cmc
             : null,
         selectedArtUrl: getPreferredArtUrl(selectedCommanderCard),
@@ -897,9 +1022,11 @@ export async function POST(request: Request) {
           typeof selectedCommanderCard?.id === "string" && selectedCommanderCard.id
             ? selectedCommanderCard.id
             : selectedCommanderOverride?.printingId ?? null,
+        pairType: commanderConfiguration.ok ? commanderConfiguration.pairType : null,
         source: resolvedCommanderSource,
         options: commanderOptions,
-        needsManualSelection: !commanderFromSection && !selectedCommanderName && commanderOptions.length > 0
+        needsManualSelection:
+          !detectedCommanderFromSection && !selectedCommanderName && commanderOptions.length > 0
       },
       parsedDeck: parsedDeckView,
       unknownCards,
@@ -946,7 +1073,7 @@ export async function POST(request: Request) {
       deckPriceMode,
       setOverrideCount: setOverridesByCardName.size,
       coldStart: runtimeWarmSnapshot.coldStart,
-      commanderSelected: Boolean(selectedCommanderName),
+      commanderSelected: selectedCommanderNames.length > 0,
       commanderSource: resolvedCommanderSource,
       targetBracket,
       expectedWinTurn,

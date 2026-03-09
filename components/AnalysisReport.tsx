@@ -12,6 +12,7 @@ import { ManaCost } from "@/components/ManaCost";
 import { RecommendedCounts } from "@/components/RecommendedCounts";
 import { SimulationsSection } from "@/components/report/SimulationsSection";
 import { RoleBars } from "@/components/RoleBars";
+import { StockPreconComparison } from "@/components/StockPreconComparison";
 import type {
   AnalyzeResponse,
   ImprovementSuggestions as ImprovementSuggestionsPayload,
@@ -1005,6 +1006,11 @@ export function AnalysisReport({
               </p>
             )}
           </section>
+
+          <StockPreconComparison
+            result={result}
+            commanderName={commanderInfo.name}
+          />
         </>
       ) : null}
 

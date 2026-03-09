@@ -50,7 +50,8 @@ export async function GET(request: Request) {
   }
 
   const query = url.searchParams.get("q");
+  const commanderName = url.searchParams.get("commander");
   const limit = parseLimit(url.searchParams.get("limit"));
-  const payload = await listPrecons({ query, limit });
+  const payload = await listPrecons({ query, commanderName, limit });
   return apiJson(payload, { requestId, headers: rateLimitHeaders });
 }

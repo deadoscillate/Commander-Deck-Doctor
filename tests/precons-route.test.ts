@@ -45,4 +45,22 @@ describe("GET /api/precons", () => {
     expect(detail.decklist).toMatch(/\([A-Z0-9]{2,6}\)\s+[A-Z0-9/.-]+/);
     expect(detail.commanderNames.length).toBeGreaterThan(0);
   });
+
+  it("filters precons by exact commander name", async () => {
+    const response = await GET(
+      new Request("http://localhost/api/precons?commander=Atraxa%2C%20Praetors'%20Voice&limit=50")
+    );
+
+    expect(response.status).toBe(200);
+    const payload = (await response.json()) as {
+      items: Array<{ commanderNames: string[]; displayCommanderNames: string[] }>;
+    };
+
+    expect(payload.items.length).toBeGreaterThan(0);
+    expect(
+      payload.items.every((item) =>
+        [...item.commanderNames, ...item.displayCommanderNames].includes("Atraxa, Praetors' Voice")
+      )
+    ).toBe(true);
+  });
 });

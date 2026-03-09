@@ -1,4 +1,5 @@
 import { buildColorIdentityCheck } from "./checks";
+import { evaluateCommanderConfiguration } from "./commanderConfiguration";
 import type { CommanderChoice } from "./contracts";
 import type { DeckCard, ParsedDeckEntry, ScryfallCard } from "./types";
 
@@ -8,6 +9,19 @@ function normalizeLookupName(name: string): string {
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
     .replace(/[^a-z0-9]/g, "");
+}
+
+function sortColorIdentity(identity: string[]): string[] {
+  const order = ["W", "U", "B", "R", "G", "C"];
+  return [...identity].sort((left, right) => {
+    const leftIndex = order.indexOf(left);
+    const rightIndex = order.indexOf(right);
+    if (leftIndex === -1 || rightIndex === -1) {
+      return left.localeCompare(right);
+    }
+
+    return leftIndex - rightIndex;
+  });
 }
 
 function isLegendaryCreature(typeLine: string): boolean {
@@ -52,20 +66,6 @@ export function deriveCommanderOptions(
   options: CommanderChoice[];
   suggestedCommanderCard: ScryfallCard | null;
 } {
-  const options = [
-    ...new Map(
-      knownCards
-        .filter((entry) => canBeCommanderCard(entry.card))
-        .map((entry) => [
-          normalizeLookupName(entry.card.name),
-          {
-            name: entry.card.name,
-            colorIdentity: entry.card.color_identity
-          }
-        ])
-    ).values()
-  ].sort((left, right) => left.name.localeCompare(right.name));
-
   const commanderCandidates = [
     ...new Map(
       knownCards
@@ -73,6 +73,45 @@ export function deriveCommanderOptions(
         .map((entry) => [normalizeLookupName(entry.card.name), entry.card])
     ).values()
   ];
+
+  const options = commanderCandidates
+    .map((candidate) => {
+      const pairOptions = commanderCandidates
+        .filter((other) => normalizeLookupName(other.name) !== normalizeLookupName(candidate.name))
+        .map((other) => {
+          const configuration = evaluateCommanderConfiguration(
+            [candidate.name, other.name],
+            [candidate, other],
+            true
+          );
+          if (!configuration.ok || !configuration.pairType || configuration.pairType === "single") {
+            return null;
+          }
+
+          const combinedColorIdentity = sortColorIdentity([
+            ...new Set([...candidate.color_identity, ...other.color_identity])
+          ]);
+          return {
+            name: other.name,
+            colorIdentity: other.color_identity,
+            combinedColorIdentity,
+            pairType: configuration.pairType
+          };
+        })
+        .filter(
+          (
+            option
+          ): option is NonNullable<CommanderChoice["pairOptions"]>[number] => Boolean(option)
+        )
+        .sort((left, right) => left.name.localeCompare(right.name));
+
+      return {
+        name: candidate.name,
+        colorIdentity: candidate.color_identity,
+        ...(pairOptions.length > 0 ? { pairOptions } : {})
+      } satisfies CommanderChoice;
+    })
+    .sort((left, right) => left.name.localeCompare(right.name));
 
   const suggestedCommanderCard =
     commanderCandidates.length === 1
