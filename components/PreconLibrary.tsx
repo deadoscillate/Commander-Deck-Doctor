@@ -137,12 +137,12 @@ export function PreconLibrary({ busy = false, onLoadPrecon }: PreconLibraryProps
                     <div className="precon-item-main">
                       <strong>{deck.name}</strong>
                       <p className="muted">
-                        {deck.code} • {deck.releaseDate} • {deck.displayCommanderNames.join(" / ")}
+                        {deck.code} | {deck.releaseDate} | {deck.displayCommanderNames.join(" / ")}
                       </p>
                     </div>
                     <button
                       type="button"
-                      className="btn-tertiary"
+                      className="btn-secondary precon-load-button"
                       disabled={busy || activeSlug === deck.slug}
                       onClick={() => void onLoad(deck.slug)}
                     >
@@ -160,3 +160,4 @@ export function PreconLibrary({ busy = false, onLoadPrecon }: PreconLibraryProps
     </section>
   );
 }
+

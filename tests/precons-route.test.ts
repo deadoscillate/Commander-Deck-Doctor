@@ -42,6 +42,7 @@ describe("GET /api/precons", () => {
     expect(detail.slug).toBe(slug);
     expect(detail.name).toBeTruthy();
     expect(detail.decklist).toContain("Commander");
+    expect(detail.decklist).toMatch(/\([A-Z0-9]{2,6}\)\s+[A-Z0-9/.-]+/);
     expect(detail.commanderNames.length).toBeGreaterThan(0);
   });
 });

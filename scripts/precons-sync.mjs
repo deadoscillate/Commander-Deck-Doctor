@@ -27,7 +27,11 @@ function dedupeCards(cards) {
       continue;
     }
 
-    const key = card.name.trim().toLowerCase();
+    const key = [
+      card.name.trim().toLowerCase(),
+      typeof card.setCode === "string" ? card.setCode.trim().toLowerCase() : "",
+      typeof card.number === "string" ? card.number.trim().toLowerCase() : ""
+    ].join("|");
     const current = rows.get(key);
     if (current) {
       current.count += Number(card.count) || 1;
@@ -37,11 +41,29 @@ function dedupeCards(cards) {
 
     rows.set(key, {
       name: card.name.trim(),
-      count: Number(card.count) || 1
+      count: Number(card.count) || 1,
+      setCode: typeof card.setCode === "string" ? card.setCode.trim().toUpperCase() : "",
+      collectorNumber: typeof card.number === "string" ? card.number.trim() : ""
     });
   }
 
   return [...rows.values()];
+}
+
+function formatDecklistLine(card) {
+  const setCode = typeof card.setCode === "string" ? card.setCode.trim().toUpperCase() : "";
+  const collectorNumber =
+    typeof card.collectorNumber === "string" ? card.collectorNumber.trim() : "";
+
+  if (setCode && collectorNumber) {
+    return `${card.count} ${card.name} (${setCode}) ${collectorNumber}`;
+  }
+
+  if (setCode) {
+    return `${card.count} ${card.name} [${setCode}]`;
+  }
+
+  return `${card.count} ${card.name}`;
 }
 
 function buildDecklist(deck) {
@@ -49,8 +71,8 @@ function buildDecklist(deck) {
   const commanderKeys = new Set(commanderCards.map((card) => card.name.toLowerCase()));
   const mainBoard = dedupeCards(deck.mainBoard).filter((card) => !commanderKeys.has(card.name.toLowerCase()));
 
-  const commanderLines = commanderCards.map((card) => `${card.count} ${card.name}`);
-  const mainBoardLines = mainBoard.map((card) => `${card.count} ${card.name}`);
+  const commanderLines = commanderCards.map(formatDecklistLine);
+  const mainBoardLines = mainBoard.map(formatDecklistLine);
 
   return ["Commander", ...commanderLines, "", ...mainBoardLines].join("\n").trim();
 }

@@ -300,4 +300,78 @@ describe("app page analyze flow", () => {
       expect(screen.queryByRole("dialog")).toBeNull();
     });
   });
+
+  it("loads a precon into set-aware analysis automatically", async () => {
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({
+        meta: { generatedAt: "2026-03-09T00:00:00.000Z", totalDecks: 1 },
+        items: [
+          {
+            slug: "fic-limit-break-final-fantasy-vii",
+            code: "FIC",
+            fileName: "LimitBreakFinalFantasyVii_FIC",
+            name: "Limit Break (FINAL FANTASY VII)",
+            releaseDate: "2025-06-13",
+            type: "Commander Deck",
+            commanderNames: ["Cloud Strife"],
+            displayCommanderNames: ["Cloud Strife"],
+            colorIdentity: ["R", "W"],
+            cardCount: 100,
+            sourceUrl: "https://mtgjson.com/api/v5/decks/LimitBreakFinalFantasyVii_FIC.json"
+          }
+        ]
+      })
+    );
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({
+        slug: "fic-limit-break-final-fantasy-vii",
+        code: "FIC",
+        fileName: "LimitBreakFinalFantasyVii_FIC",
+        name: "Limit Break (FINAL FANTASY VII)",
+        releaseDate: "2025-06-13",
+        type: "Commander Deck",
+        commanderNames: ["Cloud Strife"],
+        displayCommanderNames: ["Cloud Strife"],
+        colorIdentity: ["R", "W"],
+        cardCount: 100,
+        sourceUrl: "https://mtgjson.com/api/v5/decks/LimitBreakFinalFantasyVii_FIC.json",
+        decklist: "Commander\n1 Cloud Strife (FIC) 1\n\n1 Sol Ring (FIC) 60\n98 Mountain (FIC) 300"
+      })
+    );
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse(
+        createAnalyzeResponse({
+          commander: {
+            selectedName: "Cloud Strife",
+            source: "section",
+            needsManualSelection: false
+          }
+        })
+      )
+    );
+
+    const user = userEvent.setup();
+    const { default: Page } = await import("@/app/page");
+    render(<Page />);
+
+    await user.click(screen.getByRole("button", { name: /Open Library/i }));
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
+
+    await user.click(await screen.findByRole("button", { name: /^Load$/i }));
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledTimes(3);
+    });
+
+    const [analyzeUrl, analyzeRequest] = fetchMock.mock.calls[2] as [string, RequestInit];
+    const payload = JSON.parse(String(analyzeRequest.body));
+
+    expect(analyzeUrl).toBe("/api/analyze");
+    expect(payload.deckPriceMode).toBe("decklist-set");
+    expect(payload.decklist).toContain("(FIC) 60");
+    expect(payload.commanderName).toBe("Cloud Strife");
+  });
 });

@@ -713,6 +713,7 @@ export default function Page() {
   }
 
   async function runAnalysis(overrides?: {
+    decklist?: string;
     commanderName?: string | null;
     deckPriceMode?: DeckPriceMode;
     printingOverrides?: Record<string, DeckPrintingOverride>;
@@ -721,6 +722,7 @@ export default function Page() {
     setError("");
 
     try {
+      const decklistForRequest = overrides?.decklist ?? decklist;
       const commanderForRequest =
         typeof overrides?.commanderName === "string"
           ? overrides.commanderName
@@ -733,7 +735,7 @@ export default function Page() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          decklist,
+          decklist: decklistForRequest,
           deckPriceMode: pricingModeForRequest,
           setOverrides,
           targetBracket: targetBracket ? Number(targetBracket) : null,
@@ -785,7 +787,7 @@ export default function Page() {
     setCommanderName(sampleCommander);
     setImportError("");
     setImportInfo("Loaded sample deck. Running analysis...");
-    await runAnalysis({ commanderName: sampleCommander || null });
+    await runAnalysis({ decklist: SAMPLE_DECKLIST, commanderName: sampleCommander || null });
   }
 
   async function onLoadPrecon(precon: PreconDeck) {
@@ -795,7 +797,7 @@ export default function Page() {
       "";
     setDeckName(precon.name);
     setDecklist(precon.decklist);
-    setDeckPriceMode("oracle-default");
+    setDeckPriceMode("decklist-set");
     setPrintingOverrides({});
     setPrintingOptionsByCard({});
     setPrintingLoadByCard({});
@@ -812,7 +814,12 @@ export default function Page() {
     setImportInfo(`Loaded precon: ${precon.name}. Running analysis...`);
     setSaveError("");
     setSaveInfo("");
-    await runAnalysis({ commanderName: preconCommander || null, deckPriceMode: "oracle-default", printingOverrides: {} });
+    await runAnalysis({
+      decklist: precon.decklist,
+      commanderName: preconCommander || null,
+      deckPriceMode: "decklist-set",
+      printingOverrides: {}
+    });
   }
 
   return (
