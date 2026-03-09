@@ -37,7 +37,7 @@ export function PreconLibrary({ busy = false, onLoadPrecon }: PreconLibraryProps
 
       try {
         const params = new URLSearchParams();
-        params.set("limit", "24");
+        params.set("limit", "200");
         if (query.trim()) {
           params.set("q", query.trim());
         }
@@ -117,14 +117,16 @@ export function PreconLibrary({ busy = false, onLoadPrecon }: PreconLibraryProps
 
       {open ? (
         <div className="precon-library-body">
-          <label htmlFor="precon-search">Search precons</label>
-          <input
-            id="precon-search"
-            type="search"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search by deck name, commander, or set code"
-          />
+          <div className="precon-library-toolbar">
+            <label htmlFor="precon-search">Search precons</label>
+            <input
+              id="precon-search"
+              type="search"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Search by deck name, commander, or set code"
+            />
+          </div>
 
           {loading ? <p className="muted">Loading precon library...</p> : null}
           {error ? <p className="error">{error}</p> : null}

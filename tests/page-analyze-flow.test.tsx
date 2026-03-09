@@ -359,6 +359,8 @@ describe("app page analyze flow", () => {
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledTimes(1);
     });
+    const [listUrl] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(listUrl).toContain("/api/precons?limit=200");
 
     await user.click(await screen.findByRole("button", { name: /^Load$/i }));
 
