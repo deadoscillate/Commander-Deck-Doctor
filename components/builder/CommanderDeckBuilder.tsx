@@ -1263,7 +1263,7 @@ export function CommanderDeckBuilder() {
             src={imageUrl}
             alt=""
             fill
-            sizes={className === "builder-search-thumb" ? "64px" : "58px"}
+            sizes={className === "builder-commander-preview" ? "112px" : className === "builder-search-thumb" ? "64px" : "58px"}
             unoptimized
           />
         ) : (
@@ -1359,13 +1359,13 @@ export function CommanderDeckBuilder() {
         {commanderQuery.trim() ? (
           <div className="builder-commander-results">
             {commanderResults.map((commander) => (
-              <article key={commander.name} className="builder-search-card builder-commander-card">
+              <article
+                key={commander.name}
+                className="builder-search-card builder-commander-card"
+                style={commander.artUrl ? { backgroundImage: `linear-gradient(145deg, rgba(9, 15, 24, 0.9), rgba(10, 18, 29, 0.82)), url("${commander.artUrl}")` } : undefined}
+              >
                 <div className="builder-commander-card-main">
-                  <div
-                    className="builder-search-art"
-                    aria-hidden="true"
-                    style={commander.artUrl ? { backgroundImage: `url("${commander.artUrl}")` } : undefined}
-                  />
+                  {renderCardThumb(commander, "builder-commander-preview", commander.name.charAt(0))}
                   <div className="builder-commander-card-body">
                     <strong><CardLink name={commander.name} /></strong>
                     <div className="builder-search-meta">

@@ -114,7 +114,7 @@ The precon browser now loads the full synced library, keeps search visible while
 - Improvement suggestions load after the initial report from `POST /api/improvement-suggestions`.
 - Card previews, seller links, pricing confidence, and print pickers are available in the report UI.
 - Matching stock precons load in the report for side-by-side comparison without replacing the current analysis.
-- The `/builder` workflow starts from a commander search, keeps a live 99-card decklist, mirrors the commander hero/background treatment from the analyzer, groups the main deck by card roles, surfaces hover previews across deck sections and suggestions, and saves local builder states separately from analyzer deck saves.
+- The `/builder` workflow starts from a commander search, keeps a live 99-card decklist, mirrors the commander hero/background treatment from the analyzer, uses art-backed commander search result cards with full-card previews, groups the main deck by card roles, surfaces hover previews across deck sections and suggestions, and saves local builder states separately from analyzer deck saves.
 - Builder suggestions are split into commander staples, role/archetype suggestions, combo suggestions, and mana-base suggestions, with land suggestions including fixing staples, duals, and triomes when the color identity supports them.
 
 ## Ethics and Trust
@@ -150,6 +150,7 @@ Captured fields include:
 - commander-selection metadata
 
 `/api/commander-options` also records its own telemetry so the pre-analyze commander-selection path can be optimized separately from `/api/analyze`.
+`/api/card-search` now records builder commander-search telemetry, so commander picker search latency and cold-start behavior can be tracked separately from generic card browsing.
 
 Useful commands:
 
@@ -203,6 +204,7 @@ Current MVP state:
 - Commander-first deck builder is live behind `/builder`.
 - Builder main-deck presentation is now grouped by lands and key card roles instead of one flat list.
 - Builder smart suggestions now surface metadata-backed commander staples, role/archetype upgrades, combo pieces, and mana-base suggestions with previews.
+- Builder commander search now uses art-backed result cards with full-card previews and dedicated telemetry.
 - Precon browsing is built in, scrollable, and print-aware.
 - Stock-precon comparison is built in for commander-matched decks.
 - Commander pairing flows now support legal pre-analyze pair selection instead of exposing the whole deck as possible pair choices.
@@ -257,6 +259,13 @@ Practical target:
 - Completed: stock-precon comparison for commander-matched decks
 - Completed: commander-options telemetry and local-only lookup path for the pre-analyze commander picker
 - Completed: stronger commander-aware suggestion ranking with real commander fixtures
+
+### Phase 4: Productization
+
+- Completed: commander-first builder workflow with live local search, legality, and saved local builds
+- Completed: builder UI parity with commander hero/background treatment, grouped deck sections, preview-backed suggestions, and color-aware mana-base recommendations
+- Completed: dedicated builder commander-search telemetry for search latency and cold-start tracking
+- Next: add richer stock-vs-current comparison views and release-quality telemetry dashboards
 
 ### Phase 3: Commander Rules Completeness
 
