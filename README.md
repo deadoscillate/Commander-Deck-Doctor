@@ -230,7 +230,7 @@ Current MVP state:
 - Builder colorless commanders now resolve color-staple and mana-base suggestions correctly.
 - Builder top-row controls and status cards have been condensed to reduce wasted space.
 - Builder commander suggestions now include a curated commander-profile dataset plus a generated full commander list as fallback before generic commander-text inference.
-- Curated commander profiles have been expanded with a first high-value promotion batch on top of the generated full-pool dataset.
+- Curated commander profiles have been expanded to 208 reviewed entries on top of the generated full-pool dataset.
 - Precon browsing is built in, scrollable, and print-aware.
 - Stock-precon comparison is built in for commander-matched decks.
 - Stock-precon comparison now shows richer practical deltas instead of only card adds/cuts and price.
@@ -288,6 +288,13 @@ Practical target:
 - Completed: commander-options telemetry and local-only lookup path for the pre-analyze commander picker
 - Completed: stronger commander-aware suggestion ranking with real commander fixtures
 - Completed: first curated promotion batch from the generated full commander-profile list
+- Completed: second broader curated promotion batch covering more staple commanders, precon faces, and archetype anchors
+- Completed: third larger curated promotion batch to push the reviewed commander-profile set past 100 entries
+- Completed: fourth larger curated promotion batch to push the reviewed commander-profile set past 125 entries
+- Completed: fifth larger curated promotion batch to push the reviewed commander-profile set past 150 entries
+- Completed: sixth larger curated promotion batch to push the reviewed commander-profile set past 165 entries
+- Completed: seventh larger curated promotion batch to push the reviewed commander-profile set past 190 entries
+- Completed: eighth larger curated promotion batch to push the reviewed commander-profile set past 200 entries
 - In progress: continue promoting high-value commanders from the generated full commander-profile list into curated profiles
 - Completed: add commander-profile candidate generation from local Oracle heuristics
 

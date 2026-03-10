@@ -167,8 +167,22 @@ describe("builder utilities", () => {
   });
 
   it("loads a seeded commander-profile dataset", () => {
-    expect(getCommanderProfileCount()).toBeGreaterThanOrEqual(35);
+    expect(getCommanderProfileCount()).toBeGreaterThanOrEqual(208);
     expect(getCommanderProfile("Prosper, Tome-Bound")?.groups[0]?.cards).toContain("Jeska's Will");
     expect(getCommanderProfile("Miirym, Sentinel Wyrm")?.groups[0]?.cards).toContain("Dragon Tempest");
+    expect(getCommanderProfile("Pantlaza, Sun-Favored")?.groups[0]?.cards).toContain("Trumpeting Carnosaur");
+    expect(getCommanderProfile("Zhulodok, Void Gorger")?.groups[0]?.cards).toContain("Forsaken Monument");
+    expect(getCommanderProfile("Alela, Artful Provocateur")?.groups[0]?.cards).toContain("Bitterblossom");
+    expect(getCommanderProfile("The Locust God")?.groups[0]?.cards).toContain("Windfall");
+    expect(getCommanderProfile("The Gitrog Monster")?.groups[0]?.cards).toContain("Dakmor Salvage");
+    expect(getCommanderProfile("Raffine, Scheming Seer")?.groups[0]?.cards).toContain("Animate Dead");
+    expect(getCommanderProfile("Aminatou, the Fateshifter")?.groups[0]?.cards).toContain("Scroll Rack");
+    expect(getCommanderProfile("Xyris, the Writhing Storm")?.groups[0]?.cards).toContain("Wheel of Fortune");
+    expect(getCommanderProfile("Karador, Ghost Chieftain")?.groups[0]?.cards).toContain("Buried Alive");
+    expect(getCommanderProfile("Zedruu the Greathearted")?.groups[0]?.cards).toContain("Illusions of Grandeur");
+    expect(getCommanderProfile("Satoru Umezawa")?.groups[0]?.cards).toContain("Blightsteel Colossus");
+    expect(getCommanderProfile("Zur the Enchanter")?.groups[0]?.cards).toContain("Necropotence");
+    expect(getCommanderProfile("Tymna the Weaver")?.groups[0]?.cards).toContain("Reconnaissance");
+    expect(getCommanderProfile("Narci, Fable Singer")?.groups[0]?.cards).toContain("The Cruelty of Gix");
   });
 });
