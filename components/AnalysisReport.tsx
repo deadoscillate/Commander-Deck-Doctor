@@ -866,6 +866,7 @@ export function AnalysisReport({
             name: commanderInfo.name,
             colorIdentity: commanderInfo.colorIdentity,
             cmc: commanderInfo.cmc,
+            deckPriceUsd: deckPrice?.totals.usd ?? null,
             artUrl: commanderInfo.artUrl,
             cardImageUrl: commanderInfo.cardImageUrl,
             setCode: commanderInfo.setCode,

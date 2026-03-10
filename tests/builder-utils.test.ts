@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildColorStapleSuggestionNames,
   buildBuilderDecklist,
+  buildManaBaseSuggestionNames,
   computePreconSimilarity,
   extractNeeds,
   totalDeckCardCount
@@ -109,5 +111,31 @@ describe("builder utilities", () => {
         { name: "Sol Ring", qty: 1 }
       ])
     ).toBe(23);
+  });
+
+  it("returns colorless staple suggestions for empty commander color identity", () => {
+    expect(buildColorStapleSuggestionNames([])).toEqual([
+      "Forsaken Monument",
+      "All Is Dust",
+      "Ugin, the Ineffable",
+      "Introduction to Annihilation"
+    ]);
+  });
+
+  it("returns colorless mana base suggestions for empty commander color identity", () => {
+    expect(buildManaBaseSuggestionNames([])).toEqual([
+      "Command Tower",
+      "Exotic Orchard",
+      "Path of Ancestry",
+      "Reflecting Pool",
+      "Fabled Passage",
+      "Terramorphic Expanse",
+      "Evolving Wilds",
+      "Wastes",
+      "War Room",
+      "Myriad Landscape",
+      "Reliquary Tower",
+      "Rogue's Passage"
+    ]);
   });
 });

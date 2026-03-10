@@ -114,8 +114,10 @@ The precon browser now loads the full synced library, keeps search visible while
 - Improvement suggestions load after the initial report from `POST /api/improvement-suggestions`.
 - Card previews, seller links, pricing confidence, and print pickers are available in the report UI.
 - Matching stock precons load in the report for side-by-side comparison without replacing the current analysis.
-- The `/builder` workflow starts from a commander search, keeps a live 99-card decklist, mirrors the commander hero/background treatment from the analyzer, uses art-backed commander search result cards with full-card previews, groups the main deck by card roles, surfaces hover previews across deck sections and suggestions, and saves local builder states separately from analyzer deck saves.
-- Builder suggestions are split into commander staples, role/archetype suggestions, combo suggestions, and mana-base suggestions, with land suggestions including fixing staples, duals, and triomes when the color identity supports them.
+- The `/builder` workflow starts from a compact commander-picker toolbar, keeps a live 99-card decklist, mirrors the commander hero/background treatment from the analyzer, uses art-backed commander search result cards with full-card previews, groups the main deck by card roles, surfaces hover previews across deck sections and suggestions, and saves local builder states separately from analyzer deck saves.
+- Builder suggestions are split into commander staples, color staples, role/archetype suggestions, combo suggestions, game changer suggestions, and mana-base suggestions, with land suggestions including basics, fixing staples, duals, and triomes when the color identity supports them.
+- Builder status is condensed into a tighter live snapshot row, the commander hero stays pinned while scrolling, and the hero now shows live deck price as cards are added and removed.
+- Builder deck rows only show quantity badges when duplicates are actually legal, such as basics and explicit multi-copy exceptions.
 
 ## Ethics and Trust
 
@@ -203,8 +205,10 @@ Current MVP state:
 - Core analyze flow is live.
 - Commander-first deck builder is live behind `/builder`.
 - Builder main-deck presentation is now grouped by lands and key card roles instead of one flat list.
-- Builder smart suggestions now surface metadata-backed commander staples, role/archetype upgrades, combo pieces, and mana-base suggestions with previews.
+- Builder smart suggestions now surface metadata-backed commander staples, color staples, role/archetype upgrades, combo pieces, game changer suggestions, and mana-base suggestions with previews.
 - Builder commander search now uses art-backed result cards with full-card previews and dedicated telemetry.
+- Builder colorless commanders now resolve color-staple and mana-base suggestions correctly.
+- Builder top-row controls and status cards have been condensed to reduce wasted space.
 - Precon browsing is built in, scrollable, and print-aware.
 - Stock-precon comparison is built in for commander-matched decks.
 - Commander pairing flows now support legal pre-analyze pair selection instead of exposing the whole deck as possible pair choices.
@@ -263,8 +267,9 @@ Practical target:
 ### Phase 4: Productization
 
 - Completed: commander-first builder workflow with live local search, legality, and saved local builds
-- Completed: builder UI parity with commander hero/background treatment, grouped deck sections, preview-backed suggestions, and color-aware mana-base recommendations
+- Completed: builder UI parity with commander hero/background treatment, grouped deck sections, preview-backed suggestions, condensed status cards, and color-aware mana-base recommendations
 - Completed: dedicated builder commander-search telemetry for search latency and cold-start tracking
+- Completed: compact top-row commander picker, sticky builder hero, live deck-price hero pill, and builder quantity cleanup for singleton cards
 - Next: add richer stock-vs-current comparison views and release-quality telemetry dashboards
 
 ### Phase 3: Commander Rules Completeness
@@ -278,13 +283,8 @@ Practical target:
 - Completed: category-based legality coverage for Conspiracy and ante cards plus remediation guidance in legality output
 - Keep rules datasets synced and verified
 
-### Phase 4: Productization
-
 - Expand telemetry dashboards and release gates
 - Keep privacy and ethics disclosures aligned with telemetry and sharing behavior
 - Maintain automated dataset refresh workflows
-- Completed: commander-first builder workflow with live local search, legality, and saved local builds
-- Completed: builder UI parity with commander hero/background treatment, grouped deck sections, preview-backed suggestions, and color-aware mana-base recommendations
 - Next: add centralized affiliate-link decoration for seller URLs without changing analyzer logic
 - Next: add visible in-product affiliate disclosure once seller-link monetization is enabled
-- Next: add richer stock-vs-current comparison views and release-quality telemetry dashboards

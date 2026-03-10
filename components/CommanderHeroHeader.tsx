@@ -6,6 +6,7 @@ type CommanderHeroHeaderProps = {
     name: string;
     colorIdentity: string[];
     cmc?: number | null;
+    deckPriceUsd?: number | null;
     artUrl?: string | null;
     cardImageUrl?: string | null;
     setCode?: string | null;
@@ -21,6 +22,10 @@ export function CommanderHeroHeader({
   archetypeLabel,
   bracketLabel
 }: CommanderHeroHeaderProps) {
+  const deckPriceLabel =
+    typeof commander.deckPriceUsd === "number" && Number.isFinite(commander.deckPriceUsd)
+      ? `$${commander.deckPriceUsd.toFixed(2)}`
+      : null;
   const pageBackgroundArtUrl = commander.artUrl ?? commander.cardImageUrl;
   const commanderCardPreviewUrl = commander.cardImageUrl ?? commander.artUrl;
   const heroArtStyle = commanderCardPreviewUrl
@@ -67,6 +72,7 @@ export function CommanderHeroHeader({
             <ColorIdentityIcons identity={commander.colorIdentity} size={22} />
           </div>
           <div className="commander-hero-meta-right">
+            {deckPriceLabel ? <span className="commander-hero-pill">Deck {deckPriceLabel}</span> : null}
             {bracketLabel ? <span className="commander-hero-pill">{bracketLabel}</span> : null}
             {typeof commander.cmc === "number" ? (
               <span className="commander-hero-pill commander-hero-pill-cmc">

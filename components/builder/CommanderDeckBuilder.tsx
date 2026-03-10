@@ -536,6 +536,15 @@ function canAddMoreCopies(record: CardSearchRecord, existingQty: number): boolea
   );
 }
 
+function shouldShowDeckQuantity(record: CardSearchRecord): boolean {
+  const duplicateLimit = record.duplicateLimit;
+  return (
+    record.isBasicLand ||
+    duplicateLimit === Number.POSITIVE_INFINITY ||
+    (typeof duplicateLimit === "number" && Number.isFinite(duplicateLimit) && duplicateLimit > 1)
+  );
+}
+
 function toCardMetaMap(records: Record<string, CardSearchRecord>): Record<string, BuilderCardMeta> {
   return Object.fromEntries(
     Object.entries(records).map(([key, record]) => [
@@ -735,6 +744,11 @@ export function CommanderDeckBuilder() {
     return selectedCommander?.colorIdentity ?? [];
   }, [selectedCommander, selectedPairOption]);
 
+  const suggestionColorIdentity = useMemo(
+    () => (selectedCommander && allowedColorIdentity.length === 0 ? ["C"] : allowedColorIdentity),
+    [allowedColorIdentity, selectedCommander]
+  );
+
   const commanderSelection = useMemo<BuilderCommanderSelection | null>(() => {
     if (!selectedCommander) {
       return null;
@@ -884,6 +898,7 @@ export function CommanderDeckBuilder() {
 
   const roleBreakdown = useMemo(() => normalizeRoleBreakdown(analysis), [analysis]);
   const needs = useMemo(() => extractNeeds(analysis?.deckHealth.rows ?? []), [analysis]);
+  const visibleNeeds = useMemo(() => needs.slice(0, 4), [needs]);
   const commanderArchetypeNames = useMemo(
     () =>
       selectedCommander
@@ -905,26 +920,26 @@ export function CommanderDeckBuilder() {
     return [...new Set(names)];
   }, [analysis, commanderArchetypeNames]);
   const fallbackRoleGroups = useMemo(
-    () => buildCommanderRoleSuggestionGroups(allowedColorIdentity, archetypeNames, needs),
-    [allowedColorIdentity, archetypeNames, needs]
+    () => buildCommanderRoleSuggestionGroups(suggestionColorIdentity, archetypeNames, needs),
+    [archetypeNames, needs, suggestionColorIdentity]
   );
   const commanderStaples = useMemo(
     () =>
       selectedCommander
-        ? buildCommanderStapleSuggestionNames(allowedColorIdentity).filter(
+        ? buildCommanderStapleSuggestionNames(suggestionColorIdentity).filter(
             (name) => !deckCards.some((card) => normalizeName(card.name) === normalizeName(name))
           )
         : [],
-    [allowedColorIdentity, deckCards, selectedCommander]
+    [deckCards, selectedCommander, suggestionColorIdentity]
   );
   const colorStaples = useMemo(
     () =>
       selectedCommander
-        ? buildColorStapleSuggestionNames(allowedColorIdentity).filter(
+        ? buildColorStapleSuggestionNames(suggestionColorIdentity).filter(
             (name) => !deckCards.some((card) => normalizeName(card.name) === normalizeName(name))
           )
         : [],
-    [allowedColorIdentity, deckCards, selectedCommander]
+    [deckCards, selectedCommander, suggestionColorIdentity]
   );
   const gameChangerSuggestions = useMemo(
     () =>
@@ -936,11 +951,11 @@ export function CommanderDeckBuilder() {
   const manaBaseSuggestions = useMemo(
     () =>
       selectedCommander
-        ? buildManaBaseSuggestionNames(allowedColorIdentity).filter(
+        ? buildManaBaseSuggestionNames(suggestionColorIdentity).filter(
             (name) => !deckCards.some((card) => normalizeName(card.name) === normalizeName(name))
           )
         : [],
-    [allowedColorIdentity, deckCards, selectedCommander]
+    [deckCards, selectedCommander, suggestionColorIdentity]
   );
   const suggestionGroups = useMemo(
     () =>
@@ -1049,6 +1064,7 @@ export function CommanderDeckBuilder() {
           name: analyzedPrimaryCommanderName,
           colorIdentity: analysis.commander.selectedColorIdentity,
           cmc: analysis.commander.selectedCmc,
+          deckPriceUsd: analysis.deckPrice?.totals.usd ?? null,
           artUrl: analysis.commander.selectedArtUrl,
           cardImageUrl: analysis.commander.selectedCardImageUrl,
           setCode: analysis.commander.selectedSetCode,
@@ -1061,6 +1077,7 @@ export function CommanderDeckBuilder() {
       name: selectedCommander.name,
       colorIdentity: allowedColorIdentity,
       cmc: selectedCommander.cmc,
+      deckPriceUsd: null,
       artUrl: selectedCommander.artUrl,
       cardImageUrl: selectedCommander.previewImageUrl,
       setCode: null,
@@ -1318,45 +1335,56 @@ export function CommanderDeckBuilder() {
 
   return (
     <main className="page builder-page">
-      <div className="hero builder-hero">
-        <h1>Commander-First Deck Builder</h1>
-        <p>Pick a commander, build the 99, and keep live Commander legality and analysis visible while you tune.</p>
-        <div className="hero-actions">
-          <Link href="/" className="btn-secondary">
-            Open Analyzer
-          </Link>
-        </div>
-      </div>
-
-      <section className="builder-commander-picker panel">
-        <div className="builder-commander-picker-head">
-          <div>
-            <h2>Commander Picker</h2>
-            <p className="muted">Search commanders by name and color identity, then start a fresh build.</p>
+      <section className="panel builder-topbar">
+        <div className="builder-topbar-row">
+          <div className="builder-topbar-title">
+            <h1>Commander-First Deck Builder</h1>
+            <p className="muted">Pick a commander and tune the 99 with live Commander legality and analysis.</p>
           </div>
-          {selectedCommander ? (
-            <div className="builder-selected-identity">
-              <span className="muted">Allowed colors</span>
-              <ColorIdentityIcons identity={allowedColorIdentity} size={18} />
-            </div>
-          ) : null}
-        </div>
-
-        <div className="builder-commander-picker-controls">
-          <input type="search" value={commanderQuery} onChange={(event) => setCommanderQuery(event.target.value)} placeholder="Search commanders" />
-          <div className="builder-color-filter">
-            {["W", "U", "B", "R", "G"].map((color) => (
-              <button key={color} type="button" className={`builder-color-chip${commanderColors.includes(color) ? " builder-color-chip-active" : ""}`} onClick={() => toggleCommanderColor(color)}>
-                {color}
+          <div className="builder-topbar-actions">
+            <Link href="/" className="btn-secondary">
+              Open Analyzer
+            </Link>
+            {selectedCommander ? (
+              <button type="button" className="btn-tertiary" onClick={saveCurrentDeck}>
+                Save Build
               </button>
-            ))}
+            ) : null}
           </div>
         </div>
 
-        {commanderLoading ? <p className="muted">Searching commanders...</p> : null}
-        {commanderError ? <p className="error">{commanderError}</p> : null}
+        <div className="builder-topbar-picker">
+          <div className="builder-commander-picker-head">
+            <div>
+              <span className="builder-kicker">Commander Picker</span>
+              <p className="muted">Search commanders by name and color identity.</p>
+            </div>
+            {selectedCommander ? (
+              <div className="builder-selected-identity">
+                <span className="muted">Allowed colors</span>
+                <ColorIdentityIcons identity={allowedColorIdentity} size={18} />
+              </div>
+            ) : null}
+          </div>
 
-        {commanderQuery.trim() ? (
+          <div className="builder-commander-picker-controls">
+            <input type="search" value={commanderQuery} onChange={(event) => setCommanderQuery(event.target.value)} placeholder="Search commanders" />
+            <div className="builder-color-filter">
+              {["W", "U", "B", "R", "G"].map((color) => (
+                <button key={color} type="button" className={`builder-color-chip${commanderColors.includes(color) ? " builder-color-chip-active" : ""}`} onClick={() => toggleCommanderColor(color)}>
+                  {color}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {commanderLoading ? <p className="muted">Searching commanders...</p> : null}
+          {commanderError ? <p className="error">{commanderError}</p> : null}
+        </div>
+      </section>
+
+      {commanderQuery.trim() ? (
+        <section className="panel builder-commander-picker">
           <div className="builder-commander-results">
             {commanderResults.map((commander) => (
               <article
@@ -1372,17 +1400,17 @@ export function CommanderDeckBuilder() {
                       <ManaCost manaCost={commander.manaCost} size={16} />
                     </div>
                     <p className="muted builder-card-subline">{commander.typeLine}</p>
+                    <div className="builder-commander-card-actions">
+                      <button type="button" className="btn-secondary" onClick={() => startBuild(commander)}>Start Build</button>
+                    </div>
                   </div>
-                </div>
-                <div className="builder-commander-card-actions">
-                  <button type="button" className="btn-secondary" onClick={() => startBuild(commander)}>Start Build</button>
                 </div>
               </article>
             ))}
             {!commanderLoading && commanderResults.length === 0 ? <p className="muted">No commanders match the current search.</p> : null}
           </div>
-        ) : null}
-      </section>
+        </section>
+      ) : null}
 
       {heroCommander ? (
         <div className="builder-sticky-hero">
@@ -1398,7 +1426,6 @@ export function CommanderDeckBuilder() {
         <section className="panel builder-status-row">
           <div className="builder-panel-head">
             <h2>Deck Status</h2>
-            <button type="button" className="btn-tertiary" onClick={saveCurrentDeck}>Save Build</button>
           </div>
 
           <div className="builder-stat-grid builder-stat-grid-wide">
@@ -1472,7 +1499,22 @@ export function CommanderDeckBuilder() {
 
             <section className="builder-status-card">
               <h3>Needs</h3>
-              {needs.length === 0 ? <p className="muted">No low-count buckets detected yet.</p> : <ul className="builder-bullets">{needs.map((need) => (<li key={need.key}>{need.label}: needs {need.deficit} more to reach {need.recommendedMin}</li>))}</ul>}
+              {needs.length === 0 ? (
+                <p className="muted">No low-count buckets detected yet.</p>
+              ) : (
+                <>
+                  <ul className="builder-bullets">
+                    {visibleNeeds.map((need) => (
+                      <li key={need.key}>
+                        {need.label}: needs {need.deficit} more to reach {need.recommendedMin}
+                      </li>
+                    ))}
+                  </ul>
+                  {needs.length > visibleNeeds.length ? (
+                    <p className="muted builder-status-more">+{needs.length - visibleNeeds.length} more needs</p>
+                  ) : null}
+                </>
+              )}
             </section>
 
             <section className="builder-status-card">
@@ -1513,11 +1555,10 @@ export function CommanderDeckBuilder() {
             <p className="muted">Start with a commander. The builder initializes an empty shell and keeps analysis live.</p>
           ) : (
             <>
-              <div className="builder-deck-section">
-                <h3>Commander Zone</h3>
-                <ul className="builder-card-list">
-                  <li className="builder-card-row">
-                    <span className="builder-card-qty">1</span>
+                <div className="builder-deck-section">
+                  <h3>Commander Zone</h3>
+                  <ul className="builder-card-list">
+                  <li className="builder-card-row builder-card-row-no-qty">
                     {renderCardThumb(resolveCardRecord(selectedCommander.name), "builder-card-thumb", selectedCommander.name.charAt(0))}
                     <div className="builder-card-main">
                       <div className="builder-card-main-head">
@@ -1530,8 +1571,7 @@ export function CommanderDeckBuilder() {
                     </div>
                   </li>
                   {selectedPairOption ? (
-                    <li className="builder-card-row">
-                      <span className="builder-card-qty">1</span>
+                    <li className="builder-card-row builder-card-row-no-qty">
                       {renderCardThumb(resolveCardRecord(selectedPairOption.name), "builder-card-thumb", selectedPairOption.name.charAt(0))}
                       <div className="builder-card-main">
                         <div className="builder-card-main-head">
@@ -1562,9 +1602,13 @@ export function CommanderDeckBuilder() {
                     <ul className="builder-card-list">
                       {section.cards.map((card) => {
                         const record = resolveCardRecord(card.name);
+                        const showQuantity = shouldShowDeckQuantity(record);
                         return (
-                          <li key={`${section.key}-${card.name}`} className="builder-card-row">
-                            <span className="builder-card-qty">{card.qty}</span>
+                          <li
+                            key={`${section.key}-${card.name}`}
+                            className={`builder-card-row${showQuantity ? "" : " builder-card-row-no-qty"}`}
+                          >
+                            {showQuantity ? <span className="builder-card-qty">{card.qty}</span> : null}
                             {renderCardThumb(record, "builder-card-thumb", card.name.charAt(0))}
                             <div className="builder-card-main">
                               <div className="builder-card-main-head">
@@ -1692,7 +1736,7 @@ export function CommanderDeckBuilder() {
             {!selectedCommander ? (
               <p className="muted">Select a commander to surface color staples.</p>
             ) : !filteredSuggestionGroups.colorStapleGroup || filteredSuggestionGroups.colorStapleGroup.items.length === 0 ? (
-              <p className="muted">Resolving color staple suggestions...</p>
+              <p className="muted">No color-specific staple suggestions for this color identity yet.</p>
             ) : (
               <div className="builder-suggestion-groups">
                 {renderSuggestionGroupPanel(filteredSuggestionGroups.colorStapleGroup, "color-staple")}
@@ -1740,7 +1784,7 @@ export function CommanderDeckBuilder() {
             {!selectedCommander ? (
               <p className="muted">Select a commander to generate land suggestions.</p>
             ) : !filteredSuggestionGroups.manaBaseGroup || filteredSuggestionGroups.manaBaseGroup.items.length === 0 ? (
-              <p className="muted">Resolving mana base suggestions...</p>
+              <p className="muted">No mana base suggestions are missing from this build right now.</p>
             ) : (
               <div className="builder-suggestion-groups">
                 {renderSuggestionGroupPanel(filteredSuggestionGroups.manaBaseGroup, "mana-base")}

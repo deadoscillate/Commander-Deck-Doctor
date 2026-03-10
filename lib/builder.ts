@@ -76,6 +76,7 @@ const TRIOME_SUGGESTIONS: Array<{ colors: string[]; name: string }> = [
 ];
 
 const COMMANDER_STAPLES_BY_COLOR: Record<string, string[]> = {
+  C: ["Forsaken Monument", "All Is Dust", "Ugin, the Ineffable", "Introduction to Annihilation"],
   W: ["Swords to Plowshares", "Esper Sentinel", "Teferi's Protection"],
   U: ["Rhystic Study", "Mystic Remora", "Swan Song"],
   B: ["Demonic Tutor", "Toxic Deluge", "Feed the Swarm"],
@@ -132,9 +133,15 @@ export function totalDeckCardCount(cards: BuilderDeckCard[]): number {
 }
 
 function normalizeColorIdentity(colors: string[]): string[] {
-  return [...new Set(colors.filter(Boolean).map((color) => color.toUpperCase()))].sort(
+  const normalized = [...new Set(colors.filter(Boolean).map((color) => color.toUpperCase()))].sort(
     (left, right) => COLOR_ORDER.indexOf(left) - COLOR_ORDER.indexOf(right)
   );
+
+  if (normalized.length === 0) {
+    return ["C"];
+  }
+
+  return normalized;
 }
 
 function isColorSubset(required: string[], allowed: string[]): boolean {
@@ -296,9 +303,14 @@ export function buildArchetypeSynergySuggestionNames(archetypes: string[]): stri
 
 export function buildManaBaseSuggestionNames(colors: string[]): string[] {
   const normalizedColors = normalizeColorIdentity(colors);
-  if (normalizedColors.length === 0) {
-    return [];
-  }
+
+  const basicsByColor: Record<string, string> = {
+    W: "Plains",
+    U: "Island",
+    B: "Swamp",
+    R: "Mountain",
+    G: "Forest"
+  };
 
   const names: string[] = [
     "Command Tower",
@@ -310,16 +322,17 @@ export function buildManaBaseSuggestionNames(colors: string[]): string[] {
     "Evolving Wilds"
   ];
 
-  if (normalizedColors.length === 1) {
-    const basicsByColor: Record<string, string> = {
-      W: "Plains",
-      U: "Island",
-      B: "Swamp",
-      R: "Mountain",
-      G: "Forest"
-    };
+  for (const color of normalizedColors) {
+    names.push(basicsByColor[color] ?? "Wastes");
+  }
 
-    names.push(basicsByColor[normalizedColors[0]] ?? "Wastes", "War Room", "Myriad Landscape");
+  if (normalizedColors.length === 1 && normalizedColors[0] === "C") {
+    names.push("War Room", "Myriad Landscape", "Reliquary Tower", "Rogue's Passage");
+    return uniqueNames(names);
+  }
+
+  if (normalizedColors.length === 1) {
+    names.push("War Room", "Myriad Landscape");
     return uniqueNames(names);
   }
 
