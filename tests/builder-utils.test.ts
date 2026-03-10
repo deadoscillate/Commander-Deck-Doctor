@@ -167,7 +167,7 @@ describe("builder utilities", () => {
   });
 
   it("loads a seeded commander-profile dataset", () => {
-    expect(getCommanderProfileCount()).toBeGreaterThanOrEqual(230);
+    expect(getCommanderProfileCount()).toBeGreaterThanOrEqual(270);
     expect(getCommanderProfile("Prosper, Tome-Bound")?.groups[0]?.cards).toContain("Jeska's Will");
     expect(getCommanderProfile("Miirym, Sentinel Wyrm")?.groups[0]?.cards).toContain("Dragon Tempest");
     expect(getCommanderProfile("Pantlaza, Sun-Favored")?.groups[0]?.cards).toContain("Trumpeting Carnosaur");
@@ -186,5 +186,9 @@ describe("builder utilities", () => {
     expect(getCommanderProfile("Narci, Fable Singer")?.groups[0]?.cards).toContain("The Cruelty of Gix");
     expect(getCommanderProfile("Kess, Dissident Mage")?.groups[0]?.cards).toContain("Past in Flames");
     expect(getCommanderProfile("Kykar, Wind's Fury")?.groups[0]?.cards).toContain("Whirlwind of Thought");
+    expect(getCommanderProfile("Tergrid, God of Fright // Tergrid's Lantern")?.groups[0]?.cards).toContain("Oppression");
+    expect(getCommanderProfile("Sam, Loyal Attendant")?.groups[0]?.cards).toContain("Academy Manufactor");
+    expect(getCommanderProfile("Yawgmoth, Thran Physician")?.groups[0]?.cards).toContain("Mikaeus, the Unhallowed");
+    expect(getCommanderProfile("Tuvasa the Sunlit")?.groups[0]?.cards).toContain("Sterling Grove");
   });
 });

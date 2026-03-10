@@ -45,6 +45,29 @@
     ]
   },
   {
+    "commanderName": "Aegar, the Freezing Flame",
+    "tags": [
+      "burn",
+      "giants",
+      "wizards"
+    ],
+    "groups": [
+      {
+        "key": "aegar-excess-damage",
+        "label": "Excess-Damage Draw",
+        "description": "Aegar wants sweepers and oversized damage spells that kill through excess damage so removal doubles as card draw.",
+        "cards": [
+          "Blasphemous Act",
+          "Chain Reaction",
+          "Starstorm",
+          "Toralf, God of Fury // Toralf's Hammer",
+          "Calamity Bearer",
+          "Squash"
+        ]
+      }
+    ]
+  },
+  {
     "commanderName": "Aesi, Tyrant of Gyre Strait",
     "tags": [
       "lands",
@@ -160,6 +183,29 @@
     ]
   },
   {
+    "commanderName": "Alela, Cunning Conqueror",
+    "tags": [
+      "faeries",
+      "flash",
+      "goad"
+    ],
+    "groups": [
+      {
+        "key": "alela-flash-faerie-tempo",
+        "label": "Flash Faerie Tempo",
+        "description": "Alela wants instant-speed interaction and Faerie payoffs so every opponent turn produces a token and keeps the table off balance with goad.",
+        "cards": [
+          "Bitterblossom",
+          "Faerie Mastermind",
+          "Scion of Oona",
+          "Spellstutter Sprite",
+          "Notorious Throng",
+          "Wavebreak Hippocamp"
+        ]
+      }
+    ]
+  },
+  {
     "commanderName": "Alesha, Who Smiles at Death",
     "tags": [
       "reanimation",
@@ -178,6 +224,29 @@
           "Selfless Spirit",
           "Auratouched Mage",
           "Goblin Bombardment"
+        ]
+      }
+    ]
+  },
+  {
+    "commanderName": "Alibou, Ancient Witness",
+    "tags": [
+      "artifacts",
+      "combat",
+      "scry"
+    ],
+    "groups": [
+      {
+        "key": "alibou-attack-artifacts",
+        "label": "Hasty Artifact Assault",
+        "description": "Alibou wants cheap artifact creatures and tap-heavy board states so attacks scale into real damage and deep scry selection.",
+        "cards": [
+          "Bronze Guardian",
+          "Losheel, Clockwork Scholar",
+          "Signal Pest",
+          "Cyberdrive Awakener",
+          "Skrelv's Hive",
+          "Unwinding Clock"
         ]
       }
     ]
@@ -459,6 +528,29 @@
     ]
   },
   {
+    "commanderName": "Astarion, the Decadent",
+    "tags": [
+      "lifegain",
+      "drain",
+      "aristocrats"
+    ],
+    "groups": [
+      {
+        "key": "astarion-drain-life-swing",
+        "label": "Life Swing Multipliers",
+        "description": "Astarion wants repeatable drain and lifegain bursts so each end step mode turns into a meaningful clock or stabilizing life jump.",
+        "cards": [
+          "Exquisite Blood",
+          "Vito, Thorn of the Dusk Rose",
+          "Cliffhaven Vampire",
+          "Blood Artist",
+          "Debt to the Deathless",
+          "Sanguine Bond"
+        ]
+      }
+    ]
+  },
+  {
     "commanderName": "Atla Palani, Nest Tender",
     "tags": [
       "eggs",
@@ -643,6 +735,29 @@
     ]
   },
   {
+    "commanderName": "Baylen, the Haymaker",
+    "tags": [
+      "tokens",
+      "tap",
+      "naya"
+    ],
+    "groups": [
+      {
+        "key": "baylen-token-conversion",
+        "label": "Token Conversion Engines",
+        "description": "Baylen wants cheap token makers and untap-friendly engines so tokens become mana, cards, and a trampling finisher instead of just bodies.",
+        "cards": [
+          "Cryptolith Rite",
+          "Jaheira, Friend of the Forest",
+          "Anointed Procession",
+          "Secure the Wastes",
+          "March of the Multitudes",
+          "Skullclamp"
+        ]
+      }
+    ]
+  },
+  {
     "commanderName": "Be'lakor, the Dark Master",
     "tags": [
       "demons",
@@ -804,6 +919,29 @@
     ]
   },
   {
+    "commanderName": "Brion Stoutarm",
+    "tags": [
+      "fling",
+      "lifegain",
+      "big-creatures"
+    ],
+    "groups": [
+      {
+        "key": "brion-fling-bombs",
+        "label": "Fling Damage Bursts",
+        "description": "Brion wants huge-power creatures and temporary theft or cheat effects so every activation threatens a massive life swing.",
+        "cards": [
+          "Malignus",
+          "Serra Avatar",
+          "Act of Treason",
+          "Sneak Attack",
+          "Stalking Vengeance",
+          "Warstorm Surge"
+        ]
+      }
+    ]
+  },
+  {
     "commanderName": "Brudiclad, Telchor Engineer",
     "tags": [
       "tokens",
@@ -845,6 +983,29 @@
           "Aurelia, the Warleader",
           "Sword of the Animist",
           "Loxodon Warhammer"
+        ]
+      }
+    ]
+  },
+  {
+    "commanderName": "Caesar, Legion's Emperor",
+    "tags": [
+      "tokens",
+      "aristocrats",
+      "mardu"
+    ],
+    "groups": [
+      {
+        "key": "caesar-attack-token-aristocrats",
+        "label": "Token Sacrifice Pressure",
+        "description": "Caesar wants a constant stream of disposable bodies so each attack turns into card draw, more attackers, and direct damage.",
+        "cards": [
+          "Skullclamp",
+          "Goblin Bombardment",
+          "Impact Tremors",
+          "Ocelot Pride",
+          "Mondrak, Glory Dominus",
+          "Professional Face-Breaker"
         ]
       }
     ]
@@ -1032,6 +1193,29 @@
           "Breeches, Brazen Plunderer",
           "Agent of Treachery",
           "Xanathar, Guild Kingpin"
+        ]
+      }
+    ]
+  },
+  {
+    "commanderName": "Durnan of the Yawning Portal",
+    "tags": [
+      "big-creatures",
+      "topdeck",
+      "background"
+    ],
+    "groups": [
+      {
+        "key": "durnan-exile-creature-ramp",
+        "label": "Exiled Creature Discounts",
+        "description": "Durnan wants topdeck selection and oversized creatures so attack triggers convert into discounted threats cast from exile.",
+        "cards": [
+          "Passionate Archeologist",
+          "Call of the Wild",
+          "Cream of the Crop",
+          "Apex Devastator",
+          "Etali, Primal Conqueror // Etali, Primal Sickness",
+          "Pathbreaker Ibex"
         ]
       }
     ]
@@ -1313,6 +1497,29 @@
     ]
   },
   {
+    "commanderName": "Frodo, Adventurous Hobbit",
+    "tags": [
+      "food",
+      "lifegain",
+      "ring"
+    ],
+    "groups": [
+      {
+        "key": "frodo-ring-lifegain",
+        "label": "Food and Ring Tempo",
+        "description": "Frodo wants cheap lifegain and Food support so attacks keep tempting the Ring while converting chip damage into extra cards.",
+        "cards": [
+          "Samwise Gamgee",
+          "Peregrin Took",
+          "Merry, Warden of Isengard",
+          "The Gaffer",
+          "Trail of Crumbs",
+          "Bilbo, Birthday Celebrant"
+        ]
+      }
+    ]
+  },
+  {
     "commanderName": "Galea, Kindler of Hope",
     "tags": [
       "equipment",
@@ -1474,6 +1681,29 @@
     ]
   },
   {
+    "commanderName": "Glarb, Calamity's Augur",
+    "tags": [
+      "topdeck",
+      "big-spells",
+      "surveil"
+    ],
+    "groups": [
+      {
+        "key": "glarb-topdeck-surveil",
+        "label": "Topdeck Four-Plus Value",
+        "description": "Glarb wants topdeck manipulation and a dense package of impactful four-plus spells so the top card keeps converting into extra resources.",
+        "cards": [
+          "Sensei's Divining Top",
+          "Sultai Ascendancy",
+          "Doom Whisperer",
+          "Villainous Wealth",
+          "Dig Through Time",
+          "Memory Deluge"
+        ]
+      }
+    ]
+  },
+  {
     "commanderName": "Go-Shintai of Life's Origin",
     "tags": [
       "shrines",
@@ -1589,6 +1819,29 @@
     ]
   },
   {
+    "commanderName": "Grolnok, the Omnivore",
+    "tags": [
+      "self-mill",
+      "permanents",
+      "frogs"
+    ],
+    "groups": [
+      {
+        "key": "grolnok-croak-value",
+        "label": "Croak Counter Value",
+        "description": "Grolnok wants permanent-heavy self-mill and graveyard recursion pieces so milled cards remain playable from exile instead of being lost.",
+        "cards": [
+          "Mesmeric Orb",
+          "Hedron Crab",
+          "Life from the Loam",
+          "Ramunap Excavator",
+          "Conduit of Worlds",
+          "Perpetual Timepiece"
+        ]
+      }
+    ]
+  },
+  {
     "commanderName": "Hakbal of the Surging Soul",
     "tags": [
       "merfolk",
@@ -1607,6 +1860,52 @@
           "Branching Evolution",
           "Wildgrowth Walker",
           "Roaming Throne"
+        ]
+      }
+    ]
+  },
+  {
+    "commanderName": "Hazezon, Shaper of Sand",
+    "tags": [
+      "deserts",
+      "lands",
+      "tokens"
+    ],
+    "groups": [
+      {
+        "key": "hazezon-desert-engine",
+        "label": "Desert Recursion Engine",
+        "description": "Hazezon wants Desert density and land recursion so every replayed Desert builds a threatening token board.",
+        "cards": [
+          "Life from the Loam",
+          "Ramunap Excavator",
+          "Crucible of Worlds",
+          "Ancient Greenwarden",
+          "Scute Swarm",
+          "Hour of Promise"
+        ]
+      }
+    ]
+  },
+  {
+    "commanderName": "Helga, Skittish Seer",
+    "tags": [
+      "big-creatures",
+      "x-spells",
+      "ramp"
+    ],
+    "groups": [
+      {
+        "key": "helga-big-creature-ramp",
+        "label": "Big Creature Ramp",
+        "description": "Helga wants large creatures and X-spell bodies so each cast both grows Helga and turns her tap ability into a real mana engine.",
+        "cards": [
+          "Selvala, Heart of the Wilds",
+          "Hydroid Krasis",
+          "Shalai and Hallar",
+          "Walking Ballista",
+          "Finale of Devastation",
+          "The Great Henge"
         ]
       }
     ]
@@ -1722,6 +2021,29 @@
           "Solphim, Mayhem Dominus",
           "Fiery Emancipation",
           "Fall of the Titans"
+        ]
+      }
+    ]
+  },
+  {
+    "commanderName": "Imotekh the Stormlord",
+    "tags": [
+      "artifacts",
+      "graveyard",
+      "tokens"
+    ],
+    "groups": [
+      {
+        "key": "imotekh-artifact-exit-loops",
+        "label": "Artifact Exit Loops",
+        "description": "Imotekh wants recursive artifacts and graveyard movement so artifact cards leaving the yard keep producing Necron bodies.",
+        "cards": [
+          "Myr Retriever",
+          "Junk Diver",
+          "Scrap Trawler",
+          "Trading Post",
+          "Buried Ruin",
+          "Workshop Assistant"
         ]
       }
     ]
@@ -2140,6 +2462,29 @@
     ]
   },
   {
+    "commanderName": "Kibo, Uktabi Prince",
+    "tags": [
+      "artifacts",
+      "monkeys",
+      "ape-tribal"
+    ],
+    "groups": [
+      {
+        "key": "kibo-banana-artifact-hate",
+        "label": "Banana Artifact Pressure",
+        "description": "Kibo wants artifact punishment and Ape or Monkey payoffs so the Bananas feed your mana while opponents get punished for using them.",
+        "cards": [
+          "Viridian Revel",
+          "Vandalblast",
+          "Hull Breach",
+          "Ragavan, Nimble Pilferer",
+          "Kogla, the Titan Ape",
+          "Collector Ouphe"
+        ]
+      }
+    ]
+  },
+  {
     "commanderName": "Kinnan, Bonder Prodigy",
     "tags": [
       "mana",
@@ -2296,6 +2641,52 @@
           "Goblin Bombardment",
           "Battle Cry Goblin",
           "Coat of Arms"
+        ]
+      }
+    ]
+  },
+  {
+    "commanderName": "Kudo, King Among Bears",
+    "tags": [
+      "stax",
+      "go-wide",
+      "bears"
+    ],
+    "groups": [
+      {
+        "key": "kudo-anthem-bears",
+        "label": "Bear Anthem Pressure",
+        "description": "Kudo wants asymmetric anthem effects and go-wide payoffs so turning everything into 2/2 Bears breaks parity in your favor.",
+        "cards": [
+          "Muraganda Petroglyphs",
+          "Elesh Norn, Grand Cenobite",
+          "Beastmaster Ascension",
+          "Overwhelming Stampede",
+          "Cathars' Crusade",
+          "Skullclamp"
+        ]
+      }
+    ]
+  },
+  {
+    "commanderName": "Kura, the Boundless Sky",
+    "tags": [
+      "lands",
+      "death-triggers",
+      "ramp"
+    ],
+    "groups": [
+      {
+        "key": "kura-death-ramp",
+        "label": "Death Trigger Ramp Burst",
+        "description": "Kura wants sacrifice and death-value support so its death trigger either reloads lands or leaves behind a massive Spirit threat.",
+        "cards": [
+          "Greater Good",
+          "High Market",
+          "Momentous Fall",
+          "Sylvan Safekeeper",
+          "Life's Legacy",
+          "The Great Henge"
         ]
       }
     ]
@@ -2462,6 +2853,29 @@
     ]
   },
   {
+    "commanderName": "Mabel, Heir to Cragflame",
+    "tags": [
+      "mice",
+      "equipment",
+      "combat"
+    ],
+    "groups": [
+      {
+        "key": "mabel-mice-equipment",
+        "label": "Mice Equipment Pressure",
+        "description": "Mabel wants efficient Mice and equipment scaling so Cragflame turns a small-board tribal shell into a real combat deck.",
+        "cards": [
+          "Manifold Mouse",
+          "Valley Questcaller",
+          "Heartfire Hero",
+          "Sword of the Animist",
+          "Embercleave",
+          "Banner of Kinship"
+        ]
+      }
+    ]
+  },
+  {
     "commanderName": "Maelstrom Wanderer",
     "tags": [
       "cascade",
@@ -2577,6 +2991,29 @@
     ]
   },
   {
+    "commanderName": "Marvo, Deep Operative",
+    "tags": [
+      "clash",
+      "topdeck",
+      "big-spells"
+    ],
+    "groups": [
+      {
+        "key": "marvo-clash-topdeck",
+        "label": "Topdeck Clash Control",
+        "description": "Marvo wants topdeck manipulation and high mana-value spells so attacks reliably win clashes and cast something big for free.",
+        "cards": [
+          "Sensei's Divining Top",
+          "Brainstorm",
+          "Scroll Rack",
+          "Dig Through Time",
+          "Temporal Trespass",
+          "Aminatou's Augury"
+        ]
+      }
+    ]
+  },
+  {
     "commanderName": "Meren of Clan Nel Toth",
     "tags": [
       "graveyard",
@@ -2667,6 +3104,29 @@
           "Greater Good",
           "Return of the Wildspeaker",
           "Kami of Whispered Hopes"
+        ]
+      }
+    ]
+  },
+  {
+    "commanderName": "Minsc, Beloved Ranger",
+    "tags": [
+      "tokens",
+      "counters",
+      "combat"
+    ],
+    "groups": [
+      {
+        "key": "minsc-boo-counters",
+        "label": "Boo Counter Burst",
+        "description": "Minsc wants counter multipliers and efficient card-advantage engines so Boo scales into a lethal trampling attacker every turn.",
+        "cards": [
+          "Invigorating Hot Spring",
+          "Unnatural Growth",
+          "The Great Henge",
+          "Greater Good",
+          "Return of the Wildspeaker",
+          "Hardened Scales"
         ]
       }
     ]
@@ -2948,6 +3408,29 @@
     ]
   },
   {
+    "commanderName": "Nashi, Moon Sage's Scion",
+    "tags": [
+      "ninjutsu",
+      "topdeck",
+      "life-payment"
+    ],
+    "groups": [
+      {
+        "key": "nashi-topdeck-heist",
+        "label": "Topdeck Heist Support",
+        "description": "Nashi wants evasive attackers and topdeck setup so combat damage translates into high-impact spells stolen off the top of libraries.",
+        "cards": [
+          "Changeling Outcast",
+          "Sensei's Divining Top",
+          "Scroll Rack",
+          "Brainstorm",
+          "Bolas's Citadel",
+          "Shadow of Mortality"
+        ]
+      }
+    ]
+  },
+  {
     "commanderName": "Nath of the Gilt-Leaf",
     "tags": [
       "discard",
@@ -3040,6 +3523,52 @@
     ]
   },
   {
+    "commanderName": "Nethroi, Apex of Death",
+    "tags": [
+      "reanimator",
+      "mutate",
+      "graveyard"
+    ],
+    "groups": [
+      {
+        "key": "nethroi-power-10-reanimator",
+        "label": "Power-10 Reanimation Pile",
+        "description": "Nethroi wants compact low-power utility creatures and self-mill so one mutate trigger reloads an entire combo or value board.",
+        "cards": [
+          "Buried Alive",
+          "Satyr Wayfinder",
+          "Fauna Shaman",
+          "Scourge of the Skyclaves",
+          "Karmic Guide",
+          "Fiend Artisan"
+        ]
+      }
+    ]
+  },
+  {
+    "commanderName": "Nikya of the Old Ways",
+    "tags": [
+      "creatures",
+      "big-mana",
+      "stompy"
+    ],
+    "groups": [
+      {
+        "key": "nikya-creature-only-ramp",
+        "label": "Creature-Only Big Mana",
+        "description": "Nikya wants a creature-dense shell with creature-based interaction and haymakers so doubled land mana is never stranded on noncreature spells.",
+        "cards": [
+          "Selvala, Heart of the Wilds",
+          "Temur Sabertooth",
+          "Ruric Thar, the Unbowed",
+          "Apex Devastator",
+          "Pathbreaker Ibex",
+          "Runic Armasaur"
+        ]
+      }
+    ]
+  },
+  {
     "commanderName": "Niv-Mizzet, Parun",
     "tags": [
       "draw",
@@ -3127,6 +3656,29 @@
           "Sphinx of the Second Sun",
           "Bitterblossom",
           "Black Market Connections"
+        ]
+      }
+    ]
+  },
+  {
+    "commanderName": "Ognis, the Dragon's Lash",
+    "tags": [
+      "haste",
+      "treasure",
+      "aggro"
+    ],
+    "groups": [
+      {
+        "key": "ognis-haste-treasure",
+        "label": "Haste Treasure Pressure",
+        "description": "Ognis wants a dense haste package so attacks continuously convert into Treasure and accelerate larger follow-up plays.",
+        "cards": [
+          "Rhythm of the Wild",
+          "Samut, Vizier of Naktamun",
+          "Professional Face-Breaker",
+          "Reckless Stormseeker // Storm-Charged Slasher",
+          "Ziatora's Proving Ground",
+          "Goldspan Dragon"
         ]
       }
     ]
@@ -3753,6 +4305,29 @@
     ]
   },
   {
+    "commanderName": "Sam, Loyal Attendant",
+    "tags": [
+      "food",
+      "lifegain",
+      "partner"
+    ],
+    "groups": [
+      {
+        "key": "sam-food-value",
+        "label": "Food Value Engine",
+        "description": "Sam wants Food payoffs and token engines so each combat step turns into mana, life, and material while supporting partner builds with Frodo.",
+        "cards": [
+          "Peregrin Took",
+          "Academy Manufactor",
+          "Trail of Crumbs",
+          "Feasting Hobbit",
+          "Merry, Warden of Isengard",
+          "Night of the Sweets' Revenge"
+        ]
+      }
+    ]
+  },
+  {
     "commanderName": "Sarulf, Realm Eater",
     "tags": [
       "counters",
@@ -3840,6 +4415,29 @@
           "Aetherworks Marvel",
           "Panharmonicon",
           "Aethergeode Miner"
+        ]
+      }
+    ]
+  },
+  {
+    "commanderName": "Sauron, Lord of the Rings",
+    "tags": [
+      "amass",
+      "reanimator",
+      "spells"
+    ],
+    "groups": [
+      {
+        "key": "sauron-cast-reanimate",
+        "label": "Amass Reanimation Shell",
+        "description": "Sauron wants premium creatures to mill and reanimate plus Orc payoffs that make the cast trigger immediately snowball the board.",
+        "cards": [
+          "Entomb",
+          "Living Death",
+          "Call of the Ring",
+          "Orcish Bowmasters",
+          "The Mouth of Sauron",
+          "Anger"
         ]
       }
     ]
@@ -3978,6 +4576,29 @@
           "Wonder",
           "Raffine's Informant",
           "Kinsbaile Cavalier"
+        ]
+      }
+    ]
+  },
+  {
+    "commanderName": "Sidisi, Brood Tyrant",
+    "tags": [
+      "self-mill",
+      "graveyard",
+      "zombies"
+    ],
+    "groups": [
+      {
+        "key": "sidisi-self-mill-zombies",
+        "label": "Self-Mill Zombie Engine",
+        "description": "Sidisi wants dense self-mill and reanimation so every creature milled becomes both a Zombie token and future graveyard value.",
+        "cards": [
+          "Mesmeric Orb",
+          "Stitcher's Supplier",
+          "Altar of Dementia",
+          "Wonder",
+          "Dread Return",
+          "Splinterfright"
         ]
       }
     ]
@@ -4189,6 +4810,29 @@
     ]
   },
   {
+    "commanderName": "Taborax, Hope's Demise",
+    "tags": [
+      "clerics",
+      "aristocrats",
+      "lifedrain"
+    ],
+    "groups": [
+      {
+        "key": "taborax-cleric-sacrifice",
+        "label": "Cleric Sacrifice Engine",
+        "description": "Taborax wants a dense Cleric shell with sacrifice and recursion so each death grows the commander and keeps the cards flowing.",
+        "cards": [
+          "Orah, Skyclave Hierophant",
+          "Rotlung Reanimator",
+          "Cleric Class",
+          "Pyre of Heroes",
+          "Skullclamp",
+          "Luminous Broodmoth"
+        ]
+      }
+    ]
+  },
+  {
     "commanderName": "Talion, the Kindly Lord",
     "tags": [
       "control",
@@ -4350,6 +4994,29 @@
     ]
   },
   {
+    "commanderName": "Tergrid, God of Fright // Tergrid's Lantern",
+    "tags": [
+      "discard",
+      "stax",
+      "punisher"
+    ],
+    "groups": [
+      {
+        "key": "tergrid-discard-sacrifice-lock",
+        "label": "Discard and Sacrifice Locks",
+        "description": "Tergrid wants mass discard and sacrifice effects that turn symmetrical pain into stolen permanents and overwhelming board advantage.",
+        "cards": [
+          "Oppression",
+          "Bottomless Pit",
+          "Pox",
+          "Mindslicer",
+          "Waste Not",
+          "Death Cloud"
+        ]
+      }
+    ]
+  },
+  {
     "commanderName": "Teysa Karlov",
     "tags": [
       "aristocrats",
@@ -4395,6 +5062,29 @@
     ]
   },
   {
+    "commanderName": "The Celestial Toymaker",
+    "tags": [
+      "politics",
+      "piles",
+      "topdeck"
+    ],
+    "groups": [
+      {
+        "key": "toymaker-piles-and-guesses",
+        "label": "Piles and Guessing Payoffs",
+        "description": "The Celestial Toymaker wants cards that force pile decisions and table guesses so the attack trigger becomes a repeatable drain engine.",
+        "cards": [
+          "Fact or Fiction",
+          "Truth or Tale",
+          "Split Decision",
+          "Menacing Ogre",
+          "Master of Predicaments",
+          "Palantir of Orthanc"
+        ]
+      }
+    ]
+  },
+  {
     "commanderName": "The Gitrog Monster",
     "tags": [
       "lands",
@@ -4413,6 +5103,29 @@
           "Lotus Cobra",
           "Ramunap Excavator",
           "Squandered Resources"
+        ]
+      }
+    ]
+  },
+  {
+    "commanderName": "The Jolly Balloon Man",
+    "tags": [
+      "tokens",
+      "copies",
+      "etb"
+    ],
+    "groups": [
+      {
+        "key": "jolly-balloon-copy-combat",
+        "label": "Token Copy Combat",
+        "description": "The Jolly Balloon Man wants creatures with strong ETB or attack triggers so each temporary Balloon copy creates immediate value.",
+        "cards": [
+          "Village Bell-Ringer",
+          "Combat Celebrant",
+          "Witty Roastmaster",
+          "Molten Gatekeeper",
+          "Solemn Simulacrum",
+          "Terror of the Peaks"
         ]
       }
     ]
@@ -4459,6 +5172,29 @@
           "Jaxis, the Troublemaker",
           "Flameshadow Conjuring",
           "Molten Echoes"
+        ]
+      }
+    ]
+  },
+  {
+    "commanderName": "The Mycotyrant",
+    "tags": [
+      "saprolings",
+      "descend",
+      "graveyard"
+    ],
+    "groups": [
+      {
+        "key": "mycotyrant-descend-saprolings",
+        "label": "Descend Saproling Swarm",
+        "description": "The Mycotyrant wants self-mill and permanent recursion so descending every turn floods the board with Fungi and Saprolings.",
+        "cards": [
+          "Skullclamp",
+          "Sporecrown Thallid",
+          "Utopia Mycon",
+          "Life from the Loam",
+          "Hermit Druid",
+          "Izoni, Thousand-Eyed"
         ]
       }
     ]
@@ -4689,6 +5425,98 @@
           "Full Moon's Rise",
           "Moonmist",
           "The Celestus"
+        ]
+      }
+    ]
+  },
+  {
+    "commanderName": "Trelasarra, Moon Dancer",
+    "tags": [
+      "lifegain",
+      "counters",
+      "scry"
+    ],
+    "groups": [
+      {
+        "key": "trelasarra-lifegain-counters",
+        "label": "Lifegain Counter Engine",
+        "description": "Trelasarra wants constant life triggers and counter payoffs so each small gain grows the board and smooths every draw step.",
+        "cards": [
+          "Soul Warden",
+          "Ajani's Welcome",
+          "Archangel of Thune",
+          "Prosperous Innkeeper",
+          "Heliod, Sun-Crowned",
+          "Conclave Mentor"
+        ]
+      }
+    ]
+  },
+  {
+    "commanderName": "Trostani, Selesnya's Voice",
+    "tags": [
+      "tokens",
+      "populate",
+      "lifegain"
+    ],
+    "groups": [
+      {
+        "key": "trostani-populate-toughness",
+        "label": "Populate and Toughness Life",
+        "description": "Trostani wants large tokens and repeatable populate so creature entries both pad your life total and scale your token board.",
+        "cards": [
+          "Advent of the Wurm",
+          "March of the Multitudes",
+          "Anointed Procession",
+          "Growing Ranks",
+          "Rootborn Defenses",
+          "Desolation Twin"
+        ]
+      }
+    ]
+  },
+  {
+    "commanderName": "Trostani, Three Whispers",
+    "tags": [
+      "keywords",
+      "counters",
+      "combat"
+    ],
+    "groups": [
+      {
+        "key": "trostani-keyword-combat",
+        "label": "Keyword Combat Scaling",
+        "description": "Trostani wants creatures and support pieces that benefit sharply from deathtouch, vigilance, and double strike every combat.",
+        "cards": [
+          "Fynn, the Fangbearer",
+          "Ohran Frostfang",
+          "Questing Beast",
+          "Odric, Lunarch Marshal",
+          "Rancor",
+          "Duelist's Heritage"
+        ]
+      }
+    ]
+  },
+  {
+    "commanderName": "Tuvasa the Sunlit",
+    "tags": [
+      "enchantress",
+      "voltron",
+      "draw"
+    ],
+    "groups": [
+      {
+        "key": "tuvasa-enchantress-voltron",
+        "label": "Enchantress Voltron",
+        "description": "Tuvasa wants low-cost enchantments and aura-based protection so the first enchantment each turn snowballs both cards and commander damage.",
+        "cards": [
+          "Enchantress' Presence",
+          "Ethereal Armor",
+          "Ancestral Mask",
+          "All That Glitters",
+          "Sythis, Harvest's Hand",
+          "Sterling Grove"
         ]
       }
     ]
@@ -4970,6 +5798,29 @@
     ]
   },
   {
+    "commanderName": "Winter, Cynical Opportunist",
+    "tags": [
+      "delirium",
+      "self-mill",
+      "reanimator"
+    ],
+    "groups": [
+      {
+        "key": "winter-delirium-reanimation",
+        "label": "Delirium Reanimation Setup",
+        "description": "Winter wants self-mill and card-type diversity so end steps consistently turn stocked graveyards into reanimated permanents.",
+        "cards": [
+          "Grisly Salvage",
+          "Vessel of Nascency",
+          "Mishra's Bauble",
+          "Seal of Primordium",
+          "Old Stickfingers",
+          "Ripples of Undeath"
+        ]
+      }
+    ]
+  },
+  {
     "commanderName": "Xantcha, Sleeper Agent",
     "tags": [
       "group-slug",
@@ -5062,6 +5913,29 @@
     ]
   },
   {
+    "commanderName": "Yawgmoth, Thran Physician",
+    "tags": [
+      "aristocrats",
+      "proliferate",
+      "combo"
+    ],
+    "groups": [
+      {
+        "key": "yawgmoth-undying-engine",
+        "label": "Undying Combo Engine",
+        "description": "Yawgmoth wants recursive fodder and counter loops so sacrifice activations become card draw, board control, and combo pressure at once.",
+        "cards": [
+          "Geralf's Messenger",
+          "Mikaeus, the Unhallowed",
+          "Nest of Scarabs",
+          "Butcher Ghoul",
+          "Blood Artist",
+          "Phyrexian Altar"
+        ]
+      }
+    ]
+  },
+  {
     "commanderName": "Yennett, Cryptic Sovereign",
     "tags": [
       "topdeck",
@@ -5126,6 +6000,29 @@
           "Temur Sabertooth",
           "Kogla, the Titan Ape",
           "Seedborn Muse"
+        ]
+      }
+    ]
+  },
+  {
+    "commanderName": "Yoshimaru, Ever Faithful",
+    "tags": [
+      "legends",
+      "counters",
+      "partner"
+    ],
+    "groups": [
+      {
+        "key": "yoshimaru-legend-density",
+        "label": "Legend Density Package",
+        "description": "Yoshimaru wants a high density of cheap legends and legendary support cards so each permanent entry grows a fast commander-damage threat.",
+        "cards": [
+          "Mox Amber",
+          "Plaza of Heroes",
+          "Flowering of the White Tree",
+          "Day of Destiny",
+          "Thalia's Lancers",
+          "Skrelv, Defector Mite"
         ]
       }
     ]
@@ -5267,6 +6164,29 @@
           "Sakura-Tribe Scout",
           "Aftermath Analyst",
           "Field of the Dead"
+        ]
+      }
+    ]
+  },
+  {
+    "commanderName": "Zimone, Mystery Unraveler",
+    "tags": [
+      "landfall",
+      "manifest",
+      "value"
+    ],
+    "groups": [
+      {
+        "key": "zimone-landfall-manifest",
+        "label": "Landfall Manifest Value",
+        "description": "Zimone wants extra land drops and face-down support so the first land each turn stocks the board and later triggers flip real threats face up.",
+        "cards": [
+          "Exploration",
+          "Courser of Kruphix",
+          "Trail of Mystery",
+          "Aesi, Tyrant of Gyre Strait",
+          "Ancient Greenwarden",
+          "Ugin's Mastery"
         ]
       }
     ]
