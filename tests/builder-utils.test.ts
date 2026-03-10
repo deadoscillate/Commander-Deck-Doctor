@@ -167,7 +167,7 @@ describe("builder utilities", () => {
   });
 
   it("loads a seeded commander-profile dataset", () => {
-    expect(getCommanderProfileCount()).toBeGreaterThanOrEqual(208);
+    expect(getCommanderProfileCount()).toBeGreaterThanOrEqual(230);
     expect(getCommanderProfile("Prosper, Tome-Bound")?.groups[0]?.cards).toContain("Jeska's Will");
     expect(getCommanderProfile("Miirym, Sentinel Wyrm")?.groups[0]?.cards).toContain("Dragon Tempest");
     expect(getCommanderProfile("Pantlaza, Sun-Favored")?.groups[0]?.cards).toContain("Trumpeting Carnosaur");
@@ -184,5 +184,7 @@ describe("builder utilities", () => {
     expect(getCommanderProfile("Zur the Enchanter")?.groups[0]?.cards).toContain("Necropotence");
     expect(getCommanderProfile("Tymna the Weaver")?.groups[0]?.cards).toContain("Reconnaissance");
     expect(getCommanderProfile("Narci, Fable Singer")?.groups[0]?.cards).toContain("The Cruelty of Gix");
+    expect(getCommanderProfile("Kess, Dissident Mage")?.groups[0]?.cards).toContain("Past in Flames");
+    expect(getCommanderProfile("Kykar, Wind's Fury")?.groups[0]?.cards).toContain("Whirlwind of Thought");
   });
 });

@@ -298,6 +298,29 @@
     ]
   },
   {
+    "commanderName": "Anje Falkenrath",
+    "tags": [
+      "madness",
+      "discard",
+      "combo"
+    ],
+    "groups": [
+      {
+        "key": "anje-madness-filtering",
+        "label": "Madness Filtering Engine",
+        "description": "Anje wants dense madness cards and graveyard payoffs so each activation churns through the library while staying card-neutral or better.",
+        "cards": [
+          "Alms of the Vein",
+          "Asylum Visitor",
+          "Bone Miser",
+          "Containment Construct",
+          "Shadowgrange Archfiend",
+          "Worldgorger Dragon"
+        ]
+      }
+    ]
+  },
+  {
     "commanderName": "Anowon, the Ruin Thief",
     "tags": [
       "rogues",
@@ -620,6 +643,29 @@
     ]
   },
   {
+    "commanderName": "Be'lakor, the Dark Master",
+    "tags": [
+      "demons",
+      "tribal",
+      "etb"
+    ],
+    "groups": [
+      {
+        "key": "belakor-demon-impact",
+        "label": "Demon ETB Burn",
+        "description": "Be'lakor wants a high-end Demon curve and reanimation so every Demon entering doubles as removal or direct damage.",
+        "cards": [
+          "Reanimate",
+          "Archfiend of Despair",
+          "Blood for the Blood God!",
+          "Liliana's Contract",
+          "Harvester of Souls",
+          "Sneak Attack"
+        ]
+      }
+    ]
+  },
+  {
     "commanderName": "Belbe, Corrupted Observer",
     "tags": [
       "big-mana",
@@ -776,6 +822,29 @@
           "Rise and Shine",
           "Mechanized Production",
           "Ancient Copper Dragon"
+        ]
+      }
+    ]
+  },
+  {
+    "commanderName": "Bruse Tarl, Boorish Herder",
+    "tags": [
+      "combat",
+      "double-strike",
+      "partner"
+    ],
+    "groups": [
+      {
+        "key": "bruse-double-strike-pressure",
+        "label": "Double-Strike Pressure",
+        "description": "Bruse wants oversized attackers, equipment, and attack-step payoff pieces so the free double strike turns any creature into a serious threat.",
+        "cards": [
+          "Blackblade Reforged",
+          "Embercleave",
+          "Karlach, Fury of Avernus",
+          "Aurelia, the Warleader",
+          "Sword of the Animist",
+          "Loxodon Warhammer"
         ]
       }
     ]
@@ -1055,6 +1124,29 @@
           "Wall of Omens",
           "Touch the Spirit Realm",
           "Skyclave Apparition"
+        ]
+      }
+    ]
+  },
+  {
+    "commanderName": "Elsha of the Infinite",
+    "tags": [
+      "spellslinger",
+      "topdeck",
+      "flash"
+    ],
+    "groups": [
+      {
+        "key": "elsha-topdeck-spellslinger",
+        "label": "Topdeck Spell Chains",
+        "description": "Elsha wants cheap noncreature spells, topdeck manipulation, and payoff pieces that let the top of the library function like an extra hand.",
+        "cards": [
+          "Sensei's Divining Top",
+          "Mystic Forge",
+          "Jeskai Ascendancy",
+          "Future Sight",
+          "Aetherflux Reservoir",
+          "Ponder"
         ]
       }
     ]
@@ -1474,6 +1566,29 @@
     ]
   },
   {
+    "commanderName": "Greven, Predator Captain",
+    "tags": [
+      "aristocrats",
+      "voltron",
+      "sacrifice"
+    ],
+    "groups": [
+      {
+        "key": "greven-sacrifice-burst",
+        "label": "Sacrifice Burst Draw",
+        "description": "Greven wants expendable high-power bodies and life-as-a-resource effects so each attack refills the hand and threatens lethal commander damage.",
+        "cards": [
+          "Kazuul's Fury",
+          "Act of Treason",
+          "Phyrexian Dreadnought",
+          "Disciple of Bolas",
+          "Unspeakable Symbol",
+          "Basilisk Collar"
+        ]
+      }
+    ]
+  },
+  {
     "commanderName": "Hakbal of the Surging Soul",
     "tags": [
       "merfolk",
@@ -1607,6 +1722,29 @@
           "Solphim, Mayhem Dominus",
           "Fiery Emancipation",
           "Fall of the Titans"
+        ]
+      }
+    ]
+  },
+  {
+    "commanderName": "Inalla, Archmage Ritualist",
+    "tags": [
+      "wizards",
+      "etb",
+      "combo"
+    ],
+    "groups": [
+      {
+        "key": "inalla-wizard-copy-lines",
+        "label": "Wizard Copy Lines",
+        "description": "Inalla wants Wizards with strong enters-the-battlefield triggers and compact combo lines that make the eminence token copy worth paying for.",
+        "cards": [
+          "Wanderwine Prophets",
+          "Bloodline Necromancer",
+          "Scholar of the Ages",
+          "Naban, Dean of Iteration",
+          "Patron Wizard",
+          "Cyclone Summoner"
         ]
       }
     ]
@@ -1933,6 +2071,29 @@
     ]
   },
   {
+    "commanderName": "Karn, Legacy Reforged",
+    "tags": [
+      "artifacts",
+      "colorless",
+      "ramp"
+    ],
+    "groups": [
+      {
+        "key": "karn-artifact-big-mana",
+        "label": "Artifact Big Mana",
+        "description": "Karn wants dense artifacts and untap support so his upkeep burst of colorless mana turns into massive artifact threats and card engines.",
+        "cards": [
+          "Forsaken Monument",
+          "Voltaic Key",
+          "Mystic Forge",
+          "The One Ring",
+          "Darksteel Forge",
+          "Portal to Phyrexia"
+        ]
+      }
+    ]
+  },
+  {
     "commanderName": "Kelsien, the Plague",
     "tags": [
       "pingers",
@@ -1956,6 +2117,29 @@
     ]
   },
   {
+    "commanderName": "Kess, Dissident Mage",
+    "tags": [
+      "spellslinger",
+      "graveyard",
+      "control"
+    ],
+    "groups": [
+      {
+        "key": "kess-graveyard-spells",
+        "label": "Graveyard Spell Loops",
+        "description": "Kess wants premium interaction, tutors, and ritual-style spells that become worth casting twice once the graveyard is unlocked.",
+        "cards": [
+          "Jeska's Will",
+          "Frantic Search",
+          "Mission Briefing",
+          "Sevinne's Reclamation",
+          "Brain Freeze",
+          "Past in Flames"
+        ]
+      }
+    ]
+  },
+  {
     "commanderName": "Kinnan, Bonder Prodigy",
     "tags": [
       "mana",
@@ -1974,6 +2158,29 @@
           "Hullbreaker Horror",
           "Seedborn Muse",
           "The One Ring"
+        ]
+      }
+    ]
+  },
+  {
+    "commanderName": "Kodama of the East Tree",
+    "tags": [
+      "ramp",
+      "cheat-permanents",
+      "partner"
+    ],
+    "groups": [
+      {
+        "key": "kodama-permanent-cascades",
+        "label": "Permanent Cascade Chains",
+        "description": "Kodama wants token makers and permanent-based ramp so each permanent entry drags another card from your hand directly onto the battlefield.",
+        "cards": [
+          "Rampaging Baloths",
+          "Scute Swarm",
+          "Tireless Provisioner",
+          "Panharmonicon",
+          "Sakashima of a Thousand Faces",
+          "Bounce Chamber"
         ]
       }
     ]
@@ -2089,6 +2296,52 @@
           "Goblin Bombardment",
           "Battle Cry Goblin",
           "Coat of Arms"
+        ]
+      }
+    ]
+  },
+  {
+    "commanderName": "Kykar, Wind's Fury",
+    "tags": [
+      "spellslinger",
+      "tokens",
+      "storm"
+    ],
+    "groups": [
+      {
+        "key": "kykar-spirit-storm",
+        "label": "Spirit Storm Engine",
+        "description": "Kykar wants cheap noncreature spells, token payoffs, and mana conversion pieces so Spirits become the fuel for larger spell turns.",
+        "cards": [
+          "Jeskai Ascendancy",
+          "Skullclamp",
+          "Anointed Procession",
+          "Storm-Kiln Artist",
+          "Haze of Rage",
+          "Whirlwind of Thought"
+        ]
+      }
+    ]
+  },
+  {
+    "commanderName": "Lathiel, the Bounteous Dawn",
+    "tags": [
+      "lifegain",
+      "counters",
+      "go-wide"
+    ],
+    "groups": [
+      {
+        "key": "lathiel-lifegain-counters",
+        "label": "Lifegain Counter Snowball",
+        "description": "Lathiel wants repeatable lifegain and scalable bodies so every end step converts extra life into a permanent counter advantage.",
+        "cards": [
+          "Archangel of Thune",
+          "Heliod, Sun-Crowned",
+          "Soul Warden",
+          "Ajani's Pridemate",
+          "Spike Feeder",
+          "The Great Henge"
         ]
       }
     ]
@@ -2948,6 +3201,75 @@
     ]
   },
   {
+    "commanderName": "Omnath, Locus of Creation",
+    "tags": [
+      "landfall",
+      "ramp",
+      "value"
+    ],
+    "groups": [
+      {
+        "key": "omnath-four-color-landfall",
+        "label": "Explosive Landfall Turns",
+        "description": "Omnath wants extra land drops, fetchlands, and landfall payoff bursts so the second and third triggers happen consistently each turn.",
+        "cards": [
+          "Exploration",
+          "Scapeshift",
+          "Ancient Greenwarden",
+          "Lotus Cobra",
+          "Fetchland Package",
+          "Felidar Retreat"
+        ]
+      }
+    ]
+  },
+  {
+    "commanderName": "Omnath, Locus of Mana",
+    "tags": [
+      "big-mana",
+      "green",
+      "voltron"
+    ],
+    "groups": [
+      {
+        "key": "omnath-green-mana-battery",
+        "label": "Stored Green Mana",
+        "description": "Omnath wants mana-doublers and untap effects so floating green mana becomes both board presence and a lethal commander-damage threat.",
+        "cards": [
+          "Seedborn Muse",
+          "Nyxbloom Ancient",
+          "Vernal Bloom",
+          "Selvala, Heart of the Wilds",
+          "Umbral Mantle",
+          "Return of the Wildspeaker"
+        ]
+      }
+    ]
+  },
+  {
+    "commanderName": "Omnath, Locus of Rage",
+    "tags": [
+      "landfall",
+      "elementals",
+      "damage"
+    ],
+    "groups": [
+      {
+        "key": "omnath-rage-landfall",
+        "label": "Elemental Landfall Pressure",
+        "description": "Omnath wants extra land drops and sacrifice outlets so each land creates a threat and each dead Elemental burns something important.",
+        "cards": [
+          "Scapeshift",
+          "Perilous Forays",
+          "Ashnod's Altar",
+          "Terror of the Peaks",
+          "Splendid Reclamation",
+          "Valakut Exploration"
+        ]
+      }
+    ]
+  },
+  {
     "commanderName": "Osgir, the Reconstructor",
     "tags": [
       "artifacts",
@@ -3339,6 +3661,29 @@
     ]
   },
   {
+    "commanderName": "Rionya, Fire Dancer",
+    "tags": [
+      "spells",
+      "tokens",
+      "etb"
+    ],
+    "groups": [
+      {
+        "key": "rionya-copy-combat",
+        "label": "Combat Copy Bursts",
+        "description": "Rionya wants creatures with huge enter or attack triggers plus cheap spells that scale the token count before combat.",
+        "cards": [
+          "Combat Celebrant",
+          "Fanatic of Mogis",
+          "Terror of the Peaks",
+          "Solemn Simulacrum",
+          "Expedite",
+          "Jeska's Will"
+        ]
+      }
+    ]
+  },
+  {
     "commanderName": "Rocco, Street Chef",
     "tags": [
       "exile-cast",
@@ -3569,6 +3914,29 @@
     ]
   },
   {
+    "commanderName": "Shilgengar, Sire of Famine",
+    "tags": [
+      "angels",
+      "graveyard",
+      "blood"
+    ],
+    "groups": [
+      {
+        "key": "shilgengar-blood-reanimation",
+        "label": "Blood-Fueled Reanimation",
+        "description": "Shilgengar wants Angels worth sacrificing, Blood production, and mass reanimation support so the six-Blood ability swings the board hard.",
+        "cards": [
+          "Bishop of Wings",
+          "Liesa, Forgotten Archangel",
+          "Entomb",
+          "Angel of Serenity",
+          "Ripples of Undeath",
+          "The Book of Exalted Deeds"
+        ]
+      }
+    ]
+  },
+  {
     "commanderName": "Shorikai, Genesis Engine",
     "tags": [
       "vehicles",
@@ -3656,6 +4024,29 @@
           "Jodah, the Unifier",
           "Kethis, the Hidden Hand",
           "Jegantha, the Wellspring"
+        ]
+      }
+    ]
+  },
+  {
+    "commanderName": "Slimefoot and Squee",
+    "tags": [
+      "graveyard",
+      "saprolings",
+      "recursion"
+    ],
+    "groups": [
+      {
+        "key": "slimefoot-squee-recursion",
+        "label": "Saproling Recursion Engine",
+        "description": "Slimefoot and Squee want token fodder and self-mill so the commander can keep reanimating itself and premium creatures from the graveyard.",
+        "cards": [
+          "Life from the Loam",
+          "Tendershoot Dryad",
+          "Goblin Bombardment",
+          "Entomb",
+          "Old Stickfingers",
+          "Dockside Extortionist"
         ]
       }
     ]
@@ -3753,6 +4144,29 @@
     ]
   },
   {
+    "commanderName": "Syr Konrad, the Grim",
+    "tags": [
+      "graveyard",
+      "mill",
+      "drain"
+    ],
+    "groups": [
+      {
+        "key": "syr-konrad-graveyard-drain",
+        "label": "Graveyard Drain Loops",
+        "description": "Syr Konrad wants self-mill, recursion loops, and repeatable graveyard movement so each cycle of cards entering or leaving graveyards drains the table.",
+        "cards": [
+          "Mesmeric Orb",
+          "Tortured Existence",
+          "Phyrexian Altar",
+          "Desecrated Tomb",
+          "Living Death",
+          "Mindcrank"
+        ]
+      }
+    ]
+  },
+  {
     "commanderName": "Sythis, Harvest's Hand",
     "tags": [
       "enchantress",
@@ -3770,6 +4184,29 @@
           "Sterling Grove",
           "Sanctum Weaver",
           "Kenrith's Transformation"
+        ]
+      }
+    ]
+  },
+  {
+    "commanderName": "Talion, the Kindly Lord",
+    "tags": [
+      "control",
+      "draw",
+      "punisher"
+    ],
+    "groups": [
+      {
+        "key": "talion-punisher-control",
+        "label": "Number Call Control",
+        "description": "Talion wants efficient permission and tax effects so the chosen number punishes opponents while you sit behind cards and tempo.",
+        "cards": [
+          "Notion Thief",
+          "Faerie Mastermind",
+          "Sheoldred, the Apocalypse",
+          "Force of Will",
+          "Opposition Agent",
+          "Rhystic Study"
         ]
       }
     ]
@@ -3839,6 +4276,29 @@
           "Training Grounds",
           "Dig Through Time",
           "Beast Within"
+        ]
+      }
+    ]
+  },
+  {
+    "commanderName": "Tatsunari, Toad Rider",
+    "tags": [
+      "enchantments",
+      "drain",
+      "tokens"
+    ],
+    "groups": [
+      {
+        "key": "tatsunari-enchantress-frog",
+        "label": "Enchantress Drain",
+        "description": "Tatsunari wants a classic enchantress shell with cheap enchantments that repeatedly trigger Keimi and let the Frog safely attack through blocks.",
+        "cards": [
+          "Enchantress' Presence",
+          "Setessan Champion",
+          "Ancestral Mask",
+          "Whip Silk",
+          "Honden of Night's Reach",
+          "Doomwake Giant"
         ]
       }
     ]
@@ -4189,6 +4649,28 @@
     ]
   },
   {
+    "commanderName": "Toski, Bearer of Secrets",
+    "tags": [
+      "combat",
+      "draw",
+      "go-wide"
+    ],
+    "groups": [
+      {
+        "key": "toski-chip-draw",
+        "label": "Wide Combat Draw",
+        "description": "Toski wants evasive creatures and token makers so combat damage turns into a steady stream of cards without overcommitting to sweepers.",
+        "cards": [
+          "Ohran Frostfang",
+          "Skullclamp",
+          "Scute Swarm",
+          "Beastmaster Ascension",
+          "Return of the Wildspeaker"
+        ]
+      }
+    ]
+  },
+  {
     "commanderName": "Tovolar, Dire Overlord",
     "tags": [
       "wolves",
@@ -4483,6 +4965,29 @@
           "Angrath's Marauders",
           "Drannith Magistrate",
           "Adeline, Resplendent Cathar"
+        ]
+      }
+    ]
+  },
+  {
+    "commanderName": "Xantcha, Sleeper Agent",
+    "tags": [
+      "group-slug",
+      "politics",
+      "draw"
+    ],
+    "groups": [
+      {
+        "key": "xantcha-political-slug",
+        "label": "Political Slug Pressure",
+        "description": "Xantcha wants table-pressure enchantments and mana support so the activated ability becomes a shared draw engine that also drains the chosen opponent down.",
+        "cards": [
+          "Heartstone",
+          "Curse of Opulence",
+          "Bloodchief Ascension",
+          "Spectacular Showdown",
+          "Phyrexian Tyranny",
+          "Seizan, Perverter of Truth"
         ]
       }
     ]
