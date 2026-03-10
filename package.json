@@ -24,6 +24,7 @@
     "spellbook:update": "npm run spellbook:download && npm run spellbook:compile",
     "rules:update": "node scripts/rules-sync-official.mjs",
     "precons:update": "node scripts/precons-sync.mjs",
+    "commander-profiles:generate": "tsx scripts/commander-profiles-generate.ts",
     "backup:reports": "node scripts/export-shared-reports.mjs",
     "restore:reports": "node scripts/import-shared-reports.mjs"
   },

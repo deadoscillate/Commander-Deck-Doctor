@@ -1,0 +1,503 @@
+[
+  {
+    "commanderName": "Edric, Spymaster of Trest",
+    "tags": [
+      "combat",
+      "evasion",
+      "tempo"
+    ],
+    "groups": [
+      {
+        "key": "edric-evasion",
+        "label": "Evasive Attackers",
+        "description": "Edric wants cheap evasive creatures that convert combat into repeated card draw.",
+        "cards": [
+          "Slither Blade",
+          "Mist-Cloaked Herald",
+          "Triton Shorestalker",
+          "Faerie Seer",
+          "Tetsuko Umezawa, Fugitive",
+          "Reconnaissance Mission"
+        ]
+      }
+    ]
+  },
+  {
+    "commanderName": "Jon Irenicus, Shattered One",
+    "tags": [
+      "donation",
+      "drawback-creatures"
+    ],
+    "groups": [
+      {
+        "key": "jon-donate",
+        "label": "Donation Package",
+        "description": "Jon Irenicus wants donated drawback creatures and support that makes bad gifts hard to undo.",
+        "cards": [
+          "Grid Monitor",
+          "Steel Golem",
+          "Abyssal Persecutor",
+          "Archfiend of the Dross",
+          "Puca's Mischief",
+          "Homeward Path"
+        ]
+      }
+    ]
+  },
+  {
+    "commanderName": "Jon Irenicus, the Exile",
+    "tags": [
+      "donation",
+      "drawback-creatures"
+    ],
+    "groups": [
+      {
+        "key": "jon-exile-donate",
+        "label": "Donation Package",
+        "description": "Jon Irenicus wants donated drawback creatures and support that makes bad gifts hard to undo.",
+        "cards": [
+          "Grid Monitor",
+          "Steel Golem",
+          "Abyssal Persecutor",
+          "Archfiend of the Dross",
+          "Puca's Mischief",
+          "Homeward Path"
+        ]
+      }
+    ]
+  },
+  {
+    "commanderName": "Adrix and Nev, Twincasters",
+    "tags": [
+      "tokens",
+      "doublers"
+    ],
+    "groups": [
+      {
+        "key": "adrix-nev-tokens",
+        "label": "Token Multipliers",
+        "description": "Adrix and Nev want token makers and token multipliers that scale every board presence.",
+        "cards": [
+          "Parallel Lives",
+          "Second Harvest",
+          "Junk Winder",
+          "Esix, Fractal Bloom",
+          "Scute Swarm",
+          "Awaken the Woods"
+        ]
+      }
+    ]
+  },
+  {
+    "commanderName": "Omarthys, Ghostfire Initiate",
+    "tags": [
+      "counters",
+      "colorless",
+      "mana-sink"
+    ],
+    "groups": [
+      {
+        "key": "omarthys-counters",
+        "label": "Colorless Counters",
+        "description": "Omarthys wants scalable colorless threats, counters payoffs, and mana sinks.",
+        "cards": [
+          "The Ozolith",
+          "Karn's Bastion",
+          "Stonecoil Serpent",
+          "Hangarback Walker",
+          "Walking Ballista",
+          "Animation Module"
+        ]
+      }
+    ]
+  },
+  {
+    "commanderName": "Sythis, Harvest's Hand",
+    "tags": [
+      "enchantress",
+      "value"
+    ],
+    "groups": [
+      {
+        "key": "sythis-enchantress",
+        "label": "Enchantress Core",
+        "description": "Sythis rewards cheap enchantments and engines that turn enchantment density into cards and mana.",
+        "cards": [
+          "Enchantress's Presence",
+          "Mesa Enchantress",
+          "Satyr Enchanter",
+          "Sterling Grove",
+          "Sanctum Weaver",
+          "Kenrith's Transformation"
+        ]
+      }
+    ]
+  },
+  {
+    "commanderName": "Krenko, Mob Boss",
+    "tags": [
+      "goblins",
+      "tokens",
+      "go-wide"
+    ],
+    "groups": [
+      {
+        "key": "krenko-go-wide",
+        "label": "Goblin Payoffs",
+        "description": "Krenko wants goblin-token payoffs, clamp effects, and reach from combat or sacrifice damage.",
+        "cards": [
+          "Skullclamp",
+          "Shared Animosity",
+          "Impact Tremors",
+          "Goblin Bombardment",
+          "Battle Cry Goblin",
+          "Coat of Arms"
+        ]
+      }
+    ]
+  },
+  {
+    "commanderName": "Atraxa, Praetors' Voice",
+    "tags": [
+      "proliferate",
+      "counters",
+      "superfriends"
+    ],
+    "groups": [
+      {
+        "key": "atraxa-proliferate",
+        "label": "Proliferate Package",
+        "description": "Atraxa wants counter payoffs and repeat proliferate tools that snowball into a finisher.",
+        "cards": [
+          "The Ozolith",
+          "Tezzeret's Gambit",
+          "Inspiring Call",
+          "Karn's Bastion",
+          "Walking Ballista",
+          "Deepglow Skate"
+        ]
+      }
+    ]
+  },
+  {
+    "commanderName": "Muldrotha, the Gravetide",
+    "tags": [
+      "graveyard",
+      "recursion",
+      "value"
+    ],
+    "groups": [
+      {
+        "key": "muldrotha-recursion",
+        "label": "Recursive Value",
+        "description": "Muldrotha wants self-mill, replayable permanents, and graveyard setup that turn every turn into value.",
+        "cards": [
+          "Entomb",
+          "Perpetual Timepiece",
+          "Seal of Primordium",
+          "Animate Dead",
+          "Life from the Loam",
+          "Sakura-Tribe Elder"
+        ]
+      }
+    ]
+  },
+  {
+    "commanderName": "Prosper, Tome-Bound",
+    "tags": [
+      "treasure",
+      "impulse-draw",
+      "exile-cast"
+    ],
+    "groups": [
+      {
+        "key": "prosper-exile",
+        "label": "Impulse Value",
+        "description": "Prosper wants repeat exile-cast access and Treasure payoffs that turn extra cards into mana.",
+        "cards": [
+          "Passionate Archaeologist",
+          "Nalfeshnee",
+          "The Lost and the Damned",
+          "Jeska's Will",
+          "Light Up the Stage",
+          "Professional Face-Breaker"
+        ]
+      }
+    ]
+  },
+  {
+    "commanderName": "Yuriko, the Tiger's Shadow",
+    "tags": [
+      "ninjutsu",
+      "evasion",
+      "topdeck"
+    ],
+    "groups": [
+      {
+        "key": "yuriko-ninjas",
+        "label": "Ninja Tempo",
+        "description": "Yuriko wants unblockable enablers and topdeck manipulation that convert combat triggers into damage.",
+        "cards": [
+          "Changeling Outcast",
+          "Moon-Circuit Hacker",
+          "Scroll Rack",
+          "Sensei's Divining Top",
+          "Soothsaying",
+          "Tetsuko Umezawa, Fugitive"
+        ]
+      }
+    ]
+  },
+  {
+    "commanderName": "Feather, the Redeemed",
+    "tags": [
+      "heroic",
+      "targeted-spells",
+      "recursion"
+    ],
+    "groups": [
+      {
+        "key": "feather-cantrips",
+        "label": "Targeted Cantrips",
+        "description": "Feather wants cheap spells that target your creatures and keep coming back every turn.",
+        "cards": [
+          "Defiant Strike",
+          "Expedite",
+          "Shelter",
+          "Gods Willing",
+          "Ancestral Anger",
+          "Season of Growth"
+        ]
+      }
+    ]
+  },
+  {
+    "commanderName": "Giada, Font of Hope",
+    "tags": [
+      "angels",
+      "counters",
+      "tribal"
+    ],
+    "groups": [
+      {
+        "key": "giada-angels",
+        "label": "Angel Curve",
+        "description": "Giada wants efficient Angels, tribal support, and payoffs that scale counters across the team.",
+        "cards": [
+          "Righteous Valkyrie",
+          "Youthful Valkyrie",
+          "Herald's Horn",
+          "Urza's Incubator",
+          "Vanquisher's Banner",
+          "The Ozolith"
+        ]
+      }
+    ]
+  },
+  {
+    "commanderName": "Chulane, Teller of Tales",
+    "tags": [
+      "creatures",
+      "bounce",
+      "value"
+    ],
+    "groups": [
+      {
+        "key": "chulane-value",
+        "label": "Creature Loops",
+        "description": "Chulane wants cheap ETB creatures and bounce loops that chain lands, cards, and mana.",
+        "cards": [
+          "Shrieking Drake",
+          "Whitemane Lion",
+          "Coiling Oracle",
+          "Wirewood Symbiote",
+          "Guardian Project",
+          "Beast Whisperer"
+        ]
+      }
+    ]
+  },
+  {
+    "commanderName": "Aesi, Tyrant of Gyre Strait",
+    "tags": [
+      "lands",
+      "ramp",
+      "card-draw"
+    ],
+    "groups": [
+      {
+        "key": "aesi-landfall",
+        "label": "Landfall Core",
+        "description": "Aesi wants extra land drops and landfall payoffs that turn ramp into pressure and card flow.",
+        "cards": [
+          "Exploration",
+          "Azusa, Lost but Seeking",
+          "Ancient Greenwarden",
+          "Scute Swarm",
+          "Tireless Provisioner",
+          "Ramunap Excavator"
+        ]
+      }
+    ]
+  },
+  {
+    "commanderName": "Isshin, Two Heavens as One",
+    "tags": [
+      "attack-triggers",
+      "combat",
+      "tokens"
+    ],
+    "groups": [
+      {
+        "key": "isshin-attacks",
+        "label": "Attack Triggers",
+        "description": "Isshin wants creatures and permanents that reward attacking and double up under his trigger.",
+        "cards": [
+          "Adeline, Resplendent Cathar",
+          "Professional Face-Breaker",
+          "Aurelia, the Warleader",
+          "Hero of Bladehold",
+          "Fervent Charge",
+          "Karlach, Fury of Avernus"
+        ]
+      }
+    ]
+  },
+  {
+    "commanderName": "Teysa Karlov",
+    "tags": [
+      "aristocrats",
+      "death-triggers"
+    ],
+    "groups": [
+      {
+        "key": "teysa-death",
+        "label": "Death Triggers",
+        "description": "Teysa wants cheap fodder, sacrifice outlets, and death-trigger payoffs that double cleanly.",
+        "cards": [
+          "Blood Artist",
+          "Cruel Celebrant",
+          "Bastion of Remembrance",
+          "Viscera Seer",
+          "Skullclamp",
+          "Requiem Angel"
+        ]
+      }
+    ]
+  },
+  {
+    "commanderName": "Lathril, Blade of the Elves",
+    "tags": [
+      "elves",
+      "go-wide",
+      "tribal"
+    ],
+    "groups": [
+      {
+        "key": "lathril-elves",
+        "label": "Elf Swarm",
+        "description": "Lathril wants elf mana creatures, payoff lords, and untap or drain support for big swings.",
+        "cards": [
+          "Priest of Titania",
+          "Elvish Archdruid",
+          "Beast Whisperer",
+          "Heritage Druid",
+          "Wirewood Symbiote",
+          "Tyvar Kell"
+        ]
+      }
+    ]
+  },
+  {
+    "commanderName": "Wilhelt, the Rotcleaver",
+    "tags": [
+      "zombies",
+      "aristocrats",
+      "tokens"
+    ],
+    "groups": [
+      {
+        "key": "wilhelt-zombies",
+        "label": "Zombie Attrition",
+        "description": "Wilhelt wants recursive Zombies, sacrifice outlets, and death payoffs that keep the board stocked.",
+        "cards": [
+          "Gravecrawler",
+          "Carrion Feeder",
+          "Diregraf Captain",
+          "Rooftop Storm",
+          "Skullclamp",
+          "Bastion of Remembrance"
+        ]
+      }
+    ]
+  },
+  {
+    "commanderName": "Jhoira, Weatherlight Captain",
+    "tags": [
+      "artifacts",
+      "historic",
+      "storm"
+    ],
+    "groups": [
+      {
+        "key": "jhoira-historic",
+        "label": "Historic Velocity",
+        "description": "Jhoira wants cheap historic spells and artifact reducers that chain draws into storm turns.",
+        "cards": [
+          "Mox Amber",
+          "Foundry Inspector",
+          "Cloud Key",
+          "Emry, Lurker of the Loch",
+          "Aetherflux Reservoir",
+          "Sai, Master Thopterist"
+        ]
+      }
+    ]
+  },
+  {
+    "commanderName": "Tovolar, Dire Overlord",
+    "tags": [
+      "wolves",
+      "combat",
+      "tribal"
+    ],
+    "groups": [
+      {
+        "key": "tovolar-wolves",
+        "label": "Wolf Pressure",
+        "description": "Tovolar wants cheap Wolves and Werewolves, combat support, and ways to keep day/night favorable.",
+        "cards": [
+          "Kessig Naturalist",
+          "Immerwolf",
+          "Howlpack Piper",
+          "Full Moon's Rise",
+          "Moonmist",
+          "The Celestus"
+        ]
+      }
+    ]
+  },
+  {
+    "commanderName": "Narset, Enlightened Exile",
+    "tags": [
+      "spells",
+      "noncreature",
+      "combat"
+    ],
+    "groups": [
+      {
+        "key": "narset-prowess",
+        "label": "Spell Combat",
+        "description": "Narset wants cheap noncreature spells and graveyard-cast support that leverage combat steps.",
+        "cards": [
+          "Monastery Mentor",
+          "Jeskai Ascendancy",
+          "Sevinne's Reclamation",
+          "Expressive Iteration",
+          "Defiant Strike",
+          "Consider"
+        ]
+      }
+    ]
+  }
+]

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildCommanderAbilitySuggestionGroups,
   buildColorStapleSuggestionNames,
   buildBuilderDecklist,
   buildManaBaseSuggestionNames,
@@ -7,6 +8,7 @@ import {
   extractNeeds,
   totalDeckCardCount
 } from "@/lib/builder";
+import { getCommanderProfile, getCommanderProfileCount } from "@/lib/commanderProfiles";
 
 describe("builder utilities", () => {
   it("builds a commander-first decklist with paired commanders", () => {
@@ -137,5 +139,35 @@ describe("builder utilities", () => {
       "Reliquary Tower",
       "Rogue's Passage"
     ]);
+  });
+
+  it("returns exact commander packages for known commanders", () => {
+    const groups = buildCommanderAbilitySuggestionGroups({
+      name: "Edric, Spymaster of Trest",
+      typeLine: "Legendary Creature — Elf Rogue",
+      oracleText:
+        "Whenever a creature deals combat damage to one of your opponents, its controller may draw a card."
+    });
+
+    expect(groups[0]?.label).toBe("Evasive Attackers");
+    expect(groups[0]?.names).toContain("Tetsuko Umezawa, Fugitive");
+    expect(groups[0]?.names).toContain("Reconnaissance Mission");
+  });
+
+  it("returns generic signal packages from commander text", () => {
+    const groups = buildCommanderAbilitySuggestionGroups({
+      name: "Test Tokens Commander",
+      typeLine: "Legendary Creature",
+      oracleText:
+        "Whenever you attack, create a 1/1 white Soldier creature token."
+    });
+
+    expect(groups.some((group) => group.names.includes("Parallel Lives"))).toBe(true);
+    expect(groups.some((group) => group.names.includes("Skullclamp"))).toBe(true);
+  });
+
+  it("loads a seeded commander-profile dataset", () => {
+    expect(getCommanderProfileCount()).toBeGreaterThanOrEqual(20);
+    expect(getCommanderProfile("Prosper, Tome-Bound")?.groups[0]?.cards).toContain("Jeska's Will");
   });
 });

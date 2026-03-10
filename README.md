@@ -12,6 +12,7 @@ npm run scryfall:update
 npm run spellbook:update
 npm run rules:update
 npm run precons:update
+npm run commander-profiles:generate
 npm run dev
 ```
 
@@ -66,6 +67,19 @@ npm run scryfall:update
 
 `oracle-default` prefers local default-card data first. `decklist-set` prefers the local print SQLite store first. Live Scryfall is fallback, not the primary path.
 
+### Commander Profiles
+
+Commander-specific builder packages live under `data/commander-profiles/`.
+
+- `curated.json`: reviewed commander profiles used by the builder first
+- `generated.json`: full generated commander-profile list for the legal commander pool, used as builder fallback after curated profiles
+
+Generate or refresh candidates with:
+
+```bash
+npm run commander-profiles:generate
+```
+
 ### Commander Spellbook
 
 Combo data is stored in `lib/combos.json`.
@@ -118,6 +132,8 @@ The precon browser now loads the full synced library, keeps search visible while
 - Builder suggestions are split into commander staples, color staples, role/archetype suggestions, combo suggestions, game changer suggestions, and mana-base suggestions, with land suggestions including basics, fixing staples, duals, and triomes when the color identity supports them.
 - Builder status is condensed into a tighter live snapshot row, the commander hero stays pinned while scrolling, and the hero now shows live deck price as cards are added and removed.
 - Builder deck rows only show quantity badges when duplicates are actually legal, such as basics and explicit multi-copy exceptions.
+- Builder commander guidance now prefers curated commander profiles first, then the full generated commander-profile list, and only then falls back to generic oracle-text heuristics.
+- Commander profile expansion now uses JSON-backed curated data plus generated candidate files, rather than keeping the dataset embedded in TypeScript.
 
 ## Ethics and Trust
 
@@ -190,6 +206,7 @@ Recommended deploy flow:
 - `POST /api/analyze`
 - `POST /api/card-printings`
 - `GET /api/card-search`
+- `GET /api/commander-profile`
 - `POST /api/commander-options`
 - `POST /api/import-url`
 - `POST /api/improvement-suggestions`
@@ -209,6 +226,7 @@ Current MVP state:
 - Builder commander search now uses art-backed result cards with full-card previews and dedicated telemetry.
 - Builder colorless commanders now resolve color-staple and mana-base suggestions correctly.
 - Builder top-row controls and status cards have been condensed to reduce wasted space.
+- Builder commander suggestions now include a curated commander-profile dataset plus a generated full commander list as fallback before generic commander-text inference.
 - Precon browsing is built in, scrollable, and print-aware.
 - Stock-precon comparison is built in for commander-matched decks.
 - Commander pairing flows now support legal pre-analyze pair selection instead of exposing the whole deck as possible pair choices.
@@ -263,6 +281,8 @@ Practical target:
 - Completed: stock-precon comparison for commander-matched decks
 - Completed: commander-options telemetry and local-only lookup path for the pre-analyze commander picker
 - Completed: stronger commander-aware suggestion ranking with real commander fixtures
+- In progress: promote high-value entries from the generated full commander-profile list into curated profiles
+- Completed: add commander-profile candidate generation from local Oracle heuristics
 
 ### Phase 4: Productization
 

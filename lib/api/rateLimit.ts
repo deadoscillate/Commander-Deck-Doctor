@@ -11,6 +11,7 @@ type RateLimitRule = {
     | "card-search"
     | "improvement-suggestions"
     | "commander-options"
+    | "commander-profile"
     | "precons";
   limit: number;
   windowSeconds: number;

@@ -12,6 +12,7 @@ import type { AnalyzeResponse, CommanderChoice, RoleBreakdown } from "@/lib/cont
 import {
   buildArchetypeSynergySuggestionNames,
   buildArchetypeLabel,
+  buildCommanderAbilitySuggestionGroups,
   buildBuilderDecklist,
   buildCommanderStapleSuggestionNames,
   buildColorStapleSuggestionNames,
@@ -64,6 +65,7 @@ type SavedBuilderDeck = {
 type SuggestionCardItem = {
   name: string;
   note?: string;
+  action?: "add" | "none";
 };
 
 type SuggestionGroup = {
@@ -74,12 +76,27 @@ type SuggestionGroup = {
 };
 
 type SuggestionCollections = {
+  ruleFixGroups: SuggestionGroup[];
+  commanderAbilityGroups: SuggestionGroup[];
   roleGroups: SuggestionGroup[];
   comboGroups: SuggestionGroup[];
   stapleGroup: SuggestionGroup | null;
   colorStapleGroup: SuggestionGroup | null;
   gameChangerGroup: SuggestionGroup | null;
   manaBaseGroup: SuggestionGroup | null;
+};
+
+type RemoteCommanderProfileResponse = {
+  commanderName: string;
+  source: "curated" | "generated" | "none";
+  profile: {
+    groups: Array<{
+      key: string;
+      label: string;
+      description: string;
+      cards: string[];
+    }>;
+  } | null;
 };
 
 type BuilderCardTypeFilter = "" | "artifact" | "battle" | "creature" | "enchantment" | "instant" | "land" | "planeswalker" | "sorcery";
@@ -394,6 +411,70 @@ function buildCommanderRoleSuggestionGroups(
   return groups.filter((group) => group.items.length > 0);
 }
 
+function buildRuleFixGroups(result: AnalyzeResponse | null): SuggestionGroup[] {
+  if (!result?.rulesEngine || result.rulesEngine.status === "PASS") {
+    return [];
+  }
+
+  const items: SuggestionCardItem[] = [];
+  const seen = new Set<string>();
+
+  const pushFixItem = (name: string, note: string) => {
+    const normalized = normalizeName(name);
+    if (!normalized || seen.has(normalized)) {
+      return;
+    }
+
+    seen.add(normalized);
+    items.push({
+      name,
+      note,
+      action: "none"
+    });
+  };
+
+  for (const entry of result.checks.colorIdentity.offColorCards) {
+    pushFixItem(entry.name, "Off-color for the selected commander. Remove or replace with a legal card.");
+  }
+
+  for (const entry of result.checks.singleton.duplicates) {
+    pushFixItem(entry.name, "Duplicate copies are not legal here unless the card text explicitly allows them.");
+  }
+
+  for (const rule of result.rulesEngine.rules.filter((entry) => entry.outcome === "FAIL")) {
+    if (rule.id === "commander.banlist") {
+      for (const finding of rule.findings) {
+        pushFixItem(finding.name, "Banned in Commander. Replace with a legal alternative.");
+      }
+    }
+
+    if (rule.id === "commander.special-card-type-bans") {
+      for (const finding of rule.findings) {
+        pushFixItem(finding.name, "Illegal in Commander because of special card-type restrictions.");
+      }
+    }
+
+    if (rule.id === "commander.companion-legality") {
+      for (const finding of rule.findings) {
+        pushFixItem(finding.name, "Companion setup is illegal for the current deck configuration.");
+      }
+    }
+  }
+
+  if (items.length === 0) {
+    return [];
+  }
+
+  return [
+    {
+      key: "legality-fixes",
+      label: "Legality Fixes",
+      description: "Live rules-engine issues that should be fixed before tuning the rest of the list.",
+      items
+    }
+  ];
+}
+
 function mergeSuggestionGroups(
   primary: SuggestionGroup[],
   fallback: SuggestionGroup[]
@@ -419,10 +500,14 @@ function buildSuggestionGroups(
   colorStaples: string[],
   gameChangerSuggestions: string[],
   manaBaseSuggestions: string[],
+  commanderAbilityGroups: SuggestionGroup[],
+  ruleFixGroups: SuggestionGroup[],
   fallbackRoleGroups: SuggestionGroup[]
 ): SuggestionCollections {
   if (!result) {
     return {
+      ruleFixGroups: [],
+      commanderAbilityGroups,
       roleGroups: fallbackRoleGroups,
       comboGroups: [],
       stapleGroup: commanderStaples.length > 0
@@ -485,6 +570,8 @@ function buildSuggestionGroups(
   });
 
   return {
+    ruleFixGroups,
+    commanderAbilityGroups,
     roleGroups: mergeSuggestionGroups(roleGroups, fallbackRoleGroups),
     comboGroups,
     stapleGroup:
@@ -576,6 +663,7 @@ export function CommanderDeckBuilder() {
   const [analysis, setAnalysis] = useState<AnalyzeResponse | null>(null);
   const [analysisLoading, setAnalysisLoading] = useState(false);
   const [analysisError, setAnalysisError] = useState("");
+  const [remoteCommanderProfile, setRemoteCommanderProfile] = useState<RemoteCommanderProfileResponse | null>(null);
   const [savedDecks, setSavedDecks] = useState<SavedBuilderDeck[]>([]);
   const [saveMessage, setSaveMessage] = useState("");
   const [decklistActionMessage, setDecklistActionMessage] = useState("");
@@ -725,6 +813,47 @@ export function CommanderDeckBuilder() {
     }
 
     void loadCommanderPairOptions();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedCommander]);
+
+  useEffect(() => {
+    if (!selectedCommander) {
+      setRemoteCommanderProfile(null);
+      return;
+    }
+
+    let cancelled = false;
+    setRemoteCommanderProfile(null);
+    const commanderName = selectedCommander.name;
+
+    async function loadCommanderProfile() {
+      try {
+        const response = await fetch(
+          `/api/commander-profile?name=${encodeURIComponent(commanderName)}`,
+          { cache: "force-cache" }
+        );
+        const payload = (await response.json()) as RemoteCommanderProfileResponse | { error: string };
+        if (cancelled) {
+          return;
+        }
+
+        if (!response.ok || "error" in payload) {
+          setRemoteCommanderProfile(null);
+          return;
+        }
+
+        setRemoteCommanderProfile(payload);
+      } catch {
+        if (!cancelled) {
+          setRemoteCommanderProfile(null);
+        }
+      }
+    }
+
+    void loadCommanderProfile();
 
     return () => {
       cancelled = true;
@@ -923,6 +1052,34 @@ export function CommanderDeckBuilder() {
     () => buildCommanderRoleSuggestionGroups(suggestionColorIdentity, archetypeNames, needs),
     [archetypeNames, needs, suggestionColorIdentity]
   );
+  const commanderAbilityGroups = useMemo(() => {
+    if (!selectedCommander) {
+      return [];
+    }
+
+    const datasetGroups =
+      remoteCommanderProfile?.profile?.groups?.map((group) => ({
+        key: group.key,
+        label: group.label,
+        description: group.description,
+        items: group.cards.map((name) => ({ name }))
+      })) ?? [];
+
+    if (datasetGroups.length > 0) {
+      return datasetGroups;
+    }
+
+    return buildCommanderAbilitySuggestionGroups({
+      name: selectedCommander.name,
+      typeLine: selectedCommander.typeLine,
+      oracleText: selectedCommander.oracleText
+    }).map((group) => ({
+      key: group.key,
+      label: group.label,
+      description: group.description,
+      items: group.names.map((name) => ({ name }))
+    }));
+  }, [remoteCommanderProfile, selectedCommander]);
   const commanderStaples = useMemo(
     () =>
       selectedCommander
@@ -965,9 +1122,11 @@ export function CommanderDeckBuilder() {
         colorStaples,
         gameChangerSuggestions,
         manaBaseSuggestions,
+        commanderAbilityGroups,
+        buildRuleFixGroups(analysis),
         fallbackRoleGroups
       ),
-    [analysis, colorStaples, commanderStaples, fallbackRoleGroups, gameChangerSuggestions, manaBaseSuggestions]
+    [analysis, colorStaples, commanderAbilityGroups, commanderStaples, fallbackRoleGroups, gameChangerSuggestions, manaBaseSuggestions]
   );
   const gameChangers = useMemo(
     () => analysis?.bracketReport?.gameChangersFound ?? [],
@@ -976,6 +1135,10 @@ export function CommanderDeckBuilder() {
   const filteredSuggestionGroups = useMemo(() => {
     const filterItems = (items: SuggestionCardItem[]) =>
       items.filter((item) => {
+        if (item.action === "none") {
+          return true;
+        }
+
         const normalized = normalizeName(item.name);
         const record = resolvedCardsByName[normalized];
         if (!record) {
@@ -986,6 +1149,12 @@ export function CommanderDeckBuilder() {
       });
 
     return {
+      ruleFixGroups: suggestionGroups.ruleFixGroups
+        .map((group) => ({ ...group, items: filterItems(group.items) }))
+        .filter((group) => group.items.length > 0),
+      commanderAbilityGroups: suggestionGroups.commanderAbilityGroups
+        .map((group) => ({ ...group, items: filterItems(group.items) }))
+        .filter((group) => group.items.length > 0),
       roleGroups: suggestionGroups.roleGroups
         .map((group) => ({ ...group, items: filterItems(group.items) }))
         .filter((group) => group.items.length > 0),
@@ -1029,6 +1198,8 @@ export function CommanderDeckBuilder() {
       ...colorStaples,
       ...gameChangerSuggestions,
       ...manaBaseSuggestions,
+      ...suggestionGroups.commanderAbilityGroups.flatMap((group) => group.items.map((item) => item.name)),
+      ...suggestionGroups.ruleFixGroups.flatMap((group) => group.items.map((item) => item.name)),
       ...suggestionGroups.roleGroups.flatMap((group) => group.items.map((item) => item.name)),
       ...suggestionGroups.comboGroups.flatMap((group) => group.items.map((item) => item.name))
     ];
@@ -1304,6 +1475,7 @@ export function CommanderDeckBuilder() {
             const existingQty =
               deckCards.find((entry) => normalizeName(entry.name) === normalizeName(item.name))?.qty ?? 0;
             const canAddMore = canAddMoreCopies(record, existingQty);
+            const canAdd = item.action !== "none";
 
             return (
               <article key={`${prefix}-${group.key}-${item.name}`} className="builder-search-card builder-suggestion-card">
@@ -1317,14 +1489,16 @@ export function CommanderDeckBuilder() {
                   </div>
                   {item.note ? <p className="muted builder-suggestion-note">{item.note}</p> : null}
                 </div>
-                <button
-                  type="button"
-                  className="btn-secondary"
-                  disabled={!canAddMore}
-                  onClick={() => addNamedCard(item.name)}
-                >
-                  {canAddMore ? "Add" : "In Deck"}
-                </button>
+                {canAdd ? (
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    disabled={!canAddMore}
+                    onClick={() => addNamedCard(item.name)}
+                  >
+                    {canAddMore ? "Add" : "In Deck"}
+                  </button>
+                ) : null}
               </article>
             );
           })}
@@ -1740,6 +1914,34 @@ export function CommanderDeckBuilder() {
             ) : (
               <div className="builder-suggestion-groups">
                 {renderSuggestionGroupPanel(filteredSuggestionGroups.colorStapleGroup, "color-staple")}
+              </div>
+            )}
+          </section>
+
+          <section className="builder-needs-panel">
+            <h3>Commander Gameplan</h3>
+            {!selectedCommander ? (
+              <p className="muted">Select a commander to surface ability-specific support cards.</p>
+            ) : filteredSuggestionGroups.commanderAbilityGroups.length === 0 ? (
+              <p className="muted">No commander-specific support package has been inferred yet.</p>
+            ) : (
+              <div className="builder-suggestion-groups">
+                {filteredSuggestionGroups.commanderAbilityGroups.map((group, index) =>
+                  renderSuggestionGroupPanel(group, "commander-gameplan", index === 0)
+                )}
+              </div>
+            )}
+          </section>
+
+          <section className="builder-needs-panel">
+            <h3>Legality Fixes</h3>
+            {filteredSuggestionGroups.ruleFixGroups.length === 0 ? (
+              <p className="muted">No active rules-engine legality issues in the current build.</p>
+            ) : (
+              <div className="builder-suggestion-groups">
+                {filteredSuggestionGroups.ruleFixGroups.map((group, index) =>
+                  renderSuggestionGroupPanel(group, "legality-fixes", index === 0)
+                )}
               </div>
             )}
           </section>

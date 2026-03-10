@@ -1,6 +1,8 @@
 import { parseDecklistWithCommander } from "@/lib/decklist";
 import type { RecommendedCountRow, RoleBreakdown } from "@/lib/contracts";
 import type { DeckArchetypeReport } from "@/lib/archetypes";
+import { getCommanderProfile } from "@/lib/commanderProfiles";
+import { buildCommanderSignalPattern, COMMANDER_SIGNAL_SUGGESTION_GROUPS } from "@/lib/commanderSignals";
 
 export type BuilderDeckCard = {
   name: string;
@@ -45,6 +47,13 @@ export type BuilderNeedSummary = {
   deficit: number;
   current: number;
   recommendedMin: number;
+};
+
+export type BuilderSuggestionSeedGroup = {
+  key: string;
+  label: string;
+  description: string;
+  names: string[];
 };
 
 const COLOR_ORDER = ["W", "U", "B", "R", "G"];
@@ -223,6 +232,46 @@ export function inferCommanderArchetypes(card: {
   }
 
   return uniqueNames(labels);
+}
+
+export function buildCommanderAbilitySuggestionGroups(card: {
+  name: string;
+  typeLine?: string;
+  oracleText?: string;
+}): BuilderSuggestionSeedGroup[] {
+  const oracleText = card.oracleText ?? "";
+  const groups: BuilderSuggestionSeedGroup[] = [];
+  const seen = new Set<string>();
+
+  for (const group of getCommanderProfile(card.name)?.groups ?? []) {
+    if (seen.has(group.key)) {
+      continue;
+    }
+
+    groups.push({
+      key: group.key,
+      label: group.label,
+      description: group.description,
+      names: uniqueNames(group.cards)
+    });
+    seen.add(group.key);
+  }
+
+  for (const group of COMMANDER_SIGNAL_SUGGESTION_GROUPS) {
+    if (!buildCommanderSignalPattern(group.patternSource).test(oracleText) || seen.has(group.key)) {
+      continue;
+    }
+
+    groups.push({
+      key: group.key,
+      label: group.label,
+      description: group.description,
+      names: uniqueNames(group.names)
+    });
+    seen.add(group.key);
+  }
+
+  return groups.filter((group) => group.names.length > 0);
 }
 
 export function computePreconSimilarity(

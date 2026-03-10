@@ -247,6 +247,23 @@ describe("builder page", () => {
         });
       }
 
+      if (url.startsWith("/api/commander-profile?name=")) {
+        return jsonResponse({
+          commanderName: "Edric, Spymaster of Trest",
+          source: "curated",
+          profile: {
+            groups: [
+              {
+                key: "edric-evasion",
+                label: "Evasive Attackers",
+                description: "test",
+                cards: ["Tetsuko Umezawa, Fugitive", "Reconnaissance Mission"]
+              }
+            ]
+          }
+        });
+      }
+
       if (url.startsWith("/api/card-search?") && url.includes("Counterspell")) {
         return jsonResponse({
           query: "Counterspell",
