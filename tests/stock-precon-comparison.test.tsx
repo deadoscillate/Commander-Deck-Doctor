@@ -181,6 +181,8 @@ describe("StockPreconComparison", () => {
     });
 
     expect(screen.getByText(/USD Price Delta/i)).toBeTruthy();
+    expect(screen.getByText(/Interaction Delta/i)).toBeTruthy();
+    expect(screen.getByText(/Upgrade Snapshot/i)).toBeTruthy();
     expect(screen.getByText(/\+\$124\.52/)).toBeTruthy();
     expect(screen.getByText(/Added vs Stock/i)).toBeTruthy();
     expect(screen.getByText("Arcane Signet")).toBeTruthy();

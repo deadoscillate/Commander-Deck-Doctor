@@ -167,7 +167,8 @@ describe("builder utilities", () => {
   });
 
   it("loads a seeded commander-profile dataset", () => {
-    expect(getCommanderProfileCount()).toBeGreaterThanOrEqual(20);
+    expect(getCommanderProfileCount()).toBeGreaterThanOrEqual(35);
     expect(getCommanderProfile("Prosper, Tome-Bound")?.groups[0]?.cards).toContain("Jeska's Will");
+    expect(getCommanderProfile("Miirym, Sentinel Wyrm")?.groups[0]?.cards).toContain("Dragon Tempest");
   });
 });

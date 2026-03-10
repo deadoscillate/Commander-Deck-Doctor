@@ -532,6 +532,56 @@ export async function getSqlitePrintCardByName(name: string): Promise<LocalPrint
   return toLocalPrintCardRecord(row);
 }
 
+export async function getSqlitePrintCardsByNames(
+  names: string[]
+): Promise<Map<string, LocalPrintCardRecord>> {
+  const database = await ensureDb();
+  const deduped = new Map<string, string>();
+
+  for (const name of names) {
+    const normalizedName = normalizeLookupName(name);
+    if (!normalizedName || deduped.has(normalizedName)) {
+      continue;
+    }
+
+    deduped.set(normalizedName, normalizedName);
+  }
+
+  if (!database || deduped.size === 0) {
+    return new Map();
+  }
+
+  const placeholders = [...deduped.keys()].map(() => "?").join(", ");
+  const queryParts = printCardsSelectClause
+    ? { selectClause: printCardsSelectClause, fromClause: printCardsFromClause }
+    : buildQueryParts(database);
+  const rows = database
+    .prepare(
+      `
+      SELECT ${queryParts.selectClause}
+      ${queryParts.fromClause}
+      WHERE normalized_name IN (${placeholders})
+      ORDER BY normalized_name ASC, collector_sort_rank ASC, collector_sort_suffix ASC, printing_id ASC
+    `
+    )
+    .all(...deduped.values()) as PrintRow[];
+
+  const results = new Map<string, LocalPrintCardRecord>();
+  for (const row of rows) {
+    const record = toLocalPrintCardRecord(row);
+    if (!record) {
+      continue;
+    }
+
+    const key = `name:${normalizeLookupName(record.name)}`;
+    if (!results.has(key)) {
+      results.set(key, record);
+    }
+  }
+
+  return results;
+}
+
 export async function getSqlitePrintCardsByNameSets(
   lookups: NameSetLookup[]
 ): Promise<Map<string, LocalPrintCardRecord>> {

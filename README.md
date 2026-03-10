@@ -118,7 +118,7 @@ The precon browser now loads the full synced library, keeps search visible while
 
 - `oracle-default` is the fast name-based pricing path.
 - `[SET]` tags enable set-aware pricing and print selection.
-- Explicit print tags are now honored first even in `oracle-default`, so tagged lists price against the intended print before falling back to default-name pricing.
+- Exact print hints (printing ID or set + collector number) are honored first even in `oracle-default`; plain `[SET]` tags remain best-effort unless `decklist-set` is selected.
 - Pre-analyze commander selection now uses commander-eligible candidates only, resolves them from local card data first, and only shows a second selector when the chosen commander has legal pair options.
 - Companion declarations are parsed separately from the 100-card deck and validated deterministically in Commander rules checks.
 - Singleton validation now respects card-text exceptions such as unlimited-copy cards and capped exceptions like Seven Dwarves.
@@ -128,18 +128,20 @@ The precon browser now loads the full synced library, keeps search visible while
 - Improvement suggestions load after the initial report from `POST /api/improvement-suggestions`.
 - Card previews, seller links, pricing confidence, and print pickers are available in the report UI.
 - Matching stock precons load in the report for side-by-side comparison without replacing the current analysis.
+- Stock-precon comparison now surfaces richer upgrade deltas, including interaction, consistency, combos, game changers, and a short upgrade snapshot.
 - The `/builder` workflow starts from a compact commander-picker toolbar, keeps a live 99-card decklist, mirrors the commander hero/background treatment from the analyzer, uses art-backed commander search result cards with full-card previews, groups the main deck by card roles, surfaces hover previews across deck sections and suggestions, and saves local builder states separately from analyzer deck saves.
 - Builder suggestions are split into commander staples, color staples, role/archetype suggestions, combo suggestions, game changer suggestions, and mana-base suggestions, with land suggestions including basics, fixing staples, duals, and triomes when the color identity supports them.
 - Builder status is condensed into a tighter live snapshot row, the commander hero stays pinned while scrolling, and the hero now shows live deck price as cards are added and removed.
 - Builder deck rows only show quantity badges when duplicates are actually legal, such as basics and explicit multi-copy exceptions.
 - Builder commander guidance now prefers curated commander profiles first, then the full generated commander-profile list, and only then falls back to generic oracle-text heuristics.
 - Commander profile expansion now uses JSON-backed curated data plus generated candidate files, rather than keeping the dataset embedded in TypeScript.
+- Seller links now flow through a centralized outbound-decoration layer so future affiliate parameters can be added without changing analyzer logic.
 
 ## Ethics and Trust
 
 - Analysis outputs are heuristics, not official rulings or tournament policy.
 - Deck pricing is informational and now surfaces confidence based on exact-print, set, name, and fallback matches.
-- Seller links are supplementary and do not affect legality, suggestions, archetypes, or rankings.
+- Seller links are supplementary and do not affect legality, suggestions, archetypes, or rankings; any future affiliate parameters are applied outside the analyzer pipeline.
 - Raw decklists are not stored in telemetry.
 - Shared reports are explicit user actions and persist server-side only when a user chooses to create a share link.
 - If affiliate links are enabled later, they must be disclosed in-product where those links appear and must remain separate from analysis logic.
@@ -210,6 +212,7 @@ Recommended deploy flow:
 - `POST /api/commander-options`
 - `POST /api/import-url`
 - `POST /api/improvement-suggestions`
+- `GET /api/outbound`
 - `POST /api/share-report`
 - `POST /api/simulate`
 - `GET /api/precons`
@@ -227,8 +230,10 @@ Current MVP state:
 - Builder colorless commanders now resolve color-staple and mana-base suggestions correctly.
 - Builder top-row controls and status cards have been condensed to reduce wasted space.
 - Builder commander suggestions now include a curated commander-profile dataset plus a generated full commander list as fallback before generic commander-text inference.
+- Curated commander profiles have been expanded with a first high-value promotion batch on top of the generated full-pool dataset.
 - Precon browsing is built in, scrollable, and print-aware.
 - Stock-precon comparison is built in for commander-matched decks.
+- Stock-precon comparison now shows richer practical deltas instead of only card adds/cuts and price.
 - Commander pairing flows now support legal pre-analyze pair selection instead of exposing the whole deck as possible pair choices.
 - Companion legality now covers deterministic validation for the ten official companions, including color identity, deck-building restriction checks, and banlist handling.
 - Category-based Commander deck-construction bans now surface explicitly for ante cards and Conspiracy cards.
@@ -269,6 +274,7 @@ Practical target:
 - Completed: separate telemetry and local-only lookup path for `/api/commander-options`
 - Completed: Archidekt import now emits print-aware decklists and switches imported decks into `decklist-set`
 - Completed: pricing now preserves print-level match quality and exact seller links through the local Scryfall pipeline
+- Completed: oracle-default local print fallback now uses batched local lookups before remote fallback churn
 - Ongoing: reduce the remaining `oracle-default` cold-miss lookup cost in `/api/analyze`
 
 ### Phase 2: Analyzer Quality
@@ -281,7 +287,8 @@ Practical target:
 - Completed: stock-precon comparison for commander-matched decks
 - Completed: commander-options telemetry and local-only lookup path for the pre-analyze commander picker
 - Completed: stronger commander-aware suggestion ranking with real commander fixtures
-- In progress: promote high-value entries from the generated full commander-profile list into curated profiles
+- Completed: first curated promotion batch from the generated full commander-profile list
+- In progress: continue promoting high-value commanders from the generated full commander-profile list into curated profiles
 - Completed: add commander-profile candidate generation from local Oracle heuristics
 
 ### Phase 4: Productization
@@ -290,7 +297,8 @@ Practical target:
 - Completed: builder UI parity with commander hero/background treatment, grouped deck sections, preview-backed suggestions, condensed status cards, and color-aware mana-base recommendations
 - Completed: dedicated builder commander-search telemetry for search latency and cold-start tracking
 - Completed: compact top-row commander picker, sticky builder hero, live deck-price hero pill, and builder quantity cleanup for singleton cards
-- Next: add richer stock-vs-current comparison views and release-quality telemetry dashboards
+- Completed: richer stock-vs-current comparison views
+- Next: add release-quality telemetry dashboards
 
 ### Phase 3: Commander Rules Completeness
 
@@ -306,5 +314,5 @@ Practical target:
 - Expand telemetry dashboards and release gates
 - Keep privacy and ethics disclosures aligned with telemetry and sharing behavior
 - Maintain automated dataset refresh workflows
-- Next: add centralized affiliate-link decoration for seller URLs without changing analyzer logic
+- Completed: centralized affiliate-link decoration for seller URLs without changing analyzer logic
 - Next: add visible in-product affiliate disclosure once seller-link monetization is enabled

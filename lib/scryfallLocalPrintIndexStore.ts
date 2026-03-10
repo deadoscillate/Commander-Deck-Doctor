@@ -5,6 +5,7 @@ import type { ScryfallCardFace, ScryfallImageUris, ScryfallPrices, ScryfallPurch
 import {
   getSqlitePrintCardById,
   getSqlitePrintCardByName,
+  getSqlitePrintCardsByNames,
   getSqlitePrintCardsByIds,
   getSqlitePrintCardsByNameSets,
   getSqlitePrintCardsBySetCollectors,
@@ -305,6 +306,35 @@ export async function getLocalPrintCardByName(name: string): Promise<LocalPrintC
   }
 
   return null;
+}
+
+export async function getLocalPrintCardsByNames(
+  names: string[]
+): Promise<Map<string, LocalPrintCardRecord>> {
+  const sqliteCards = await getSqlitePrintCardsByNames(names);
+  if (sqliteCards.size > 0) {
+    return new Map([...sqliteCards.entries()].map(([key, record]) => [key, normalizeRecord(record)]));
+  }
+
+  const results = new Map<string, LocalPrintCardRecord>();
+  for (const name of names) {
+    const normalizedName = typeof name === "string" ? name.trim() : "";
+    if (!normalizedName) {
+      continue;
+    }
+
+    const key = `name:${normalizeLookupName(normalizedName)}`;
+    if (results.has(key)) {
+      continue;
+    }
+
+    const record = await getLocalPrintCardByName(normalizedName);
+    if (record) {
+      results.set(key, record);
+    }
+  }
+
+  return results;
 }
 
 export async function getLocalPrintCardsByNameSets(

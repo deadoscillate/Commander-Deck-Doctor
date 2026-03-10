@@ -19,8 +19,12 @@ import {
 import {
   getLocalPrintCardById,
   getLocalPrintCardByName,
+  getLocalPrintCardsByNames,
   getLocalPrintCardByNameSet,
   getLocalPrintCardBySetCollector,
+  getLocalPrintCardsByIds,
+  getLocalPrintCardsByNameSets,
+  getLocalPrintCardsBySetCollectors,
   type LocalPrintCardRecord
 } from "./scryfallLocalPrintIndexStore";
 import { prewarmSqlitePrintStore } from "./scryfallLocalPrintSqliteStore";
@@ -652,34 +656,58 @@ async function getLocalPrintLookupMaps(parsedDeck: ParsedDeckEntry[]): Promise<L
   const lookups = createEmptyLocalPrintLookupMaps();
   const persistedCards: ScryfallCard[] = [];
 
+  const printingIdLookups = await getLocalPrintCardsByIds(
+    parsedDeck
+      .map((entry) => (typeof entry.printingId === "string" ? entry.printingId.trim() : ""))
+      .filter(Boolean)
+  );
+  const setCollectorLookups = await getLocalPrintCardsBySetCollectors(
+    parsedDeck
+      .map((entry) => ({
+        setCode: typeof entry.setCode === "string" ? entry.setCode.trim().toLowerCase() : "",
+        collectorNumber: typeof entry.collectorNumber === "string" ? entry.collectorNumber.trim() : ""
+      }))
+      .filter((entry) => entry.setCode && entry.collectorNumber)
+  );
+  const nameSetLookups = await getLocalPrintCardsByNameSets(
+    parsedDeck
+      .map((entry) => ({
+        name: entry.name,
+        setCode: typeof entry.setCode === "string" ? entry.setCode.trim().toLowerCase() : ""
+      }))
+      .filter((entry) => entry.setCode)
+  );
+
   for (const entry of parsedDeck) {
-    let card: ScryfallCard | null = null;
+    let record: LocalPrintCardRecord | null = null;
     const printingId = typeof entry.printingId === "string" ? entry.printingId.trim() : "";
     const setCode = typeof entry.setCode === "string" ? entry.setCode.trim().toLowerCase() : "";
     const collectorNumber =
       typeof entry.collectorNumber === "string" ? entry.collectorNumber.trim() : "";
 
     if (printingId) {
-      const record = await getLocalPrintCardById(printingId);
-      if (record) {
-        card = toScryfallCardFromLocalPrintRecord(record);
+      record = printingIdLookups.get(buildPrintingIdKey(printingId)) ?? null;
+    }
+
+    if (!record && setCode && collectorNumber) {
+      const candidate = setCollectorLookups.get(buildSetCollectorKey(setCode, collectorNumber)) ?? null;
+      if (candidate && normalizeLookupName(candidate.name) === normalizeLookupName(entry.name)) {
+        record = candidate;
       }
     }
 
-    if (!card && setCode && collectorNumber) {
-      const record = await getLocalPrintCardBySetCollector(setCode, collectorNumber);
-      if (record && normalizeLookupName(record.name) === normalizeLookupName(entry.name)) {
-        card = toScryfallCardFromLocalPrintRecord(record);
+    if (!record && setCode) {
+      const candidate = nameSetLookups.get(buildNameSetKey(entry.name, setCode)) ?? null;
+      if (candidate && (!collectorNumber || collectorNumberMatches(collectorNumber, candidate.collector_number))) {
+        record = candidate;
       }
     }
 
-    if (!card && setCode) {
-      const record = await getLocalPrintCardByNameSet(entry.name, setCode);
-      if (record && (!collectorNumber || collectorNumberMatches(collectorNumber, record.collector_number))) {
-        card = toScryfallCardFromLocalPrintRecord(record);
-      }
+    if (!record) {
+      continue;
     }
 
+    const card = toScryfallCardFromLocalPrintRecord(record);
     if (!card) {
       continue;
     }
@@ -695,23 +723,8 @@ async function getLocalPrintLookupMaps(parsedDeck: ParsedDeckEntry[]): Promise<L
 
 async function getLocalPrintFallbackCardsByNames(names: string[]): Promise<Map<string, ScryfallCard>> {
   const rows = new Map<string, ScryfallCard>();
-
-  for (const name of names) {
-    const trimmed = typeof name === "string" ? name.trim() : "";
-    if (!trimmed) {
-      continue;
-    }
-
-    const key = buildNameKey(trimmed);
-    if (rows.has(key)) {
-      continue;
-    }
-
-    const record = await getLocalPrintCardByName(trimmed);
-    if (!record) {
-      continue;
-    }
-
+  const lookupMap = await getLocalPrintCardsByNames(names);
+  for (const [key, record] of lookupMap.entries()) {
     const card = toScryfallCardFromLocalPrintRecord(record);
     if (!card) {
       continue;
@@ -1212,7 +1225,7 @@ export async function fetchDeckCards(
   let localOracleFallbacks = new Map<string, ScryfallCard>();
 
   if (mode === "oracle-default") {
-    const exactRequestedEntries = parsedDeck.filter((entry) => hasRequestedPrintHint(entry));
+    const exactRequestedEntries = parsedDeck.filter((entry) => hasRequestedExactPrint(entry));
     if (exactRequestedEntries.length > 0) {
       localPrintLookups = await getLocalPrintLookupMaps(exactRequestedEntries);
       const unresolvedForPreciseBatch = exactRequestedEntries.filter(
@@ -1330,11 +1343,6 @@ export async function fetchDeckCards(
         if (!card && !localOnly && setCode && collectorNumber) {
           card = await getCardBySetAndCollector(setCode, collectorNumber);
           source = card ? "set-collector-fallback" : source;
-        }
-
-        if (!card && !localOnly && setCode) {
-          card = await getCardByNameWithSet(entry.name, setCode);
-          source = card ? "set-fallback" : source;
         }
 
         if (!card && localDefault) {

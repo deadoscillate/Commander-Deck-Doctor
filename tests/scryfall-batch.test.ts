@@ -74,6 +74,7 @@ function mockEmptyLocalPrintIndexStore(): void {
   vi.doMock("@/lib/scryfallLocalPrintIndexStore", () => ({
     getLocalPrintCardById: vi.fn(() => null),
     getLocalPrintCardByName: vi.fn(async () => null),
+    getLocalPrintCardsByNames: vi.fn(async () => new Map()),
     getLocalPrintCardsByIds: vi.fn(async () => new Map()),
     getLocalPrintCardBySetCollector: vi.fn(() => null),
     getLocalPrintCardsBySetCollectors: vi.fn(async () => new Map()),
@@ -320,6 +321,8 @@ describe("scryfall set-batch lookup", () => {
     vi.stubGlobal("fetch", fetchMock);
     vi.doMock("@/lib/scryfallLocalPrintIndexStore", () => ({
       getLocalPrintCardById: vi.fn(() => null),
+      getLocalPrintCardByName: vi.fn(async () => null),
+      getLocalPrintCardsByNames: vi.fn(async () => new Map()),
       getLocalPrintCardsByIds: vi.fn(async () => new Map()),
       getLocalPrintCardBySetCollector: vi.fn((setCode: string, collectorNumber: string) =>
         setCode === "c20" && collectorNumber === "237"
@@ -470,6 +473,7 @@ describe("scryfall set-batch lookup", () => {
     vi.doMock("@/lib/scryfallLocalPrintIndexStore", () => ({
       getLocalPrintCardById: vi.fn(async () => null),
       getLocalPrintCardByName: vi.fn(async () => null),
+      getLocalPrintCardsByNames: vi.fn(async () => new Map()),
       getLocalPrintCardsByIds: vi.fn(async () => new Map()),
       getLocalPrintCardBySetCollector: vi.fn(async (setCode: string, collectorNumber: string) =>
         setCode === "cmm" && collectorNumber === "217"
@@ -571,6 +575,37 @@ describe("scryfall set-batch lookup", () => {
       "https://shop.test/cardkingdom/sol-ring-cmm-217"
     );
     expect(result.knownCards[0]?.priceMatch).toBe("exact-print");
+    expect(result.unknownCards).toHaveLength(0);
+    expect(fetchMock).toHaveBeenCalledTimes(0);
+  });
+
+  it("keeps set-only oracle-default lookups on the default-name path when local coverage exists", async () => {
+    const fetchMock = vi.fn(async () =>
+      jsonResponse({ object: "error", code: "unexpected_network_lookup" }, 500)
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    vi.doMock("@/lib/scryfallLocalDefaultStore", () => ({
+      getLocalDefaultCardByName: vi.fn((name: string) =>
+        name === "Sol Ring" ? toCard("Sol Ring", "c20", "241") : null
+      ),
+      getLocalDefaultCardsByNames: vi.fn((names: string[]) => {
+        const rows = new Map();
+        for (const name of names) {
+          if (name === "Sol Ring") {
+            rows.set("name:solring", toCard("Sol Ring", "c20", "241"));
+          }
+        }
+        return rows;
+      })
+    }));
+    mockEmptyLocalPrintIndexStore();
+
+    const { fetchDeckCards } = await import("@/lib/scryfall");
+    const parsedDeck = [{ name: "Sol Ring", qty: 1, setCode: "cmm" }];
+
+    const result = await fetchDeckCards(parsedDeck, 8, { deckPriceMode: "oracle-default" });
+
+    expect(result.knownCards).toHaveLength(1);
     expect(result.unknownCards).toHaveLength(0);
     expect(fetchMock).toHaveBeenCalledTimes(0);
   });
@@ -728,6 +763,38 @@ describe("scryfall set-batch lookup", () => {
               purchase_uris: null
             }
           : null
+      ),
+      getLocalPrintCardsByNames: vi.fn(async (names: string[]) =>
+        new Map(
+          names
+            .filter((name) => name === "Elessar, the Elfstone")
+            .map((name) => [
+              "name:elessartheelfstone",
+              {
+                id: "print-elessar-the-elfstone",
+                oracle_id: "oracle-elessar-the-elfstone",
+                name,
+                set: "ltc",
+                collector_number: "349",
+                type_line: "Legendary Artifact",
+                cmc: 2,
+                mana_cost: "{1}{W}",
+                colors: ["W"],
+                color_identity: ["W"],
+                oracle_text: "Whenever a legendary creature enters the battlefield under your control, draw a card.",
+                keywords: [],
+                image_uris: null,
+                card_faces: [],
+                prices: {
+                  usd: "0.65",
+                  usd_foil: null,
+                  usd_etched: null,
+                  tix: null
+                },
+                purchase_uris: null
+              }
+            ])
+        )
       ),
       getLocalPrintCardsByIds: vi.fn(async () => new Map()),
       getLocalPrintCardBySetCollector: vi.fn(async () => null),

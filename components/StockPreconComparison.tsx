@@ -36,6 +36,18 @@ function formatSignedCurrency(value: number): string {
   return `${rounded >= 0 ? "+" : "-"}$${Math.abs(rounded).toFixed(2)}`;
 }
 
+function formatSignedCount(value: number): string {
+  return `${value >= 0 ? "+" : ""}${value}`;
+}
+
+function countLowRows(result: AnalyzeResponse): number {
+  return result.deckHealth.rows.filter((row) => row.status === "LOW").length;
+}
+
+function sumNamedCounts(rows: Array<{ qty: number }>): number {
+  return rows.reduce((sum, row) => sum + row.qty, 0);
+}
+
 function buildDeckCardMap(result: AnalyzeResponse): Map<string, { name: string; qty: number }> {
   const rows = new Map<string, { name: string; qty: number }>();
   for (const entry of result.parsedDeck) {
@@ -239,6 +251,52 @@ export function StockPreconComparison({
       .filter((row) => row.value !== 0)
       .sort((left, right) => Math.abs(right.value) - Math.abs(left.value) || left.key.localeCompare(right.key));
 
+    const typeDelta = Object.entries(result.summary.types)
+      .map(([key, value]) => ({
+        key,
+        value: value - stockResult.summary.types[key as keyof typeof stockResult.summary.types]
+      }))
+      .filter((row) => row.value !== 0)
+      .sort((left, right) => Math.abs(right.value) - Math.abs(left.value) || left.key.localeCompare(right.key));
+
+    const interactionDelta =
+      result.roles.removal +
+      result.roles.wipes +
+      result.roles.protection -
+      (stockResult.roles.removal + stockResult.roles.wipes + stockResult.roles.protection);
+    const comboDelta = result.comboReport.detected.length - stockResult.comboReport.detected.length;
+    const gameChangerDelta =
+      sumNamedCounts(result.bracketReport.gameChangersFound) -
+      sumNamedCounts(stockResult.bracketReport.gameChangersFound);
+    const consistencyDelta = result.ruleZero.consistency.score - stockResult.ruleZero.consistency.score;
+    const needsDelta = countLowRows(stockResult) - countLowRows(result);
+    const landDelta = result.summary.types.land - stockResult.summary.types.land;
+
+    const highlights: string[] = [];
+    if (interactionDelta !== 0) {
+      highlights.push(
+        `${interactionDelta > 0 ? "More" : "Less"} interaction than stock (${formatSignedCount(interactionDelta)}).`
+      );
+    }
+    if (comboDelta !== 0) {
+      highlights.push(`${comboDelta > 0 ? "More" : "Fewer"} live combos than stock (${formatSignedCount(comboDelta)}).`);
+    }
+    if (gameChangerDelta !== 0) {
+      highlights.push(
+        `${gameChangerDelta > 0 ? "Higher" : "Lower"} game changer count than stock (${formatSignedCount(gameChangerDelta)}).`
+      );
+    }
+    if (needsDelta !== 0) {
+      highlights.push(
+        `${needsDelta > 0 ? "Fewer" : "More"} low-count role gaps than stock (${formatSignedCount(needsDelta)}).`
+      );
+    }
+    if (consistencyDelta !== 0) {
+      highlights.push(
+        `${consistencyDelta > 0 ? "Higher" : "Lower"} consistency score than stock (${formatSignedCount(consistencyDelta)}).`
+      );
+    }
+
     return {
       stockResult,
       priceDelta:
@@ -247,7 +305,15 @@ export function StockPreconComparison({
           : null,
       bracketDelta: result.bracketReport.estimatedBracket - stockResult.bracketReport.estimatedBracket,
       manaValueDelta: result.summary.averageManaValue - stockResult.summary.averageManaValue,
+      interactionDelta,
+      comboDelta,
+      gameChangerDelta,
+      consistencyDelta,
+      needsDelta,
+      landDelta,
       roleDelta,
+      typeDelta,
+      highlights,
       added,
       removed
     };
@@ -315,13 +381,54 @@ export function StockPreconComparison({
                 {comparison.removed.reduce((sum, row) => sum + row.qty, 0)}
               </strong>
             </div>
+            <div className="summary-card">
+              <span>Interaction Delta</span>
+              <strong>{formatSignedCount(comparison.interactionDelta)}</strong>
+            </div>
+            <div className="summary-card">
+              <span>Consistency Delta</span>
+              <strong>{formatSignedCount(comparison.consistencyDelta)}</strong>
+            </div>
+            <div className="summary-card">
+              <span>Combo Delta</span>
+              <strong>{formatSignedCount(comparison.comboDelta)}</strong>
+            </div>
+            <div className="summary-card">
+              <span>Game Changer Delta</span>
+              <strong>{formatSignedCount(comparison.gameChangerDelta)}</strong>
+            </div>
           </div>
+
+          {comparison.highlights.length > 0 ? (
+            <div className="technical-group">
+              <h3>Upgrade Snapshot</h3>
+              <ul className="stock-precon-role-delta">
+                {comparison.highlights.slice(0, 5).map((entry) => (
+                  <li key={entry}>{entry}</li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
 
           {comparison.roleDelta.length > 0 ? (
             <div className="technical-group">
               <h3>Role Shifts</h3>
               <ul className="stock-precon-role-delta">
                 {comparison.roleDelta.slice(0, 6).map((row) => (
+                  <li key={row.key}>
+                    <strong>{row.key}</strong>: {row.value > 0 ? "+" : ""}
+                    {row.value}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+
+          {comparison.typeDelta.length > 0 ? (
+            <div className="technical-group">
+              <h3>Type Shifts</h3>
+              <ul className="stock-precon-role-delta">
+                {comparison.typeDelta.slice(0, 6).map((row) => (
                   <li key={row.key}>
                     <strong>{row.key}</strong>: {row.value > 0 ? "+" : ""}
                     {row.value}

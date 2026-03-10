@@ -13,6 +13,7 @@ import { RecommendedCounts } from "@/components/RecommendedCounts";
 import { SimulationsSection } from "@/components/report/SimulationsSection";
 import { RoleBars } from "@/components/RoleBars";
 import { StockPreconComparison } from "@/components/StockPreconComparison";
+import { buildSellerOutboundHref } from "@/lib/commerce/sellerLinks";
 import type {
   AnalyzeResponse,
   ImprovementSuggestions as ImprovementSuggestionsPayload,
@@ -1206,10 +1207,16 @@ export function AnalysisReport({
             const usdPrice = entry.prices?.usd ?? null;
             const usdFoilPrice = entry.prices?.usdFoil ?? null;
             const usdEtchedPrice = entry.prices?.usdEtched ?? null;
-            const tcgplayerLink = toSafeExternalUrl(entry.sellerLinks?.tcgplayer ?? null);
+            const tcgplayerLink = buildSellerOutboundHref(
+              "tcgplayer",
+              toSafeExternalUrl(entry.sellerLinks?.tcgplayer ?? null)
+            );
             const cardName = cardLabel(entry);
             const cardKingdomLink =
-              toSafeExternalUrl(entry.sellerLinks?.cardKingdom ?? null) ?? cardKingdomSearchUrl(cardName);
+              buildSellerOutboundHref(
+                "cardkingdom",
+                toSafeExternalUrl(entry.sellerLinks?.cardKingdom ?? null) ?? cardKingdomSearchUrl(cardName)
+              );
 
             return (
               <article className="detected-card-tile" key={entry.name.toLowerCase()}>
