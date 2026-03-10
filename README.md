@@ -230,7 +230,7 @@ Current MVP state:
 - Builder colorless commanders now resolve color-staple and mana-base suggestions correctly.
 - Builder top-row controls and status cards have been condensed to reduce wasted space.
 - Builder commander suggestions now include a curated commander-profile dataset plus a generated full commander list as fallback before generic commander-text inference.
-- Curated commander profiles have been expanded to 270 reviewed entries on top of the generated full-pool dataset.
+- Curated commander profiles have been expanded to 370 reviewed entries on top of the generated full-pool dataset.
 - Precon browsing is built in, scrollable, and print-aware.
 - Stock-precon comparison is built in for commander-matched decks.
 - Stock-precon comparison now shows richer practical deltas instead of only card adds/cuts and price.
@@ -298,6 +298,11 @@ Practical target:
 - Completed: ninth larger curated promotion batch to push the reviewed commander-profile set past 230 entries
 - Completed: tenth larger curated promotion batch to push the reviewed commander-profile set past 250 entries
 - Completed: eleventh larger curated promotion batch to push the reviewed commander-profile set past 270 entries
+- Completed: twelfth larger curated promotion batch to push the reviewed commander-profile set past 290 entries
+- Completed: thirteenth larger curated promotion batch to push the reviewed commander-profile set past 310 entries
+- Completed: fourteenth larger curated promotion batch to push the reviewed commander-profile set past 330 entries
+- Completed: fifteenth larger curated promotion batch to push the reviewed commander-profile set past 350 entries
+- Completed: sixteenth larger curated promotion batch to push the reviewed commander-profile set past 370 entries
 - In progress: continue promoting high-value commanders from the generated full commander-profile list into curated profiles
 - Completed: add commander-profile candidate generation from local Oracle heuristics
 

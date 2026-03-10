@@ -167,7 +167,7 @@ describe("builder utilities", () => {
   });
 
   it("loads a seeded commander-profile dataset", () => {
-    expect(getCommanderProfileCount()).toBeGreaterThanOrEqual(270);
+    expect(getCommanderProfileCount()).toBeGreaterThanOrEqual(370);
     expect(getCommanderProfile("Prosper, Tome-Bound")?.groups[0]?.cards).toContain("Jeska's Will");
     expect(getCommanderProfile("Miirym, Sentinel Wyrm")?.groups[0]?.cards).toContain("Dragon Tempest");
     expect(getCommanderProfile("Pantlaza, Sun-Favored")?.groups[0]?.cards).toContain("Trumpeting Carnosaur");
@@ -190,5 +190,19 @@ describe("builder utilities", () => {
     expect(getCommanderProfile("Sam, Loyal Attendant")?.groups[0]?.cards).toContain("Academy Manufactor");
     expect(getCommanderProfile("Yawgmoth, Thran Physician")?.groups[0]?.cards).toContain("Mikaeus, the Unhallowed");
     expect(getCommanderProfile("Tuvasa the Sunlit")?.groups[0]?.cards).toContain("Sterling Grove");
+    expect(getCommanderProfile("Hapatra, Vizier of Poisons")?.groups[0]?.cards).toContain("Nest of Scarabs");
+    expect(getCommanderProfile("Light-Paws, Emperor's Voice")?.groups[0]?.cards).toContain("Ethereal Armor");
+    expect(getCommanderProfile("Karlov of the Ghost Council")?.groups[0]?.cards).toContain("Soul Warden");
+    expect(getCommanderProfile("Burakos, Party Leader")?.groups[0]?.cards).toContain("Folk Hero");
+    expect(getCommanderProfile("Mayael the Anima")?.groups[0]?.cards).toContain("Scroll Rack");
+    expect(getCommanderProfile("Omo, Queen of Vesuva")?.groups[0]?.cards).toContain("Cloudpost");
+    expect(getCommanderProfile("The Tenth Doctor")?.groups[0]?.cards).toContain("Rose Tyler");
+    expect(getCommanderProfile("Admiral Beckett Brass")?.groups[0]?.cards).toContain("Malcolm, Keen-Eyed Navigator");
+    expect(getCommanderProfile("Admiral Brass, Unsinkable")?.groups[0]?.cards).toContain("Patriarch's Bidding");
+    expect(getCommanderProfile("The Fourth Doctor")?.groups[0]?.cards).toContain("Sensei's Divining Top");
+    expect(getCommanderProfile("Agatha of the Vile Cauldron")?.groups[0]?.cards).toContain("Walking Ballista");
+    expect(getCommanderProfile("Amalia Benavides Aguirre")?.groups[0]?.cards).toContain("Soul Warden");
+    expect(getCommanderProfile("Ashaya, Soul of the Wild")?.groups[0]?.cards).toContain("Quirion Ranger");
+    expect(getCommanderProfile("Breeches, Eager Pillager")?.groups[0]?.cards).toContain("Malcolm, Keen-Eyed Navigator");
   });
 });
