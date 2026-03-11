@@ -49,6 +49,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
+          git fetch origin automation/precon-library-sync:refs/remotes/origin/automation/precon-library-sync || true
           git checkout -B automation/precon-library-sync
           git add data/precons/commander-precons.json
           git commit -m "chore: refresh commander precon library"
