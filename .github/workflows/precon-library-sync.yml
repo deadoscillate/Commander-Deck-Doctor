@@ -32,15 +32,55 @@ jobs:
       - name: Validate precon route
         run: npm run test -- tests/precons-route.test.ts
 
-      - name: Create pull request if library changed
-        uses: peter-evans/create-pull-request@v7
-        with:
-          commit-message: "chore: refresh commander precon library"
-          branch: "automation/precon-library-sync"
-          delete-branch: true
-          title: "chore: refresh commander precon library"
-          body: |
-            Automated refresh of the Commander precon library from MTGJSON deck exports.
+      - name: Detect library changes
+        id: changes
+        shell: bash
+        run: |
+          if git diff --quiet -- data/precons/commander-precons.json; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
 
-            - source: https://mtgjson.com/api/v5/DeckList.json
-            - script: `npm run precons:update`
+      - name: Commit and push sync branch
+        if: steps.changes.outputs.changed == 'true'
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git checkout -B automation/precon-library-sync
+          git add data/precons/commander-precons.json
+          git commit -m "chore: refresh commander precon library"
+          git push --force-with-lease origin automation/precon-library-sync
+
+      - name: Create or update pull request
+        if: steps.changes.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.AUTOMATION_PR_TOKEN || github.token }}
+        shell: bash
+        run: |
+          PR_BODY=$(cat <<'EOF'
+          Automated refresh of the Commander precon library from MTGJSON deck exports.
+
+          - source: https://mtgjson.com/api/v5/DeckList.json
+          - script: `npm run precons:update`
+          EOF
+          )
+
+          PR_NUMBER=$(gh pr list --head automation/precon-library-sync --base main --json number --jq '.[0].number')
+
+          if [ -n "$PR_NUMBER" ]; then
+            gh pr edit "$PR_NUMBER" \
+              --title "chore: refresh commander precon library" \
+              --body "$PR_BODY"
+            exit 0
+          fi
+
+          if ! gh pr create \
+            --base main \
+            --head automation/precon-library-sync \
+            --title "chore: refresh commander precon library" \
+            --body "$PR_BODY"; then
+            echo "::warning::Unable to create the precon sync pull request automatically. Enable 'Allow GitHub Actions to create and approve pull requests' or provide an AUTOMATION_PR_TOKEN secret."
+          fi
