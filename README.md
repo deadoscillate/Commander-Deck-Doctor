@@ -129,7 +129,7 @@ The precon browser now loads the full synced library, keeps search visible while
 - Card previews, seller links, pricing confidence, and print pickers are available in the report UI.
 - Matching stock precons load in the report for side-by-side comparison without replacing the current analysis.
 - Stock-precon comparison now surfaces richer upgrade deltas, including interaction, consistency, combos, game changers, and a short upgrade snapshot.
-- The `/builder` workflow starts from a compact commander-picker toolbar, keeps a live 99-card decklist, mirrors the commander hero/background treatment from the analyzer, uses art-backed commander search result cards with full-card previews, groups the main deck by card roles, surfaces hover previews across deck sections and suggestions, and saves local builder states separately from analyzer deck saves.
+- The `/builder` workflow starts from a compact commander-picker toolbar, keeps a live 99-card decklist, mirrors the commander hero/background treatment from the analyzer, uses art-backed commander search result cards with full-card previews, moves card search into the sticky commander hero workbench, exposes builder suggestions as tabs beneath the commander hero, groups the main deck by card roles, surfaces hover previews across deck sections and suggestions, and saves local builder states separately from analyzer deck saves.
 - Builder card browse/search now resolves against the full local Commander-legal print library, so set filters and suggestion card resolution are no longer limited to the default-print name index.
 - Builder suggestions are split into commander staples, color staples, role/archetype suggestions, combo suggestions, game changer suggestions, and mana-base suggestions, with land suggestions including basics, fixing staples, duals, and triomes when the color identity supports them.
 - Builder game changer suggestions are now color-safe and only surface game changers that are legal for the selected commander's color identity.
@@ -230,7 +230,7 @@ Current MVP state:
 - Builder smart suggestions now surface metadata-backed commander staples, color staples, role/archetype upgrades, combo pieces, game changer suggestions, and mana-base suggestions with previews.
 - Builder commander search now uses art-backed result cards with full-card previews and dedicated telemetry.
 - Builder colorless commanders now resolve color-staple and mana-base suggestions correctly.
-- Builder top-row controls and status cards have been condensed to reduce wasted space.
+- Builder top-row controls and status cards have been condensed to reduce wasted space, and the sticky commander hero now owns both card search and tabbed suggestion tooling.
 - Builder card search by set and suggestion card resolution now use the full local Commander-legal print library instead of the reduced default-print index.
 - Builder game changer suggestions now filter to color-legal options instead of showing the global game changer pool.
 - Builder commander suggestions now include a curated commander-profile dataset plus a generated full commander list as fallback before generic commander-text inference.

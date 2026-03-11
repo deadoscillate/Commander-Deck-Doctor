@@ -38,6 +38,8 @@ type CardSearchRecord = {
   oracleText: string;
   colorIdentity: string[];
   setCode: string | null;
+  collectorNumber: string | null;
+  printingId: string | null;
   commanderEligible: boolean;
   isBasicLand: boolean;
   duplicateLimit: number | null;
@@ -100,6 +102,16 @@ type RemoteCommanderProfileResponse = {
 };
 
 type BuilderCardTypeFilter = "" | "artifact" | "battle" | "creature" | "enchantment" | "instant" | "land" | "planeswalker" | "sorcery";
+type BuilderHeaderTab =
+  | "search"
+  | "staples"
+  | "color-staples"
+  | "gameplan"
+  | "legality"
+  | "smart"
+  | "combos"
+  | "game-changers"
+  | "mana-base";
 
 const CARD_TYPE_FILTERS: Array<{ value: BuilderCardTypeFilter; label: string }> = [
   { value: "", label: "All types" },
@@ -185,6 +197,29 @@ function normalizeName(name: string): string {
     .replace(/[^a-z0-9]/g, "");
 }
 
+function normalizeSavedBuilderCard(card: BuilderDeckCard): BuilderDeckCard {
+  return {
+    name: card.name,
+    qty: Math.max(1, Math.floor(card.qty)),
+    setCode: typeof card.setCode === "string" && card.setCode.trim() ? card.setCode.trim().toUpperCase() : null,
+    collectorNumber:
+      typeof card.collectorNumber === "string" && card.collectorNumber.trim() ? card.collectorNumber.trim() : null,
+    printingId: typeof card.printingId === "string" && card.printingId.trim() ? card.printingId.trim() : null,
+    previewImageUrl:
+      typeof card.previewImageUrl === "string" && card.previewImageUrl.trim() ? card.previewImageUrl.trim() : null,
+    artUrl: typeof card.artUrl === "string" && card.artUrl.trim() ? card.artUrl.trim() : null,
+    manaCost: typeof card.manaCost === "string" ? card.manaCost : "",
+    cmc: typeof card.cmc === "number" && Number.isFinite(card.cmc) ? card.cmc : 0,
+    typeLine: typeof card.typeLine === "string" ? card.typeLine : "",
+    oracleText: typeof card.oracleText === "string" ? card.oracleText : "",
+    colorIdentity: Array.isArray(card.colorIdentity)
+      ? card.colorIdentity.filter((color): color is string => typeof color === "string")
+      : [],
+    duplicateLimit: typeof card.duplicateLimit === "number" ? card.duplicateLimit : null,
+    isBasicLand: card.isBasicLand === true
+  };
+}
+
 function parseSavedBuilderDecks(raw: string | null): SavedBuilderDeck[] {
   if (!raw) {
     return [];
@@ -207,15 +242,12 @@ function parseSavedBuilderDecks(raw: string | null): SavedBuilderDeck[] {
           return null;
         }
 
-        const cards = Array.isArray(record.cards)
+        const cards: BuilderDeckCard[] = Array.isArray(record.cards)
           ? record.cards
               .filter((card): card is BuilderDeckCard => {
                 return Boolean(card) && typeof card === "object" && typeof card.name === "string" && typeof card.qty === "number";
               })
-              .map((card) => ({
-                name: card.name,
-                qty: Math.max(1, Math.floor(card.qty))
-              }))
+              .map((card) => normalizeSavedBuilderCard(card))
           : [];
 
         return {
@@ -232,7 +264,7 @@ function parseSavedBuilderDecks(raw: string | null): SavedBuilderDeck[] {
           updatedAt: typeof record.updatedAt === "string" ? record.updatedAt : new Date(0).toISOString()
         } satisfies SavedBuilderDeck;
       })
-      .filter((entry): entry is SavedBuilderDeck => Boolean(entry))
+      .filter((entry): entry is SavedBuilderDeck => entry !== null)
       .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt))
       .slice(0, MAX_SAVED_BUILDS);
   } catch {
@@ -262,12 +294,45 @@ function addCardToDeck(current: BuilderDeckCard[], card: CardSearchRecord): Buil
 
     return current.map((entry) =>
       normalizeName(entry.name) === normalizeName(card.name)
-        ? { ...entry, qty: entry.qty + 1 }
+        ? {
+            ...entry,
+            qty: entry.qty + 1,
+            setCode: entry.setCode ?? card.setCode,
+            collectorNumber: entry.collectorNumber ?? card.collectorNumber,
+            printingId: entry.printingId ?? card.printingId,
+            previewImageUrl: entry.previewImageUrl ?? card.previewImageUrl,
+            artUrl: entry.artUrl ?? card.artUrl,
+            manaCost: entry.manaCost ?? card.manaCost,
+            cmc: entry.cmc ?? card.cmc,
+            typeLine: entry.typeLine ?? card.typeLine,
+            oracleText: entry.oracleText ?? card.oracleText,
+            colorIdentity: entry.colorIdentity ?? card.colorIdentity,
+            duplicateLimit: entry.duplicateLimit ?? card.duplicateLimit,
+            isBasicLand: entry.isBasicLand ?? card.isBasicLand
+          }
         : entry
     );
   }
 
-  return [...current, { name: card.name, qty: 1 }].sort((left, right) => left.name.localeCompare(right.name));
+  return [
+    ...current,
+    {
+      name: card.name,
+      qty: 1,
+      setCode: card.setCode,
+      collectorNumber: card.collectorNumber,
+      printingId: card.printingId,
+      previewImageUrl: card.previewImageUrl,
+      artUrl: card.artUrl,
+      manaCost: card.manaCost,
+      cmc: card.cmc,
+      typeLine: card.typeLine,
+      oracleText: card.oracleText,
+      colorIdentity: card.colorIdentity,
+      duplicateLimit: card.duplicateLimit,
+      isBasicLand: card.isBasicLand
+    }
+  ].sort((left, right) => left.name.localeCompare(right.name));
 }
 
 function updateCardQty(current: BuilderDeckCard[], cardName: string, delta: number): BuilderDeckCard[] {
@@ -310,6 +375,8 @@ function basicCardTemplate(name: string, isBasicLand = false, duplicateLimit: nu
     oracleText: "",
     colorIdentity: [],
     setCode: null,
+    collectorNumber: null,
+    printingId: null,
     commanderEligible: false,
     isBasicLand,
     duplicateLimit,
@@ -393,7 +460,7 @@ function buildCommanderRoleSuggestionGroups(
       description: need
         ? `Builder fallback for ${need.label.toLowerCase()}. Target minimum: ${need.recommendedMin}.`
         : `Commander-first fallback picks for ${roleKey}.`,
-      items: [...new Set(suggestions)].slice(0, 6).map((name) => ({ name }))
+      items: [...new Set(suggestions)].map((name) => ({ name }))
     });
   }
 
@@ -402,9 +469,7 @@ function buildCommanderRoleSuggestionGroups(
       key: "fallback-archetype-synergy",
       label: "Synergy Pieces",
       description: `Commander-driven synergy picks for ${archetypes.join(" / ")}.`,
-      items: buildArchetypeSynergySuggestionNames(archetypes)
-        .slice(0, 6)
-        .map((name) => ({ name }))
+      items: buildArchetypeSynergySuggestionNames(archetypes).map((name) => ({ name }))
     });
   }
 
@@ -515,7 +580,7 @@ function buildSuggestionGroups(
             key: "commander-staples",
             label: "Commander Staples",
             description: "Common Commander play-pattern staples that fit most builds.",
-            items: commanderStaples.slice(0, 8).map((name) => ({ name }))
+            items: commanderStaples.map((name) => ({ name }))
           }
         : null,
       colorStapleGroup: colorStaples.length > 0
@@ -523,7 +588,7 @@ function buildSuggestionGroups(
             key: "color-staples",
             label: "Color Staples",
             description: "Color-identity staples that usually overperform in these colors.",
-            items: colorStaples.slice(0, 8).map((name) => ({ name }))
+            items: colorStaples.map((name) => ({ name }))
           }
         : null,
       gameChangerGroup: gameChangerSuggestions.length > 0
@@ -531,7 +596,7 @@ function buildSuggestionGroups(
             key: "game-changers",
             label: "Game Changer Suggestions",
             description: "Commander bracket game changers you could add if you want a stronger ceiling.",
-            items: gameChangerSuggestions.slice(0, 8).map((name) => ({ name }))
+            items: gameChangerSuggestions.map((name) => ({ name }))
           }
         : null,
       manaBaseGroup: manaBaseSuggestions.length > 0
@@ -539,7 +604,7 @@ function buildSuggestionGroups(
             key: "mana-base",
             label: "Mana Base Suggestions",
             description: "Staple fixing lands, duals, and triomes for the current color identity.",
-            items: manaBaseSuggestions.slice(0, 12).map((name) => ({ name }))
+            items: manaBaseSuggestions.map((name) => ({ name }))
           }
         : null
     };
@@ -551,10 +616,10 @@ function buildSuggestionGroups(
       key: item.key,
       label: item.label,
       description: item.rationale ?? `Recommended range ${item.recommendedRange}.`,
-      items: item.suggestions.slice(0, 6).map((name) => ({ name }))
+      items: item.suggestions.map((name) => ({ name }))
     }));
 
-  const comboGroups: SuggestionGroup[] = result.comboReport.potential.slice(0, 4).map((combo, index) => {
+  const comboGroups: SuggestionGroup[] = result.comboReport.potential.map((combo, index) => {
     const requires = Array.isArray(combo.requires) ? combo.requires : [];
     const missingCards = Array.isArray(combo.missingCards) ? combo.missingCards : [];
 
@@ -562,7 +627,7 @@ function buildSuggestionGroups(
       key: `combo-${index}`,
       label: combo.comboName,
       description: `Missing ${combo.missingCount} card(s); matched ${combo.matchCount}/${combo.cards.length}.`,
-      items: missingCards.slice(0, 4).map((name) => ({
+      items: missingCards.map((name) => ({
         name,
         note: requires.length > 0 ? requires.join("; ") : undefined
       }))
@@ -580,7 +645,7 @@ function buildSuggestionGroups(
             key: "commander-staples",
             label: "Commander Staples",
             description: "Common Commander play-pattern staples that fit most builds.",
-            items: commanderStaples.slice(0, 8).map((name) => ({ name }))
+            items: commanderStaples.map((name) => ({ name }))
           }
         : null,
     colorStapleGroup:
@@ -589,7 +654,7 @@ function buildSuggestionGroups(
             key: "color-staples",
             label: "Color Staples",
             description: "Color-identity staples that usually overperform in these colors.",
-            items: colorStaples.slice(0, 8).map((name) => ({ name }))
+            items: colorStaples.map((name) => ({ name }))
           }
         : null,
     gameChangerGroup:
@@ -598,7 +663,7 @@ function buildSuggestionGroups(
             key: "game-changers",
             label: "Game Changer Suggestions",
             description: "Commander bracket game changers you could add if you want a stronger ceiling.",
-            items: gameChangerSuggestions.slice(0, 8).map((name) => ({ name }))
+            items: gameChangerSuggestions.map((name) => ({ name }))
           }
         : null,
     manaBaseGroup:
@@ -607,9 +672,29 @@ function buildSuggestionGroups(
           key: "mana-base",
           label: "Mana Base Suggestions",
             description: "Staple fixing lands, duals, and triomes for the current color identity.",
-            items: manaBaseSuggestions.slice(0, 12).map((name) => ({ name }))
+            items: manaBaseSuggestions.map((name) => ({ name }))
           }
         : null
+  };
+}
+
+function getSuggestionGroupItemLimit(group: SuggestionGroup): number {
+  switch (group.key) {
+    case "commander-staples":
+    case "color-staples":
+    case "game-changers":
+      return 8;
+    case "mana-base":
+      return 12;
+    default:
+      return group.key.startsWith("combo-") ? 4 : 6;
+  }
+}
+
+function limitSuggestionGroup(group: SuggestionGroup): SuggestionGroup {
+  return {
+    ...group,
+    items: group.items.slice(0, getSuggestionGroupItemLimit(group))
   };
 }
 
@@ -656,6 +741,7 @@ export function CommanderDeckBuilder() {
   const [cardQuery, setCardQuery] = useState("");
   const [cardTypeFilter, setCardTypeFilter] = useState<BuilderCardTypeFilter>("");
   const [cardSetFilter, setCardSetFilter] = useState("");
+  const [activeHeaderTab, setActiveHeaderTab] = useState<BuilderHeaderTab>("search");
   const [setOptions, setSetOptions] = useState<string[]>([]);
   const [cardResults, setCardResults] = useState<CardSearchRecord[]>([]);
   const [cardSearchLoading, setCardSearchLoading] = useState(false);
@@ -1162,42 +1248,38 @@ export function CommanderDeckBuilder() {
         return record.colorIdentity.every((color) => allowedColorIdentity.includes(color));
       });
 
+    const filterAndLimitGroup = (group: SuggestionGroup): SuggestionGroup | null => {
+      const nextGroup = limitSuggestionGroup({
+        ...group,
+        items: filterItems(group.items)
+      });
+      return nextGroup.items.length > 0 ? nextGroup : null;
+    };
+
     return {
       ruleFixGroups: suggestionGroups.ruleFixGroups
-        .map((group) => ({ ...group, items: filterItems(group.items) }))
-        .filter((group) => group.items.length > 0),
+        .map(filterAndLimitGroup)
+        .filter((group): group is SuggestionGroup => Boolean(group)),
       commanderAbilityGroups: suggestionGroups.commanderAbilityGroups
-        .map((group) => ({ ...group, items: filterItems(group.items) }))
-        .filter((group) => group.items.length > 0),
+        .map(filterAndLimitGroup)
+        .filter((group): group is SuggestionGroup => Boolean(group)),
       roleGroups: suggestionGroups.roleGroups
-        .map((group) => ({ ...group, items: filterItems(group.items) }))
-        .filter((group) => group.items.length > 0),
+        .map(filterAndLimitGroup)
+        .filter((group): group is SuggestionGroup => Boolean(group)),
       comboGroups: suggestionGroups.comboGroups
-        .map((group) => ({ ...group, items: filterItems(group.items) }))
-        .filter((group) => group.items.length > 0),
+        .map(filterAndLimitGroup)
+        .filter((group): group is SuggestionGroup => Boolean(group)),
       stapleGroup: suggestionGroups.stapleGroup
-        ? {
-            ...suggestionGroups.stapleGroup,
-            items: filterItems(suggestionGroups.stapleGroup.items)
-          }
+        ? filterAndLimitGroup(suggestionGroups.stapleGroup)
         : null,
       colorStapleGroup: suggestionGroups.colorStapleGroup
-        ? {
-            ...suggestionGroups.colorStapleGroup,
-            items: filterItems(suggestionGroups.colorStapleGroup.items)
-          }
+        ? filterAndLimitGroup(suggestionGroups.colorStapleGroup)
         : null,
       gameChangerGroup: suggestionGroups.gameChangerGroup
-        ? {
-            ...suggestionGroups.gameChangerGroup,
-            items: filterItems(suggestionGroups.gameChangerGroup.items)
-          }
+        ? filterAndLimitGroup(suggestionGroups.gameChangerGroup)
         : null,
       manaBaseGroup: suggestionGroups.manaBaseGroup
-        ? {
-            ...suggestionGroups.manaBaseGroup,
-            items: filterItems(suggestionGroups.manaBaseGroup.items)
-          }
+        ? filterAndLimitGroup(suggestionGroups.manaBaseGroup)
         : null
     };
   }, [allowedColorIdentity, deckCards, resolvedCardsByName, selectedCommander, selectedPairOption, suggestionGroups]);
@@ -1292,6 +1374,26 @@ export function CommanderDeckBuilder() {
     );
   }
 
+  function toDeckCardRecord(card: BuilderDeckCard): CardSearchRecord {
+    const fallback = resolveCardRecord(card.name);
+
+    return {
+      ...fallback,
+      setCode: card.setCode ?? fallback.setCode,
+      collectorNumber: card.collectorNumber ?? fallback.collectorNumber,
+      printingId: card.printingId ?? fallback.printingId,
+      previewImageUrl: card.previewImageUrl ?? fallback.previewImageUrl,
+      artUrl: card.artUrl ?? fallback.artUrl,
+      manaCost: card.manaCost ?? fallback.manaCost,
+      cmc: typeof card.cmc === "number" && Number.isFinite(card.cmc) ? card.cmc : fallback.cmc,
+      typeLine: card.typeLine ?? fallback.typeLine,
+      oracleText: card.oracleText ?? fallback.oracleText,
+      colorIdentity: Array.isArray(card.colorIdentity) && card.colorIdentity.length > 0 ? card.colorIdentity : fallback.colorIdentity,
+      duplicateLimit: typeof card.duplicateLimit === "number" ? card.duplicateLimit : fallback.duplicateLimit,
+      isBasicLand: card.isBasicLand ?? fallback.isBasicLand
+    };
+  }
+
   function addNamedCard(name: string) {
     setDeckCards((current) => addCardToDeck(current, resolveCardRecord(name)));
   }
@@ -1379,6 +1481,7 @@ export function CommanderDeckBuilder() {
     setDeckName(`${commander.name} Builder`);
     setCommanderQuery("");
     setCommanderResults([]);
+    setActiveHeaderTab("search");
     setCardQuery("");
     setCardTypeFilter("");
     setCardSetFilter("");
@@ -1412,6 +1515,7 @@ export function CommanderDeckBuilder() {
     setSelectedPartnerName(saved.partnerName ?? "");
     setDeckCards(saved.cards);
     setDeckName(saved.name);
+    setActiveHeaderTab("search");
     setSaveMessage(`Loaded "${saved.name}".`);
   }
 
@@ -1521,6 +1625,138 @@ export function CommanderDeckBuilder() {
     );
   }
 
+  const headerTabs: Array<{ key: BuilderHeaderTab; label: string; count?: number }> = [
+    { key: "search", label: "Card Search", count: cardResults.length },
+    { key: "staples", label: "Commander Staples", count: filteredSuggestionGroups.stapleGroup?.items.length ?? 0 },
+    { key: "color-staples", label: "Color Staples", count: filteredSuggestionGroups.colorStapleGroup?.items.length ?? 0 },
+    {
+      key: "gameplan",
+      label: "Commander Gameplan",
+      count: filteredSuggestionGroups.commanderAbilityGroups.reduce((sum, group) => sum + group.items.length, 0)
+    },
+    {
+      key: "legality",
+      label: "Legality Fixes",
+      count: filteredSuggestionGroups.ruleFixGroups.reduce((sum, group) => sum + group.items.length, 0)
+    },
+    { key: "smart", label: "Smart Suggestions", count: filteredSuggestionGroups.roleGroups.reduce((sum, group) => sum + group.items.length, 0) },
+    { key: "combos", label: "Combo Suggestions", count: filteredSuggestionGroups.comboGroups.reduce((sum, group) => sum + group.items.length, 0) },
+    { key: "game-changers", label: "Game Changers", count: filteredSuggestionGroups.gameChangerGroup?.items.length ?? 0 },
+    { key: "mana-base", label: "Mana Base", count: filteredSuggestionGroups.manaBaseGroup?.items.length ?? 0 }
+  ];
+
+  function renderHeaderTabContent() {
+    switch (activeHeaderTab) {
+      case "search":
+        return (
+          <>
+            {cardSearchLoading ? <p className="muted">Searching cards...</p> : null}
+            {cardSearchError ? <p className="error">{cardSearchError}</p> : null}
+            <div className="builder-search-results">
+              {cardResults.map((card) => {
+                const existingQty = deckCards.find((entry) => normalizeName(entry.name) === normalizeName(card.name))?.qty ?? 0;
+                const canAddMore = canAddMoreCopies(card, existingQty);
+
+                return (
+                  <article
+                    key={card.printingId ?? `${card.name}-${card.setCode ?? "SET"}-${card.collectorNumber ?? "COLLECTOR"}`}
+                    className="builder-search-card"
+                  >
+                    {renderCardThumb(card, "builder-search-thumb", card.name.charAt(0))}
+                    <div className="builder-search-card-main">
+                      <strong><CardLink name={card.name} /></strong>
+                      <div className="builder-search-meta">
+                        <ManaCost manaCost={card.manaCost} size={16} />
+                        <span>{card.typeLine}</span>
+                        {card.setCode ? <span>{card.setCode}</span> : null}
+                      </div>
+                      {existingQty > 0 ? <p className="muted">In deck: {existingQty}</p> : null}
+                    </div>
+                    <button type="button" className="btn-secondary" disabled={!canAddMore} onClick={() => setDeckCards((current) => addCardToDeck(current, card))}>
+                      {canAddMore ? "Add" : "At Limit"}
+                    </button>
+                  </article>
+                );
+              })}
+              {!cardSearchLoading && selectedCommander && (cardQuery.trim() || cardTypeFilter || cardSetFilter.trim()) && cardResults.length === 0 ? (
+                <p className="muted">No legal cards match the current search or browse filters.</p>
+              ) : null}
+            </div>
+          </>
+        );
+      case "staples":
+        return !filteredSuggestionGroups.stapleGroup || filteredSuggestionGroups.stapleGroup.items.length === 0 ? (
+          <p className="muted">No commander staple suggestions remain for this build right now.</p>
+        ) : (
+          <div className="builder-suggestion-groups">
+            {renderSuggestionGroupPanel(filteredSuggestionGroups.stapleGroup, "staple", true)}
+          </div>
+        );
+      case "color-staples":
+        return !filteredSuggestionGroups.colorStapleGroup || filteredSuggestionGroups.colorStapleGroup.items.length === 0 ? (
+          <p className="muted">No color-specific staple suggestions remain for this commander.</p>
+        ) : (
+          <div className="builder-suggestion-groups">
+            {renderSuggestionGroupPanel(filteredSuggestionGroups.colorStapleGroup, "color-staple", true)}
+          </div>
+        );
+      case "gameplan":
+        return filteredSuggestionGroups.commanderAbilityGroups.length === 0 ? (
+          <p className="muted">No commander-specific support package is available yet.</p>
+        ) : (
+          <div className="builder-suggestion-groups">
+            {filteredSuggestionGroups.commanderAbilityGroups.map((group, index) =>
+              renderSuggestionGroupPanel(group, "commander-gameplan", index === 0)
+            )}
+          </div>
+        );
+      case "legality":
+        return filteredSuggestionGroups.ruleFixGroups.length === 0 ? (
+          <p className="muted">No active rules-engine legality issues in the current build.</p>
+        ) : (
+          <div className="builder-suggestion-groups">
+            {filteredSuggestionGroups.ruleFixGroups.map((group, index) =>
+              renderSuggestionGroupPanel(group, "legality-fixes", index === 0)
+            )}
+          </div>
+        );
+      case "smart":
+        return filteredSuggestionGroups.roleGroups.length === 0 ? (
+          <p className="muted">Add more cards to unlock role and archetype tuning suggestions.</p>
+        ) : (
+          <div className="builder-suggestion-groups">
+            {filteredSuggestionGroups.roleGroups.map((group, index) => renderSuggestionGroupPanel(group, "smart", index === 0))}
+          </div>
+        );
+      case "combos":
+        return filteredSuggestionGroups.comboGroups.length === 0 ? (
+          <p className="muted">No near-miss combo packages detected yet.</p>
+        ) : (
+          <div className="builder-suggestion-groups">
+            {filteredSuggestionGroups.comboGroups.map((group) => renderSuggestionGroupPanel(group, "combo"))}
+          </div>
+        );
+      case "game-changers":
+        return !filteredSuggestionGroups.gameChangerGroup || filteredSuggestionGroups.gameChangerGroup.items.length === 0 ? (
+          <p className="muted">No color-safe game changer adds are missing from this build right now.</p>
+        ) : (
+          <div className="builder-suggestion-groups">
+            {renderSuggestionGroupPanel(filteredSuggestionGroups.gameChangerGroup, "game-changer", true)}
+          </div>
+        );
+      case "mana-base":
+        return !filteredSuggestionGroups.manaBaseGroup || filteredSuggestionGroups.manaBaseGroup.items.length === 0 ? (
+          <p className="muted">No mana base suggestions are missing from this build right now.</p>
+        ) : (
+          <div className="builder-suggestion-groups">
+            {renderSuggestionGroupPanel(filteredSuggestionGroups.manaBaseGroup, "mana-base", true)}
+          </div>
+        );
+      default:
+        return null;
+    }
+  }
+
   return (
     <main className="page builder-page">
       <section className="panel builder-topbar">
@@ -1607,6 +1843,50 @@ export function CommanderDeckBuilder() {
             archetypeLabel={archetypeLabel}
             bracketLabel={analysis?.bracketReport?.estimatedLabel ?? null}
           />
+          <section className="panel builder-hero-workbench">
+            <div className="builder-search-controls builder-search-controls-inline">
+              <input
+                type="search"
+                value={cardQuery}
+                onChange={(event) => setCardQuery(event.target.value)}
+                placeholder={selectedCommander ? "Search cards to add" : "Select a commander first"}
+                disabled={!selectedCommander}
+              />
+              <div className="builder-search-filter-row">
+                <select value={cardTypeFilter} onChange={(event) => setCardTypeFilter(event.target.value as BuilderCardTypeFilter)} disabled={!selectedCommander}>
+                  {CARD_TYPE_FILTERS.map((option) => (
+                    <option key={option.value || "all"} value={option.value}>{option.label}</option>
+                  ))}
+                </select>
+                <select value={cardSetFilter} onChange={(event) => setCardSetFilter(event.target.value)} disabled={!selectedCommander}>
+                  <option value="">All sets</option>
+                  {setOptions.map((setCode) => (
+                    <option key={setCode} value={setCode}>{setCode}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="builder-header-tabs" role="tablist" aria-label="Builder tools">
+              {headerTabs.map((tab) => (
+                <button
+                  key={tab.key}
+                  type="button"
+                  role="tab"
+                  aria-selected={activeHeaderTab === tab.key}
+                  className={`builder-header-tab${activeHeaderTab === tab.key ? " builder-header-tab-active" : ""}`}
+                  onClick={() => setActiveHeaderTab(tab.key)}
+                >
+                  <span>{tab.label}</span>
+                  {typeof tab.count === "number" ? <span className="builder-header-tab-count">{tab.count}</span> : null}
+                </button>
+              ))}
+            </div>
+
+            <div className="builder-header-tab-panel">
+              {renderHeaderTabContent()}
+            </div>
+          </section>
         </div>
       ) : null}
 
@@ -1724,7 +2004,7 @@ export function CommanderDeckBuilder() {
         </section>
       ) : null}
 
-      <section className="builder-grid builder-grid-two-column">
+      <section className="builder-grid builder-grid-single">
         <section className="panel builder-panel builder-panel-center">
             <div className="builder-panel-head">
             <div>
@@ -1775,7 +2055,7 @@ export function CommanderDeckBuilder() {
               {deckCards.length === 0 ? (
                 <div className="builder-deck-section">
                   <h3>Main Deck</h3>
-                  <p className="muted">No cards added yet. Use the search panel to add cards to the 99.</p>
+                  <p className="muted">No cards added yet. Use the header search and suggestions to add cards to the 99.</p>
                 </div>
               ) : (
                 deckSections.map((section) => (
@@ -1789,7 +2069,7 @@ export function CommanderDeckBuilder() {
                     </div>
                     <ul className="builder-card-list">
                       {section.cards.map((card) => {
-                        const record = resolveCardRecord(card.name);
+                        const record = toDeckCardRecord(card);
                         const showQuantity = shouldShowDeckQuantity(record);
                         return (
                           <li
@@ -1853,161 +2133,6 @@ export function CommanderDeckBuilder() {
             </>
           )}
         </section>
-
-        <aside className="panel builder-panel builder-panel-right">
-          <div className="builder-panel-head">
-            <div>
-              <h2>Card Search</h2>
-              <p className="muted">Search or browse the local Commander card library by name, set, and card type.</p>
-            </div>
-          </div>
-
-          <div className="builder-search-controls">
-            <input type="search" value={cardQuery} onChange={(event) => setCardQuery(event.target.value)} placeholder={selectedCommander ? "Search cards to add" : "Select a commander first"} disabled={!selectedCommander} />
-            <div className="builder-search-filter-row">
-              <select value={cardTypeFilter} onChange={(event) => setCardTypeFilter(event.target.value as BuilderCardTypeFilter)} disabled={!selectedCommander}>
-                {CARD_TYPE_FILTERS.map((option) => (
-                  <option key={option.value || "all"} value={option.value}>{option.label}</option>
-                ))}
-              </select>
-              <select value={cardSetFilter} onChange={(event) => setCardSetFilter(event.target.value)} disabled={!selectedCommander}>
-                <option value="">All sets</option>
-                {setOptions.map((setCode) => (
-                  <option key={setCode} value={setCode}>{setCode}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          {cardSearchLoading ? <p className="muted">Searching cards...</p> : null}
-          {cardSearchError ? <p className="error">{cardSearchError}</p> : null}
-
-          <div className="builder-search-results">
-            {cardResults.map((card) => {
-              const existingQty = deckCards.find((entry) => normalizeName(entry.name) === normalizeName(card.name))?.qty ?? 0;
-              const canAddMore = canAddMoreCopies(card, existingQty);
-
-              return (
-                <article key={card.name} className="builder-search-card">
-                  {renderCardThumb(card, "builder-search-thumb", card.name.charAt(0))}
-                  <div className="builder-search-card-main">
-                    <strong><CardLink name={card.name} /></strong>
-                    <div className="builder-search-meta">
-                      <ManaCost manaCost={card.manaCost} size={16} />
-                      <span>{card.typeLine}</span>
-                      {card.setCode ? <span>{card.setCode}</span> : null}
-                    </div>
-                    {existingQty > 0 ? <p className="muted">In deck: {existingQty}</p> : null}
-                  </div>
-                  <button type="button" className="btn-secondary" disabled={!canAddMore} onClick={() => setDeckCards((current) => addCardToDeck(current, card))}>{canAddMore ? "Add" : "At Limit"}</button>
-                </article>
-              );
-            })}
-            {!cardSearchLoading && selectedCommander && (cardQuery.trim() || cardTypeFilter || cardSetFilter.trim()) && cardResults.length === 0 ? <p className="muted">No legal cards match the current search or browse filters.</p> : null}
-          </div>
-
-          <section className="builder-needs-panel">
-            <h3>Commander Staples</h3>
-            {!selectedCommander ? (
-              <p className="muted">Select a commander to seed staple suggestions.</p>
-            ) : !filteredSuggestionGroups.stapleGroup || filteredSuggestionGroups.stapleGroup.items.length === 0 ? (
-              <p className="muted">Resolving commander staple suggestions...</p>
-            ) : (
-              <div className="builder-suggestion-groups">
-                {renderSuggestionGroupPanel(filteredSuggestionGroups.stapleGroup, "staple", true)}
-              </div>
-            )}
-          </section>
-
-          <section className="builder-needs-panel">
-            <h3>Color Staples</h3>
-            {!selectedCommander ? (
-              <p className="muted">Select a commander to surface color staples.</p>
-            ) : !filteredSuggestionGroups.colorStapleGroup || filteredSuggestionGroups.colorStapleGroup.items.length === 0 ? (
-              <p className="muted">No color-specific staple suggestions for this color identity yet.</p>
-            ) : (
-              <div className="builder-suggestion-groups">
-                {renderSuggestionGroupPanel(filteredSuggestionGroups.colorStapleGroup, "color-staple")}
-              </div>
-            )}
-          </section>
-
-          <section className="builder-needs-panel">
-            <h3>Commander Gameplan</h3>
-            {!selectedCommander ? (
-              <p className="muted">Select a commander to surface ability-specific support cards.</p>
-            ) : filteredSuggestionGroups.commanderAbilityGroups.length === 0 ? (
-              <p className="muted">No commander-specific support package has been inferred yet.</p>
-            ) : (
-              <div className="builder-suggestion-groups">
-                {filteredSuggestionGroups.commanderAbilityGroups.map((group, index) =>
-                  renderSuggestionGroupPanel(group, "commander-gameplan", index === 0)
-                )}
-              </div>
-            )}
-          </section>
-
-          <section className="builder-needs-panel">
-            <h3>Legality Fixes</h3>
-            {filteredSuggestionGroups.ruleFixGroups.length === 0 ? (
-              <p className="muted">No active rules-engine legality issues in the current build.</p>
-            ) : (
-              <div className="builder-suggestion-groups">
-                {filteredSuggestionGroups.ruleFixGroups.map((group, index) =>
-                  renderSuggestionGroupPanel(group, "legality-fixes", index === 0)
-                )}
-              </div>
-            )}
-          </section>
-
-          <section className="builder-needs-panel">
-            <h3>Smart Suggestions</h3>
-            {filteredSuggestionGroups.roleGroups.length === 0 ? (
-              <p className="muted">Select a commander and add cards to unlock role and archetype suggestions.</p>
-            ) : (
-              <div className="builder-suggestion-groups">
-                {filteredSuggestionGroups.roleGroups.map((group, index) => renderSuggestionGroupPanel(group, "smart", index === 0))}
-              </div>
-            )}
-          </section>
-
-          <section className="builder-needs-panel">
-            <h3>Combo Suggestions</h3>
-            {filteredSuggestionGroups.comboGroups.length === 0 ? (
-              <p className="muted">No near-miss combo packages detected yet.</p>
-            ) : (
-              <div className="builder-suggestion-groups">
-                {filteredSuggestionGroups.comboGroups.map((group) => renderSuggestionGroupPanel(group, "combo"))}
-              </div>
-            )}
-          </section>
-
-          <section className="builder-needs-panel">
-            <h3>Game Changer Suggestions</h3>
-            {!selectedCommander ? (
-              <p className="muted">Select a commander to see optional game changer adds.</p>
-            ) : !filteredSuggestionGroups.gameChangerGroup || filteredSuggestionGroups.gameChangerGroup.items.length === 0 ? (
-              <p className="muted">No color-safe game changer adds are missing from this build right now.</p>
-            ) : (
-              <div className="builder-suggestion-groups">
-                {renderSuggestionGroupPanel(filteredSuggestionGroups.gameChangerGroup, "game-changer")}
-              </div>
-            )}
-          </section>
-
-          <section className="builder-needs-panel">
-            <h3>Mana Base Suggestions</h3>
-            {!selectedCommander ? (
-              <p className="muted">Select a commander to generate land suggestions.</p>
-            ) : !filteredSuggestionGroups.manaBaseGroup || filteredSuggestionGroups.manaBaseGroup.items.length === 0 ? (
-              <p className="muted">No mana base suggestions are missing from this build right now.</p>
-            ) : (
-              <div className="builder-suggestion-groups">
-                {renderSuggestionGroupPanel(filteredSuggestionGroups.manaBaseGroup, "mana-base")}
-              </div>
-            )}
-          </section>
-        </aside>
       </section>
 
       {showReportView && analysis ? <section className="panel builder-report-panel"><AnalysisReport result={analysis} showCommanderHero={false} /></section> : null}

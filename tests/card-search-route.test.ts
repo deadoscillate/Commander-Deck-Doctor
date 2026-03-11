@@ -80,12 +80,20 @@ describe("GET /api/card-search", () => {
 
     expect(response.status).toBe(200);
     const payload = (await response.json()) as {
-      items: Array<{ name: string; setCode: string | null; typeLine: string }>;
+      items: Array<{
+        name: string;
+        setCode: string | null;
+        collectorNumber: string | null;
+        printingId: string | null;
+        typeLine: string;
+      }>;
     };
 
     expect(payload.items.length).toBeGreaterThan(0);
     expect(payload.items.some((item) => item.name === "Jon Irenicus, Shattered One")).toBe(true);
     expect(payload.items.every((item) => item.setCode === "CLB")).toBe(true);
+    expect(payload.items.every((item) => Boolean(item.collectorNumber))).toBe(true);
+    expect(payload.items.every((item) => Boolean(item.printingId))).toBe(true);
     expect(payload.items.every((item) => item.typeLine.toLowerCase().includes("creature"))).toBe(true);
   });
 
@@ -96,11 +104,13 @@ describe("GET /api/card-search", () => {
 
     expect(response.status).toBe(200);
     const payload = (await response.json()) as {
-      items: Array<{ name: string; setCode: string | null }>;
+      items: Array<{ name: string; setCode: string | null; collectorNumber: string | null; printingId: string | null }>;
     };
 
     expect(payload.items.some((item) => item.name === "Sol Ring")).toBe(true);
     expect(payload.items.every((item) => item.setCode === "CMM")).toBe(true);
+    expect(payload.items.every((item) => Boolean(item.collectorNumber))).toBe(true);
+    expect(payload.items.every((item) => Boolean(item.printingId))).toBe(true);
   });
 
   it("supports exact name lookup via POST", async () => {
@@ -146,6 +156,8 @@ describe("GET /api/card-search", () => {
       items: Array<{
         name: string;
         setCode: string | null;
+        collectorNumber: string | null;
+        printingId: string | null;
         previewImageUrl: string | null;
         typeLine: string;
       }>;
@@ -153,6 +165,8 @@ describe("GET /api/card-search", () => {
 
     expect(payload.count).toBe(2);
     expect(payload.items.every((item) => Boolean(item.setCode))).toBe(true);
+    expect(payload.items.every((item) => Boolean(item.collectorNumber))).toBe(true);
+    expect(payload.items.every((item) => Boolean(item.printingId))).toBe(true);
     expect(payload.items.every((item) => Boolean(item.previewImageUrl))).toBe(true);
     expect(payload.items.some((item) => item.name === "Reconnaissance Mission")).toBe(true);
     expect(payload.items.some((item) => item.name === "Tetsuko Umezawa, Fugitive")).toBe(true);

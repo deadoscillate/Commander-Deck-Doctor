@@ -8,6 +8,18 @@ import { GAME_CHANGERS, getGameChangerColorIdentity } from "@/lib/gameChangers";
 export type BuilderDeckCard = {
   name: string;
   qty: number;
+  setCode?: string | null;
+  collectorNumber?: string | null;
+  printingId?: string | null;
+  previewImageUrl?: string | null;
+  artUrl?: string | null;
+  manaCost?: string;
+  cmc?: number;
+  typeLine?: string;
+  oracleText?: string;
+  colorIdentity?: string[];
+  duplicateLimit?: number | null;
+  isBasicLand?: boolean;
 };
 
 export type BuilderCommanderSelection = {
@@ -188,6 +200,20 @@ export function buildBuilderDecklist(
   lines.push("", "Deck");
 
   for (const card of cards) {
+    const setCode = typeof card.setCode === "string" && card.setCode.trim() ? card.setCode.trim().toUpperCase() : "";
+    const collectorNumber =
+      typeof card.collectorNumber === "string" && card.collectorNumber.trim() ? card.collectorNumber.trim() : "";
+
+    if (setCode && collectorNumber) {
+      lines.push(`${card.qty} ${card.name} (${setCode}) ${collectorNumber}`);
+      continue;
+    }
+
+    if (setCode) {
+      lines.push(`${card.qty} ${card.name} (${setCode})`);
+      continue;
+    }
+
     lines.push(`${card.qty} ${card.name}`);
   }
 

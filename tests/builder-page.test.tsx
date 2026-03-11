@@ -183,7 +183,15 @@ function createAnalyzeResponse(overrides: Record<string, unknown> = {}) {
           currentCount: 6,
           recommendedRange: "10-12",
           direction: "ADD",
-          suggestions: ["Nature's Lore", "Farseek"]
+          suggestions: [
+            "Nature's Lore",
+            "Three Visits",
+            "Rampant Growth",
+            "Cultivate",
+            "Farseek",
+            "Llanowar Elves",
+            "Birds of Paradise"
+          ]
         }
       ],
       disclaimer: "test"
@@ -235,6 +243,8 @@ describe("builder page", () => {
               oracleText: "Whenever a creature deals combat damage to one of your opponents, its controller may draw a card.",
               colorIdentity: ["G", "U"],
               setCode: "CMD",
+              collectorNumber: "241",
+              printingId: "edric-printing",
               commanderEligible: true,
               isBasicLand: false,
               duplicateLimit: null,
@@ -276,6 +286,9 @@ describe("builder page", () => {
               typeLine: "Instant",
               oracleText: "Counter target spell.",
               colorIdentity: ["U"],
+              setCode: "DMR",
+              collectorNumber: "55",
+              printingId: "counterspell-dmr-55",
               commanderEligible: false,
               isBasicLand: false,
               duplicateLimit: null,
@@ -296,6 +309,18 @@ describe("builder page", () => {
           oracleText: "",
           colorIdentity: name === "Counterspell" ? ["U"] : [],
           setCode: name === "Edric, Spymaster of Trest" ? "CMD" : null,
+          collectorNumber:
+            name === "Edric, Spymaster of Trest"
+              ? "241"
+              : name === "Counterspell"
+                ? "55"
+                : null,
+          printingId:
+            name === "Edric, Spymaster of Trest"
+              ? "edric-printing"
+              : name === "Counterspell"
+                ? "counterspell-dmr-55"
+                : `${name.toLowerCase().replace(/[^a-z0-9]/g, "-")}-printing`,
           commanderEligible: name === "Edric, Spymaster of Trest",
           isBasicLand: false,
           duplicateLimit: null,
@@ -383,6 +408,34 @@ describe("builder page", () => {
     expect(latestAnalyzeBody.commanderName).toBe("Edric, Spymaster of Trest");
     expect(latestAnalyzeBody.decklist).toContain("Commander");
     expect(latestAnalyzeBody.decklist).toContain("1 Edric, Spymaster of Trest");
-    expect(latestAnalyzeBody.decklist).toContain("1 Counterspell");
+    expect(latestAnalyzeBody.decklist).toContain("1 Counterspell (DMR) 55");
+  });
+
+  it("refills suggestion groups after adding a suggested card", async () => {
+    const user = userEvent.setup();
+    const { default: BuilderPage } = await import("@/app/builder/page");
+
+    render(<BuilderPage />);
+
+    await user.type(screen.getByPlaceholderText(/Search commanders/i), "Edric");
+    await user.click(await screen.findByRole("button", { name: /Start Build/i }));
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith("/api/analyze", expect.any(Object));
+    });
+
+    await user.click(screen.getByRole("tab", { name: /Smart Suggestions/i }));
+
+    expect(screen.queryByText("Birds of Paradise")).toBeNull();
+
+    const natureArticle = (await screen.findAllByText("Nature's Lore")).find((node) => node.closest("article"));
+    expect(natureArticle).toBeTruthy();
+    await user.click(within(natureArticle!.closest("article") as HTMLElement).getByRole("button", { name: /^Add$/i }));
+
+    await waitFor(() => {
+      expect(screen.queryAllByText("Nature's Lore")).toHaveLength(1);
+    });
+
+    expect(screen.getByText("Birds of Paradise")).not.toBeNull();
   });
 });

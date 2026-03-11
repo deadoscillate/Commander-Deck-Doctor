@@ -44,6 +44,8 @@ export type CardSearchRecord = {
   oracleText: string;
   colorIdentity: string[];
   setCode: string | null;
+  collectorNumber: string | null;
+  printingId: string | null;
   commanderEligible: boolean;
   isBasicLand: boolean;
   duplicateLimit: number | null;
@@ -200,6 +202,8 @@ function toSearchRecord(card: ScryfallCard): CardSearchRecord {
     oracleText: card.oracle_text ?? "",
     colorIdentity: normalizedColorIdentity(card.color_identity ?? []),
     setCode: typeof card.set === "string" && card.set ? card.set.toUpperCase() : null,
+    collectorNumber: null,
+    printingId: null,
     commanderEligible: isCommanderEligible(card),
     isBasicLand: BASIC_LANDS.has(normalizeName(card.name)),
     duplicateLimit: duplicateLimitForCard(card),
@@ -223,6 +227,8 @@ function toSearchRecordFromPrintCard(
     oracleText: card.oracle_text ?? "",
     colorIdentity: normalizedColorIdentity(card.color_identity ?? meta?.colorIdentity ?? []),
     setCode: typeof card.set === "string" && card.set ? card.set.toUpperCase() : null,
+    collectorNumber: card.collector_number ?? null,
+    printingId: card.id ?? null,
     commanderEligible: meta?.commanderEligible ?? isCommanderEligible({
       type_line: card.type_line ?? "",
       oracle_text: card.oracle_text ?? "",
@@ -333,6 +339,8 @@ function buildSearchIndex(): CardSearchRecord[] {
         oracleText: engineCard.oracleText ?? "",
         colorIdentity: meta?.colorIdentity ?? normalizedColorIdentity(engineCard.colorIdentity ?? []),
         setCode: null,
+        collectorNumber: null,
+        printingId: null,
         commanderEligible: meta?.commanderEligible ?? (isLegendaryCreature(engineCard.typeLine) || engineCard.oracleText.toLowerCase().includes("can be your commander")),
         isBasicLand: meta?.isBasicLand ?? BASIC_LANDS.has(normalizeName(engineCard.name)),
         duplicateLimit: meta?.duplicateLimit ?? duplicateLimitForCard({

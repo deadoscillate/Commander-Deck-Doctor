@@ -30,6 +30,24 @@ describe("builder utilities", () => {
     expect(decklist).toContain("\n\nDeck\n1 Sol Ring\n1 Arcane Signet");
   });
 
+  it("preserves set and collector metadata in builder decklists when available", () => {
+    const decklist = buildBuilderDecklist(
+      {
+        primary: "Edric, Spymaster of Trest"
+      },
+      [
+        {
+          name: "Counterspell",
+          qty: 1,
+          setCode: "DMR",
+          collectorNumber: "55"
+        }
+      ]
+    );
+
+    expect(decklist).toContain("1 Counterspell (DMR) 55");
+  });
+
   it("extracts low-count needs sorted by the largest deficit", () => {
     const needs = extractNeeds([
       {
