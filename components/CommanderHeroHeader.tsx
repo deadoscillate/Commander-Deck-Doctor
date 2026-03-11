@@ -1,3 +1,5 @@
+import type { ReactNode } from "react";
+
 import { CardNameHover } from "@/components/CardNameHover";
 import { ColorIdentityIcons } from "@/components/ColorIdentityIcons";
 
@@ -15,12 +17,14 @@ type CommanderHeroHeaderProps = {
   };
   archetypeLabel?: string | null;
   bracketLabel?: string | null;
+  action?: ReactNode;
 };
 
 export function CommanderHeroHeader({
   commander,
   archetypeLabel,
-  bracketLabel
+  bracketLabel,
+  action
 }: CommanderHeroHeaderProps) {
   const deckPriceLabel =
     typeof commander.deckPriceUsd === "number" && Number.isFinite(commander.deckPriceUsd)
@@ -72,6 +76,7 @@ export function CommanderHeroHeader({
             <ColorIdentityIcons identity={commander.colorIdentity} size={22} />
           </div>
           <div className="commander-hero-meta-right">
+            {action}
             {deckPriceLabel ? <span className="commander-hero-pill">Deck {deckPriceLabel}</span> : null}
             {bracketLabel ? <span className="commander-hero-pill">{bracketLabel}</span> : null}
             {typeof commander.cmc === "number" ? (

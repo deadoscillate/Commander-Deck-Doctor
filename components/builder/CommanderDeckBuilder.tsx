@@ -1390,7 +1390,7 @@ export function CommanderDeckBuilder() {
 
   const roleBreakdown = useMemo(() => normalizeRoleBreakdown(analysis), [analysis]);
   const needs = useMemo(() => extractNeeds(analysis?.deckHealth.rows ?? []), [analysis]);
-  const visibleNeeds = useMemo(() => needs.slice(0, 4), [needs]);
+  const visibleNeeds = useMemo(() => needs.slice(0, 3), [needs]);
   const commanderArchetypeNames = useMemo(
     () =>
       selectedCommander
@@ -2309,6 +2309,17 @@ export function CommanderDeckBuilder() {
             commander={heroCommander}
             archetypeLabel={archetypeLabel}
             bracketLabel={analysis?.bracketReport?.estimatedLabel ?? null}
+            action={
+              <button
+                type="button"
+                className="commander-hero-pill commander-hero-pill-action"
+                aria-label="Commander Print"
+                title="Commander Print"
+                onClick={() => openPrintingPicker("commander", heroCommander.name)}
+              >
+                Print
+              </button>
+            }
           />
         </div>
       ) : null}
@@ -2334,13 +2345,6 @@ export function CommanderDeckBuilder() {
             <section className="builder-status-card">
               <div className="builder-status-card-head">
                 <h3>Commander</h3>
-                <button
-                  type="button"
-                  className="btn-tertiary"
-                  onClick={() => openPrintingPicker("commander", selectedCommander.name)}
-                >
-                  Print
-                </button>
               </div>
               <p>
                 <strong>
