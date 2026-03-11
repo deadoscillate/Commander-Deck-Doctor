@@ -3,7 +3,7 @@ import { evaluateCommanderConfiguration } from "@/lib/commanderConfiguration";
 import type { CommanderChoice } from "@/lib/contracts";
 import { getLocalDefaultCardByName, getLocalDefaultCardsByNames } from "@/lib/scryfallLocalDefaultStore";
 import { getLocalPrintCardsByNames, type LocalPrintCardRecord } from "@/lib/scryfallLocalPrintIndexStore";
-import { searchSqlitePrintCards } from "@/lib/scryfallLocalPrintSqliteStore";
+import { listSqlitePrintSetRows, searchSqlitePrintCards } from "@/lib/scryfallLocalPrintSqliteStore";
 import { getScryfallSetName, getScryfallSetOption, listScryfallSetMetadata, type ScryfallSetOption } from "@/lib/scryfallSetMetadata";
 import type { ScryfallCard } from "@/lib/types";
 
@@ -694,32 +694,34 @@ export async function listSearchSetOptions(): Promise<ScryfallSetOption[]> {
     return setOptions;
   }
 
-  const metadata = listScryfallSetMetadata();
-  if (metadata.length > 0) {
-    setOptions = metadata;
-    return setOptions;
-  }
-
+  const metadataByCode = new Map(
+    listScryfallSetMetadata().map((row) => [row.setCode.toUpperCase(), row] as const)
+  );
+  const printRows = await listSqlitePrintSetRows();
   const seen = new Set<string>();
   const output: ScryfallSetOption[] = [];
 
-  for (const card of buildSearchIndex()) {
-    const meta = ensureEngineMetaMaps().byName.get(normalizeName(card.name));
+  for (const row of printRows) {
+    const setCode = row.setCode.toUpperCase();
+    const meta = ensureEngineMetaMaps().byOracleId.get(row.oracleId);
     if (
-      !card.setCode ||
-      seen.has(card.setCode) ||
+      !setCode ||
+      setCode === "SUNF" ||
+      seen.has(setCode) ||
       (meta && !meta.commanderLegal) ||
-      isBuilderSearchExcludedType(card.typeLine)
+      isDigitalVariantName(row.name) ||
+      isBuilderSearchExcludedType(row.typeLine)
     ) {
       continue;
     }
 
-    seen.add(card.setCode);
+    seen.add(setCode);
+    const metadata = metadataByCode.get(setCode) ?? null;
     output.push({
-      setCode: card.setCode,
-      setName: card.setName ?? getScryfallSetName(card.setCode) ?? card.setCode,
-      releasedAt: null,
-      releaseYear: card.setReleaseYear ?? null
+      setCode,
+      setName: metadata?.setName ?? getScryfallSetName(setCode) ?? setCode,
+      releasedAt: metadata?.releasedAt ?? null,
+      releaseYear: metadata?.releaseYear ?? null
     });
   }
 

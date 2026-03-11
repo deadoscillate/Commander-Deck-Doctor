@@ -811,6 +811,7 @@ export async function listSqlitePrintSetRows(): Promise<SqlitePrintSetOptionRow[
         oracle_cards.type_line AS type_line
       FROM print_cards
       LEFT JOIN oracle_cards ON oracle_cards.oracle_id = print_cards.oracle_id
+      ${printCardsHasDigitalColumn ? "WHERE coalesce(print_cards.digital, 0) = 0" : ""}
       ORDER BY print_cards.set_code ASC
     `
     )
