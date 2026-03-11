@@ -129,14 +129,16 @@ describe("analysis report tab smoke", () => {
     expect(addsTab.getAttribute("aria-selected")).toBe("true");
     expect(addPanel).toBeTruthy();
     expect(cutPanel).toBeTruthy();
-    expect(within(addPanel as HTMLElement).getByText("Rhystic Study")).toBeTruthy();
+    expect(within(addPanel as HTMLElement).getByRole("button", { name: "Rhystic Study" })).toBeTruthy();
     expect(cutPanel?.hasAttribute("hidden")).toBe(true);
 
     await user.click(cutsTab);
 
     expect(cutsTab.getAttribute("aria-selected")).toBe("true");
     expect(addPanel?.hasAttribute("hidden")).toBe(true);
-    expect(within(cutPanel as HTMLElement).getByText("Aetherflux Reservoir")).toBeTruthy();
+    expect(
+      within(cutPanel as HTMLElement).getByRole("button", { name: "Aetherflux Reservoir" })
+    ).toBeTruthy();
   });
 
 });
