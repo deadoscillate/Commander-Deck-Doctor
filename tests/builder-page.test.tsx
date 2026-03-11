@@ -541,7 +541,9 @@ describe("builder page", () => {
       expect(fetchMock).toHaveBeenCalledWith("/api/analyze", expect.any(Object));
     });
 
-    await user.click(screen.getByRole("button", { name: /^Printing$/i }));
+    const commanderZone = screen.getByRole("heading", { name: /Commander Zone/i }).closest(".builder-deck-section");
+    const commanderPrintButton = within(commanderZone as HTMLElement).getByRole("button", { name: /^Print$/i });
+    await user.click(commanderPrintButton);
 
     const printingSelect = await screen.findByLabelText(/Set \/ Printing/i);
     await user.selectOptions(printingSelect, "edric-cmm-999");
@@ -572,11 +574,21 @@ describe("builder page", () => {
     expect(counterspellCard).toBeTruthy();
     await user.click(within(counterspellCard!.closest("article") as HTMLElement).getByRole("button", { name: /^Add$/i }));
 
+    let counterspellDeckCard: HTMLElement | null = null;
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: /^Print$/i })).toBeTruthy();
+      const counterspellMatches = screen.getAllByText("Counterspell");
+      counterspellDeckCard =
+        counterspellMatches
+          .map((node) => node.closest("li"))
+          .find(
+            (element) =>
+              element instanceof HTMLElement &&
+              !!within(element).queryByRole("button", { name: /^Print$/i })
+          ) ?? null;
+      expect(counterspellDeckCard).toBeTruthy();
     });
 
-    await user.click(screen.getByRole("button", { name: /^Print$/i }));
+    await user.click(within(counterspellDeckCard as HTMLElement).getByRole("button", { name: /^Print$/i }));
 
     const printingSelect = await screen.findByLabelText(/Set \/ Printing/i);
     await user.selectOptions(printingSelect, "counterspell-clb-111");

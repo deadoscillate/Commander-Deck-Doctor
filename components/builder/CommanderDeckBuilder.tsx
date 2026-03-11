@@ -2455,13 +2455,23 @@ export function CommanderDeckBuilder() {
             <p className="muted">Start with a commander. The builder initializes an empty shell and keeps analysis live.</p>
           ) : (
             <>
-                <div className="builder-deck-section">
-                  <h3>Commander Zone</h3>
-                  <ul className="builder-card-list">
-                  <li className="builder-card-row builder-card-row-no-qty">
-                    {renderCardThumb(selectedCommander, "builder-card-thumb", selectedCommander.name.charAt(0))}
-                    <div className="builder-card-main">
-                      <div className="builder-card-main-head">
+              <div className="builder-deck-section">
+                <h3>Commander Zone</h3>
+                  <ul className="builder-command-zone-grid">
+                  <li className="builder-stack-card builder-stack-card-commander">
+                    <div className="builder-stack-card-art">
+                      {renderCardThumb(selectedCommander, "builder-stack-thumb", selectedCommander.name.charAt(0))}
+                    </div>
+                    <div className="builder-stack-card-overlay">
+                      <div className="builder-stack-head">
+                        <span className="builder-stack-zone-chip">Commander</span>
+                        <div className="builder-stack-actions">
+                          <button type="button" className="btn-tertiary" onClick={() => openPrintingPicker("commander", selectedCommander.name)}>
+                            Print
+                          </button>
+                        </div>
+                      </div>
+                      <div className="builder-stack-caption">
                         <strong>
                           <CardLink
                             name={selectedCommander.name}
@@ -2470,30 +2480,24 @@ export function CommanderDeckBuilder() {
                             printingId={selectedCommander.printingId}
                           />
                         </strong>
-                        <div className="builder-search-meta">
-                          <ManaCost manaCost={selectedCommander.manaCost} size={16} />
-                        </div>
+                        {formatCompactPrintingLabel(selectedCommander) ? (
+                          <p className="muted builder-stack-caption-meta">{formatCompactPrintingLabel(selectedCommander)}</p>
+                        ) : null}
                       </div>
-                      <p className="muted builder-card-subline">{selectedCommander.typeLine}</p>
-                      <div className="decklist-preview-printing-controls">
-                        <button type="button" className="btn-tertiary" onClick={() => openPrintingPicker("commander", selectedCommander.name)}>
-                          Printing
-                        </button>
-                        {selectedCommander.setCode ? <span className="decklist-preview-set-chip">{selectedCommander.setCode}</span> : null}
-                      </div>
-                      {formatCompactPrintingLabel(selectedCommander) ? (
-                        <p className="muted decklist-preview-printing-label">Current: {formatCompactPrintingLabel(selectedCommander)}</p>
-                      ) : null}
                     </div>
                   </li>
                   {selectedPairOption ? (
-                    <li className="builder-card-row builder-card-row-no-qty">
-                      {renderCardThumb(resolveCardRecord(selectedPairOption.name), "builder-card-thumb", selectedPairOption.name.charAt(0))}
-                      <div className="builder-card-main">
-                        <div className="builder-card-main-head">
+                    <li className="builder-stack-card builder-stack-card-commander">
+                      <div className="builder-stack-card-art">
+                        {renderCardThumb(resolveCardRecord(selectedPairOption.name), "builder-stack-thumb", selectedPairOption.name.charAt(0))}
+                      </div>
+                      <div className="builder-stack-card-overlay">
+                        <div className="builder-stack-head">
+                          <span className="builder-stack-zone-chip">{selectedPairOption.pairType}</span>
+                        </div>
+                        <div className="builder-stack-caption">
                           <strong><CardLink name={selectedPairOption.name} /></strong>
                         </div>
-                        <p className="muted builder-card-subline">{selectedPairOption.pairType}</p>
                       </div>
                     </li>
                   ) : null}
@@ -2528,7 +2532,7 @@ export function CommanderDeckBuilder() {
                               </div>
                               <div className="builder-stack-card-overlay">
                                 <div className="builder-stack-head">
-                                  {showQuantity ? <span className="builder-stack-qty">{card.qty}</span> : null}
+                                  {showQuantity ? <span className="builder-stack-qty">{card.qty}</span> : <span className="builder-stack-qty builder-stack-qty-hidden">1</span>}
                                   <div className="builder-stack-actions">
                                     <button
                                       type="button"
@@ -2553,7 +2557,7 @@ export function CommanderDeckBuilder() {
                                     </button>
                                   </div>
                                 </div>
-                                <div className="builder-stack-main">
+                                <div className="builder-stack-caption">
                                   <div className="builder-stack-topline">
                                     <strong>
                                       <CardLink
@@ -2567,10 +2571,7 @@ export function CommanderDeckBuilder() {
                                       {record.manaCost ? <ManaCost manaCost={record.manaCost} size={15} /> : null}
                                     </div>
                                   </div>
-                                  <p className="muted builder-stack-subline">{record.typeLine || "Card data pending"}</p>
-                                  <div className="builder-stack-printing">
-                                    {compactPrintingLabel ? <span>{compactPrintingLabel}</span> : null}
-                                  </div>
+                                  {compactPrintingLabel ? <p className="muted builder-stack-caption-meta">{compactPrintingLabel}</p> : null}
                                 </div>
                               </div>
                             </li>
