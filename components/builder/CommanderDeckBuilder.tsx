@@ -2506,75 +2506,76 @@ export function CommanderDeckBuilder() {
                   <p className="muted">No cards added yet. Use the header search and suggestions to add cards to the 99.</p>
                 </div>
               ) : (
-                deckSections.map((section) => (
-                  <div key={section.key} className="builder-deck-section">
-                    <div className="builder-section-head">
-                      <h3>{section.label}</h3>
-                      <span className="muted">
-                        {section.cards.reduce((sum, card) => sum + card.qty, 0)} card
-                        {section.cards.reduce((sum, card) => sum + card.qty, 0) === 1 ? "" : "s"}
-                      </span>
-                    </div>
-                    <ul className="builder-card-list">
-                      {section.cards.map((card) => {
-                        const record = toDeckCardRecord(card);
-                        const showQuantity = shouldShowDeckQuantity(record);
-                        const compactPrintingLabel = formatCompactPrintingLabel(record);
-                        return (
-                          <li
-                            key={`${section.key}-${card.name}`}
-                            className={`builder-card-row${showQuantity ? "" : " builder-card-row-no-qty"}`}
-                          >
-                            {showQuantity ? <span className="builder-card-qty">{card.qty}</span> : null}
-                            {renderCardThumb(record, "builder-card-thumb", card.name.charAt(0))}
-                            <div className="builder-card-main">
-                              <div className="builder-card-main-head">
-                          <strong>
-                            <CardLink
-                              name={card.name}
-                              setCode={record.setCode}
-                              collectorNumber={record.collectorNumber}
-                              printingId={record.printingId}
-                            />
-                          </strong>
-                                <div className="builder-search-meta">
-                                  {record.manaCost ? <ManaCost manaCost={record.manaCost} size={16} /> : null}
+                <div className="builder-deck-sections-grid">
+                  {deckSections.map((section) => (
+                    <div key={section.key} className="builder-deck-stack-section">
+                      <div className="builder-section-head">
+                        <h3>{section.label}</h3>
+                        <span className="muted">
+                          {section.cards.reduce((sum, card) => sum + card.qty, 0)} card
+                          {section.cards.reduce((sum, card) => sum + card.qty, 0) === 1 ? "" : "s"}
+                        </span>
+                      </div>
+                      <ul className="builder-stack-list">
+                        {section.cards.map((card) => {
+                          const record = toDeckCardRecord(card);
+                          const showQuantity = shouldShowDeckQuantity(record);
+                          const compactPrintingLabel = formatCompactPrintingLabel(record);
+                          return (
+                            <li key={`${section.key}-${card.name}`} className="builder-stack-card">
+                              {showQuantity ? <span className="builder-stack-qty">{card.qty}</span> : null}
+                              {renderCardThumb(record, "builder-stack-thumb", card.name.charAt(0))}
+                              <div className="builder-stack-main">
+                                <div className="builder-stack-topline">
+                                  <strong>
+                                    <CardLink
+                                      name={card.name}
+                                      setCode={record.setCode}
+                                      collectorNumber={record.collectorNumber}
+                                      printingId={record.printingId}
+                                    />
+                                  </strong>
+                                  <div className="builder-search-meta">
+                                    {record.manaCost ? <ManaCost manaCost={record.manaCost} size={15} /> : null}
+                                  </div>
+                                </div>
+                                <p className="muted builder-stack-subline">{record.typeLine || "Card data pending"}</p>
+                                <div className="builder-stack-footer">
+                                  <div className="builder-stack-printing">
+                                    {compactPrintingLabel ? <span>{compactPrintingLabel}</span> : null}
+                                    <button
+                                      type="button"
+                                      className="btn-tertiary"
+                                      onClick={() => openPrintingPicker("deck", card.name)}
+                                    >
+                                      Print
+                                    </button>
+                                  </div>
+                                  <div className="builder-stack-actions">
+                                    <button
+                                      type="button"
+                                      className="btn-tertiary"
+                                      onClick={() => setDeckCards((current) => updateCardQty(current, card.name, -1))}
+                                    >
+                                      -
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className="btn-tertiary"
+                                      onClick={() => setDeckCards((current) => updateCardQty(current, card.name, 1))}
+                                    >
+                                      +
+                                    </button>
+                                  </div>
                                 </div>
                               </div>
-                              <p className="muted builder-card-subline">
-                                <span>{record.typeLine || "Card data pending"}</span>
-                                {compactPrintingLabel ? <span className="builder-card-meta-divider">·</span> : null}
-                                {compactPrintingLabel ? <span>{compactPrintingLabel}</span> : null}
-                              </p>
-                              <div className="decklist-preview-printing-controls">
-                                <button type="button" className="btn-tertiary" onClick={() => openPrintingPicker("deck", card.name)}>
-                                  Printing
-                                </button>
-                                {record.setCode ? <span className="decklist-preview-set-chip">{record.setCode}</span> : null}
-                              </div>
-                            </div>
-                            <div className="builder-card-actions">
-                              <button
-                                type="button"
-                                className="btn-tertiary"
-                                onClick={() => setDeckCards((current) => updateCardQty(current, card.name, -1))}
-                              >
-                                -
-                              </button>
-                              <button
-                                type="button"
-                                className="btn-tertiary"
-                                onClick={() => setDeckCards((current) => updateCardQty(current, card.name, 1))}
-                              >
-                                +
-                              </button>
-                            </div>
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  </div>
-                ))
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </div>
+                  ))}
+                </div>
               )}
 
               <section className="saved-decks-panel">

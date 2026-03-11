@@ -573,11 +573,10 @@ describe("builder page", () => {
     await user.click(within(counterspellCard!.closest("article") as HTMLElement).getByRole("button", { name: /^Add$/i }));
 
     await waitFor(() => {
-      expect(screen.getAllByRole("button", { name: /^Printing$/i }).length).toBeGreaterThanOrEqual(2);
+      expect(screen.getByRole("button", { name: /^Print$/i })).toBeTruthy();
     });
 
-    const printingButtons = screen.getAllByRole("button", { name: /^Printing$/i });
-    await user.click(printingButtons[1]);
+    await user.click(screen.getByRole("button", { name: /^Print$/i }));
 
     const printingSelect = await screen.findByLabelText(/Set \/ Printing/i);
     await user.selectOptions(printingSelect, "counterspell-clb-111");
