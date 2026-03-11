@@ -741,7 +741,7 @@ export function CommanderDeckBuilder() {
   const [cardQuery, setCardQuery] = useState("");
   const [cardTypeFilter, setCardTypeFilter] = useState<BuilderCardTypeFilter>("");
   const [cardSetFilter, setCardSetFilter] = useState("");
-  const [activeHeaderTab, setActiveHeaderTab] = useState<BuilderHeaderTab>("search");
+  const [activeHeaderTab, setActiveHeaderTab] = useState<BuilderHeaderTab | null>("search");
   const [setOptions, setSetOptions] = useState<string[]>([]);
   const [cardResults, setCardResults] = useState<CardSearchRecord[]>([]);
   const [cardSearchLoading, setCardSearchLoading] = useState(false);
@@ -1599,7 +1599,14 @@ export function CommanderDeckBuilder() {
               <article key={`${prefix}-${group.key}-${item.name}`} className="builder-search-card builder-suggestion-card">
                 {renderCardThumb(record, "builder-search-thumb", item.name.charAt(0))}
                 <div className="builder-search-card-main">
-                  <strong><CardLink name={item.name} /></strong>
+                  <strong>
+                    <CardLink
+                      name={item.name}
+                      setCode={record.setCode}
+                      collectorNumber={record.collectorNumber}
+                      printingId={record.printingId}
+                    />
+                  </strong>
                   <div className="builder-search-meta">
                     {record.manaCost ? <ManaCost manaCost={record.manaCost} size={16} /> : null}
                     {record.typeLine ? <span>{record.typeLine}</span> : null}
@@ -1646,6 +1653,10 @@ export function CommanderDeckBuilder() {
   ];
 
   function renderHeaderTabContent() {
+    if (!activeHeaderTab) {
+      return null;
+    }
+
     switch (activeHeaderTab) {
       case "search":
         return (
@@ -1664,7 +1675,14 @@ export function CommanderDeckBuilder() {
                   >
                     {renderCardThumb(card, "builder-search-thumb", card.name.charAt(0))}
                     <div className="builder-search-card-main">
-                      <strong><CardLink name={card.name} /></strong>
+                      <strong>
+                        <CardLink
+                          name={card.name}
+                          setCode={card.setCode}
+                          collectorNumber={card.collectorNumber}
+                          printingId={card.printingId}
+                        />
+                      </strong>
                       <div className="builder-search-meta">
                         <ManaCost manaCost={card.manaCost} size={16} />
                         <span>{card.typeLine}</span>
@@ -1819,7 +1837,14 @@ export function CommanderDeckBuilder() {
                 <div className="builder-commander-card-main">
                   {renderCardThumb(commander, "builder-commander-preview", commander.name.charAt(0))}
                   <div className="builder-commander-card-body">
-                    <strong><CardLink name={commander.name} /></strong>
+                    <strong>
+                      <CardLink
+                        name={commander.name}
+                        setCode={commander.setCode}
+                        collectorNumber={commander.collectorNumber}
+                        printingId={commander.printingId}
+                      />
+                    </strong>
                     <div className="builder-search-meta">
                       <ManaCost manaCost={commander.manaCost} size={16} />
                     </div>
@@ -1875,7 +1900,8 @@ export function CommanderDeckBuilder() {
                   role="tab"
                   aria-selected={activeHeaderTab === tab.key}
                   className={`builder-header-tab${activeHeaderTab === tab.key ? " builder-header-tab-active" : ""}`}
-                  onClick={() => setActiveHeaderTab(tab.key)}
+                  aria-expanded={activeHeaderTab === tab.key}
+                  onClick={() => setActiveHeaderTab((current) => (current === tab.key ? null : tab.key))}
                 >
                   <span>{tab.label}</span>
                   {typeof tab.count === "number" ? <span className="builder-header-tab-count">{tab.count}</span> : null}
@@ -1883,9 +1909,7 @@ export function CommanderDeckBuilder() {
               ))}
             </div>
 
-            <div className="builder-header-tab-panel">
-              {renderHeaderTabContent()}
-            </div>
+            {activeHeaderTab ? <div className="builder-header-tab-panel">{renderHeaderTabContent()}</div> : null}
           </section>
         </div>
       ) : null}
@@ -1910,7 +1934,16 @@ export function CommanderDeckBuilder() {
           <div className="builder-status-detail-grid">
             <section className="builder-status-card">
               <h3>Commander</h3>
-              <p><strong><CardLink name={selectedCommander.name} /></strong></p>
+              <p>
+                <strong>
+                  <CardLink
+                    name={selectedCommander.name}
+                    setCode={selectedCommander.setCode}
+                    collectorNumber={selectedCommander.collectorNumber}
+                    printingId={selectedCommander.printingId}
+                  />
+                </strong>
+              </p>
               <div className="builder-search-meta">
                 <ManaCost manaCost={selectedCommander.manaCost} size={16} />
                 <span>{selectedCommander.typeLine}</span>
@@ -2030,7 +2063,14 @@ export function CommanderDeckBuilder() {
                     {renderCardThumb(resolveCardRecord(selectedCommander.name), "builder-card-thumb", selectedCommander.name.charAt(0))}
                     <div className="builder-card-main">
                       <div className="builder-card-main-head">
-                        <strong><CardLink name={selectedCommander.name} /></strong>
+                        <strong>
+                          <CardLink
+                            name={selectedCommander.name}
+                            setCode={selectedCommander.setCode}
+                            collectorNumber={selectedCommander.collectorNumber}
+                            printingId={selectedCommander.printingId}
+                          />
+                        </strong>
                         <div className="builder-search-meta">
                           <ManaCost manaCost={selectedCommander.manaCost} size={16} />
                         </div>
@@ -2080,7 +2120,14 @@ export function CommanderDeckBuilder() {
                             {renderCardThumb(record, "builder-card-thumb", card.name.charAt(0))}
                             <div className="builder-card-main">
                               <div className="builder-card-main-head">
-                                <strong><CardLink name={card.name} /></strong>
+                          <strong>
+                            <CardLink
+                              name={card.name}
+                              setCode={record.setCode}
+                              collectorNumber={record.collectorNumber}
+                              printingId={record.printingId}
+                            />
+                          </strong>
                                 <div className="builder-search-meta">
                                   {record.manaCost ? <ManaCost manaCost={record.manaCost} size={16} /> : null}
                                   {record.colorIdentity.length > 0 ? (

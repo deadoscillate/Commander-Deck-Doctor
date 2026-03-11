@@ -12,7 +12,25 @@ vi.mock("@/components/AnalysisReport", () => ({
 }));
 
 vi.mock("@/components/CardLink", () => ({
-  CardLink: ({ name }: { name: string }) => <span>{name}</span>
+  CardLink: ({
+    name,
+    setCode,
+    collectorNumber,
+    printingId
+  }: {
+    name: string;
+    setCode?: string | null;
+    collectorNumber?: string | null;
+    printingId?: string | null;
+  }) => (
+    <span
+      data-set-code={setCode ?? ""}
+      data-collector-number={collectorNumber ?? ""}
+      data-printing-id={printingId ?? ""}
+    >
+      {name}
+    </span>
+  )
 }));
 
 vi.mock("@/components/ColorIdentityIcons", () => ({
@@ -411,6 +429,32 @@ describe("builder page", () => {
     expect(latestAnalyzeBody.decklist).toContain("1 Counterspell (DMR) 55");
   });
 
+  it("passes print metadata into card search previews", async () => {
+    const user = userEvent.setup();
+    const { default: BuilderPage } = await import("@/app/builder/page");
+
+    render(<BuilderPage />);
+
+    await user.type(screen.getByPlaceholderText(/Search commanders/i), "Edric");
+    await user.click(await screen.findByRole("button", { name: /Start Build/i }));
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith("/api/analyze", expect.any(Object));
+    });
+
+    const searchInput = screen.getByPlaceholderText(/Search cards to add/i);
+    await user.type(searchInput, "Counterspell");
+
+    const counterspellLink = (await screen.findAllByText("Counterspell")).find((node) =>
+      node.closest("article")
+    ) as HTMLElement | undefined;
+
+    expect(counterspellLink).toBeTruthy();
+    expect(counterspellLink?.dataset.setCode).toBe("DMR");
+    expect(counterspellLink?.dataset.collectorNumber).toBe("55");
+    expect(counterspellLink?.dataset.printingId).toBe("counterspell-dmr-55");
+  });
+
   it("refills suggestion groups after adding a suggested card", async () => {
     const user = userEvent.setup();
     const { default: BuilderPage } = await import("@/app/builder/page");
@@ -437,5 +481,26 @@ describe("builder page", () => {
     });
 
     expect(screen.getByText("Birds of Paradise")).not.toBeNull();
+  });
+
+  it("collapses the active header tab when clicked again", async () => {
+    const user = userEvent.setup();
+    const { default: BuilderPage } = await import("@/app/builder/page");
+
+    render(<BuilderPage />);
+
+    await user.type(screen.getByPlaceholderText(/Search commanders/i), "Edric");
+    await user.click(await screen.findByRole("button", { name: /Start Build/i }));
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith("/api/analyze", expect.any(Object));
+    });
+
+    const smartTab = screen.getByRole("tab", { name: /Smart Suggestions/i });
+    await user.click(smartTab);
+    expect(screen.getByText("Nature's Lore")).not.toBeNull();
+
+    await user.click(smartTab);
+    expect(screen.queryByText("Nature's Lore")).toBeNull();
   });
 });
