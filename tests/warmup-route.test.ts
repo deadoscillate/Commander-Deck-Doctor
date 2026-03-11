@@ -81,7 +81,10 @@ describe("GET /api/warmup", () => {
         comboDetectorReady: true,
         oracleCardCount: 36923,
         defaultCardCount: 36440,
-        sqliteAvailable: true
+        sqliteAvailable: true,
+        cardSearchIndexCount: 36440,
+        commanderSearchCount: 2907,
+        builderSetOptionCount: 512
       }))
     }));
 

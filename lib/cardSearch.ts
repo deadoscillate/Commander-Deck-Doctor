@@ -737,6 +737,23 @@ export async function listSearchSetOptions(): Promise<ScryfallSetOption[]> {
   return setOptions;
 }
 
+export async function prewarmCardSearchRuntime(): Promise<{
+  indexedCards: number;
+  commanderCards: number;
+  setOptions: number;
+}> {
+  const cards = buildSearchIndex();
+  buildSearchIndexByName();
+  buildCommanderPool();
+  const sets = await listSearchSetOptions();
+
+  return {
+    indexedCards: cards.length,
+    commanderCards: commanderSearchIndex?.length ?? 0,
+    setOptions: sets.length
+  };
+}
+
 export function clearCardSearchCache(): void {
   searchIndex = null;
   searchIndexByName = null;

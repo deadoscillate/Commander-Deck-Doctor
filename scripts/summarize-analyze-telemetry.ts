@@ -479,7 +479,6 @@ async function main(): Promise<void> {
               round(percentile_cont(0.95) within group (order by total_ms)::numeric, 1) as p95_total_ms,
               round(percentile_cont(0.95) within group (order by lookup_ms)::numeric, 1) as p95_lookup_ms
             from filtered
-            where commander_only = true
             group by route_kind
             order by route_kind
           `,
@@ -495,7 +494,6 @@ async function main(): Promise<void> {
               round(percentile_cont(0.5) within group (order by total_ms)::numeric, 1) as p50_total_ms,
               round(percentile_cont(0.95) within group (order by total_ms)::numeric, 1) as p95_total_ms
             from filtered
-            where commander_only = true
             group by cold_start
             order by cold_start desc
           `,
@@ -509,7 +507,6 @@ async function main(): Promise<void> {
               to_char(min(created_at), 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as first_seen,
               to_char(max(created_at), 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as last_seen
             from filtered
-            where commander_only = true
           `,
             cardSearchFiltered.params
           )
@@ -593,14 +590,14 @@ async function main(): Promise<void> {
           ]
         : []),
       ``,
-      `## Builder Commander Search Telemetry`,
+      `## Builder Card Search Telemetry`,
       cardSearchAvailable
         ? `Requests sampled: ${toDisplayInt(cardSearchTotalRow?.requests)} | First sample: ${cardSearchTotalRow?.first_seen ?? "n/a"} | Last sample: ${cardSearchTotalRow?.last_seen ?? "n/a"}`
         : `Card-search telemetry table not available yet.`,
       ...(cardSearchSummary
         ? [
             ``,
-            `### Commander Search By Route Kind`,
+            `### Card Search By Route Kind`,
             `| Route Kind | Requests | Avg Total (ms) | P50 Total (ms) | P95 Total (ms) | P95 Lookup (ms) |`,
             `| --- | ---: | ---: | ---: | ---: | ---: |`,
             ...cardSearchSummary[0].rows.map(
@@ -608,7 +605,7 @@ async function main(): Promise<void> {
                 `| ${row.route_kind} | ${toDisplayInt(row.requests)} | ${toDisplayNumber(row.avg_total_ms)} | ${toDisplayNumber(row.p50_total_ms)} | ${toDisplayNumber(row.p95_total_ms)} | ${toDisplayNumber(row.p95_lookup_ms)} |`
             ),
             ``,
-            `### Commander Search Cold Starts`,
+            `### Card Search Cold Starts`,
             `| Cold Start | Requests | Avg Total (ms) | P50 Total (ms) | P95 Total (ms) |`,
             `| --- | ---: | ---: | ---: | ---: |`,
             ...cardSearchSummary[1].rows.map(

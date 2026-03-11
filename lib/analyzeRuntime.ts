@@ -45,11 +45,16 @@ export async function prewarmAnalyzeRuntime(): Promise<{
   oracleCardCount: number;
   defaultCardCount: number;
   sqliteAvailable: boolean;
+  cardSearchIndexCount: number;
+  commanderSearchCount: number;
+  builderSetOptionCount: number;
 }> {
+  const cardSearchModule = await import("@/lib/cardSearch");
   await getDetectCombosInDeck();
-  const [engine, scryfall] = await Promise.all([
+  const [engine, scryfall, cardSearch] = await Promise.all([
     getAnalyzerEngine(),
-    prewarmScryfallRuntime()
+    prewarmScryfallRuntime(),
+    cardSearchModule.prewarmCardSearchRuntime()
   ]);
 
   return {
@@ -57,6 +62,9 @@ export async function prewarmAnalyzeRuntime(): Promise<{
     comboDetectorReady: true,
     oracleCardCount: scryfall.oracleCardCount,
     defaultCardCount: scryfall.defaultCardCount,
-    sqliteAvailable: scryfall.sqliteAvailable
+    sqliteAvailable: scryfall.sqliteAvailable,
+    cardSearchIndexCount: cardSearch.indexedCards,
+    commanderSearchCount: cardSearch.commanderCards,
+    builderSetOptionCount: cardSearch.setOptions
   };
 }
