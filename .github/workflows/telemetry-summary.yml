@@ -185,7 +185,7 @@ jobs:
         run: cat telemetry-output/latest.md >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload report artifact
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: analyze-telemetry-summary
           path: telemetry-output/
