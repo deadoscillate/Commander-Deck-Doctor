@@ -787,6 +787,10 @@ input[type="url"] {
   padding: 0.62rem 0.68rem 0.7rem;
   background: linear-gradient(145deg, rgba(10, 18, 28, 0.56), rgba(16, 26, 38, 0.4));
   min-width: 0;
+  min-height: 424px;
+  max-height: 424px;
+  display: flex;
+  flex-direction: column;
 }
 
 .builder-section-head {
@@ -951,6 +955,11 @@ input[type="url"] {
   display: flex;
   flex-direction: column;
   gap: 0;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 0.2rem;
+  padding-bottom: 4.6rem;
 }
 
 .builder-stack-card {
@@ -4051,6 +4060,11 @@ ul {
 
   .builder-deck-sections-grid {
     grid-template-columns: 1fr;
+  }
+
+  .builder-deck-stack-section {
+    min-height: 360px;
+    max-height: 360px;
   }
 
   .panel-grid {

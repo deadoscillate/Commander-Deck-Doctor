@@ -51,14 +51,14 @@ export type BuilderCardMeta = {
 
 export type BuilderDeckSection = {
   key:
+    | "creatures"
+    | "artifacts"
+    | "enchantments"
+    | "instants"
+    | "sorceries"
+    | "planeswalkers"
+    | "battles"
     | "lands"
-    | "ramp"
-    | "draw"
-    | "removal"
-    | "wipes"
-    | "tutors"
-    | "protection"
-    | "finishers"
     | "other";
   label: string;
   cards: BuilderDeckCard[];
@@ -472,62 +472,65 @@ export function buildManaBaseSuggestionNames(colors: string[]): string[] {
 
 export function categorizeBuilderDeckCards(
   cards: BuilderDeckCard[],
-  roleBreakdown: RoleBreakdown | null | undefined,
+  _roleBreakdown: RoleBreakdown | null | undefined,
   cardMetaByName: Record<string, BuilderCardMeta>
 ): BuilderDeckSection[] {
-  const rolePriority: Array<Exclude<BuilderDeckSection["key"], "lands" | "other">> = [
-    "ramp",
-    "draw",
-    "removal",
-    "wipes",
-    "tutors",
-    "protection",
-    "finishers"
+  const typePriority: Array<Exclude<BuilderDeckSection["key"], "lands" | "other">> = [
+    "creatures",
+    "artifacts",
+    "enchantments",
+    "instants",
+    "sorceries",
+    "planeswalkers",
+    "battles"
   ];
 
   const labels: Record<BuilderDeckSection["key"], string> = {
+    creatures: "Creatures",
+    artifacts: "Artifacts",
+    enchantments: "Enchantments",
+    instants: "Instants",
+    sorceries: "Sorceries",
+    planeswalkers: "Planeswalkers",
+    battles: "Battles",
     lands: "Lands",
-    ramp: "Ramp",
-    draw: "Draw",
-    removal: "Removal",
-    wipes: "Board Wipes",
-    tutors: "Tutors",
-    protection: "Protection",
-    finishers: "Finishers",
     other: "Other"
   };
 
-  const roleMap = new Map<string, BuilderDeckSection["key"]>();
-  for (const key of rolePriority) {
-    const rows = roleBreakdown?.[key] ?? [];
-    for (const row of rows) {
-      const normalized = normalizeName(row.name);
-      if (!normalized || roleMap.has(normalized)) {
-        continue;
-      }
-
-      roleMap.set(normalized, key);
-    }
-  }
-
   const buckets = new Map<BuilderDeckSection["key"], BuilderDeckCard[]>();
-  for (const key of [...rolePriority, "lands", "other"] as BuilderDeckSection["key"][]) {
+  for (const key of [...typePriority, "lands", "other"] as BuilderDeckSection["key"][]) {
     buckets.set(key, []);
   }
 
   for (const card of cards) {
     const normalized = normalizeName(card.name);
-    const typeLine = cardMetaByName[normalized]?.typeLine?.toLowerCase() ?? "";
+    const typeLine = (card.typeLine ?? cardMetaByName[normalized]?.typeLine ?? "").toLowerCase();
     if (typeLine.includes("land")) {
       buckets.get("lands")?.push(card);
       continue;
     }
 
-    const roleKey = roleMap.get(normalized) ?? "other";
-    buckets.get(roleKey)?.push(card);
+    let sectionKey: BuilderDeckSection["key"] = "other";
+    if (typeLine.includes("creature")) {
+      sectionKey = "creatures";
+    } else if (typeLine.includes("artifact")) {
+      sectionKey = "artifacts";
+    } else if (typeLine.includes("enchantment")) {
+      sectionKey = "enchantments";
+    } else if (typeLine.includes("instant")) {
+      sectionKey = "instants";
+    } else if (typeLine.includes("sorcery")) {
+      sectionKey = "sorceries";
+    } else if (typeLine.includes("planeswalker")) {
+      sectionKey = "planeswalkers";
+    } else if (typeLine.includes("battle")) {
+      sectionKey = "battles";
+    }
+
+    buckets.get(sectionKey)?.push(card);
   }
 
-  return (["lands", ...rolePriority, "other"] as BuilderDeckSection["key"][])
+  return ([...typePriority, "lands", "other"] as BuilderDeckSection["key"][])
     .map((key) => ({
       key,
       label: labels[key],

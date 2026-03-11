@@ -5,6 +5,7 @@ import {
   buildBuilderDecklist,
   buildGameChangerSuggestionNames,
   buildManaBaseSuggestionNames,
+  categorizeBuilderDeckCards,
   computePreconSimilarity,
   extractNeeds,
   totalDeckCardCount
@@ -262,5 +263,20 @@ describe("builder utilities", () => {
     expect(getCommanderProfile("Birgi, God of Storytelling // Harnfel, Horn of Bounty")?.groups[0]?.cards).toContain("Underworld Breach");
     expect(getCommanderProfile("Child of Alara")?.groups[0]?.cards).toContain("Life from the Loam");
     expect(getCommanderProfile("Captain America, First Avenger")?.groups[0]?.cards).toContain("Colossus Hammer");
+  });
+
+  it("groups current deck cards by card type for the builder deck view", () => {
+    const sections = categorizeBuilderDeckCards(
+      [
+        { name: "Birds of Paradise", qty: 1, typeLine: "Creature — Bird" },
+        { name: "Counterspell", qty: 1, typeLine: "Instant" },
+        { name: "Reconnaissance Mission", qty: 1, typeLine: "Enchantment" },
+        { name: "Island", qty: 3, typeLine: "Basic Land — Island" }
+      ],
+      null,
+      {}
+    );
+
+    expect(sections.map((section) => section.label)).toEqual(["Creatures", "Enchantments", "Instants", "Lands"]);
   });
 });
