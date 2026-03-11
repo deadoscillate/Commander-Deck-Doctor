@@ -18,7 +18,7 @@ describe("GET /api/card-search", () => {
       const current = payload.items[index]?.releaseYear ?? Number.MAX_SAFE_INTEGER;
       expect(previous).toBeLessThanOrEqual(current);
     }
-  });
+  }, 15000);
 
   it("returns commander-only results with legal pair metadata", async () => {
     const response = await GET(

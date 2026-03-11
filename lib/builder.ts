@@ -23,8 +23,18 @@ export type BuilderDeckCard = {
 };
 
 export type BuilderCommanderSelection = {
-  primary: string;
-  secondary?: string | null;
+  primary: {
+    name: string;
+    setCode?: string | null;
+    collectorNumber?: string | null;
+    printingId?: string | null;
+  };
+  secondary?: {
+    name: string;
+    setCode?: string | null;
+    collectorNumber?: string | null;
+    printingId?: string | null;
+  } | null;
 };
 
 export type PreconSimilaritySummary = {
@@ -192,32 +202,41 @@ export function buildBuilderDecklist(
   commander: BuilderCommanderSelection,
   cards: BuilderDeckCard[]
 ): string {
-  const lines = ["Commander", `1 ${commander.primary}`];
-  if (commander.secondary?.trim()) {
-    lines.push(`1 ${commander.secondary.trim()}`);
+  const lines = ["Commander", formatBuilderDecklistLine(commander.primary.name, 1, commander.primary)];
+  if (commander.secondary?.name?.trim()) {
+    lines.push(formatBuilderDecklistLine(commander.secondary.name.trim(), 1, commander.secondary));
   }
 
   lines.push("", "Deck");
 
   for (const card of cards) {
-    const setCode = typeof card.setCode === "string" && card.setCode.trim() ? card.setCode.trim().toUpperCase() : "";
-    const collectorNumber =
-      typeof card.collectorNumber === "string" && card.collectorNumber.trim() ? card.collectorNumber.trim() : "";
-
-    if (setCode && collectorNumber) {
-      lines.push(`${card.qty} ${card.name} (${setCode}) ${collectorNumber}`);
-      continue;
-    }
-
-    if (setCode) {
-      lines.push(`${card.qty} ${card.name} (${setCode})`);
-      continue;
-    }
-
-    lines.push(`${card.qty} ${card.name}`);
+    lines.push(formatBuilderDecklistLine(card.name, card.qty, card));
   }
 
   return lines.join("\n");
+}
+
+function formatBuilderDecklistLine(
+  name: string,
+  qty: number,
+  card: {
+    setCode?: string | null;
+    collectorNumber?: string | null;
+  }
+): string {
+  const setCode = typeof card.setCode === "string" && card.setCode.trim() ? card.setCode.trim().toUpperCase() : "";
+  const collectorNumber =
+    typeof card.collectorNumber === "string" && card.collectorNumber.trim() ? card.collectorNumber.trim() : "";
+
+  if (setCode && collectorNumber) {
+    return `${qty} ${name} (${setCode}) ${collectorNumber}`;
+  }
+
+  if (setCode) {
+    return `${qty} ${name} (${setCode})`;
+  }
+
+  return `${qty} ${name}`;
 }
 
 export function extractNeeds(rows: RecommendedCountRow[]): Array<{

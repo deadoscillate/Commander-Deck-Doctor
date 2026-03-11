@@ -15,8 +15,8 @@ describe("builder utilities", () => {
   it("builds a commander-first decklist with paired commanders", () => {
     const decklist = buildBuilderDecklist(
       {
-        primary: "Tymna the Weaver",
-        secondary: "Thrasios, Triton Hero"
+        primary: { name: "Tymna the Weaver" },
+        secondary: { name: "Thrasios, Triton Hero" }
       },
       [
         { name: "Sol Ring", qty: 1 },
@@ -33,7 +33,7 @@ describe("builder utilities", () => {
   it("preserves set and collector metadata in builder decklists when available", () => {
     const decklist = buildBuilderDecklist(
       {
-        primary: "Edric, Spymaster of Trest"
+        primary: { name: "Edric, Spymaster of Trest" }
       },
       [
         {
@@ -46,6 +46,21 @@ describe("builder utilities", () => {
     );
 
     expect(decklist).toContain("1 Counterspell (DMR) 55");
+  });
+
+  it("preserves commander printing metadata in builder decklists when available", () => {
+    const decklist = buildBuilderDecklist(
+      {
+        primary: {
+          name: "Edric, Spymaster of Trest",
+          setCode: "CMD",
+          collectorNumber: "241"
+        }
+      },
+      []
+    );
+
+    expect(decklist).toContain("1 Edric, Spymaster of Trest (CMD) 241");
   });
 
   it("extracts low-count needs sorted by the largest deficit", () => {

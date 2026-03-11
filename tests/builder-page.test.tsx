@@ -291,10 +291,68 @@ describe("builder page", () => {
                 key: "edric-evasion",
                 label: "Evasive Attackers",
                 description: "test",
-                cards: ["Tetsuko Umezawa, Fugitive", "Reconnaissance Mission"]
+                cards: ["Tetsuko Umezawa, Fugitive", "Reconnaissance Mission", "Ascendant Spirit"]
               }
             ]
           }
+        });
+      }
+
+      if (url.startsWith("/api/card-printings?name=Edric%2C%20Spymaster%20of%20Trest")) {
+        return jsonResponse({
+          name: "Edric, Spymaster of Trest",
+          count: 2,
+          printings: [
+            {
+              id: "edric-printing",
+              name: "Edric, Spymaster of Trest",
+              setCode: "CMD",
+              setName: "Magic: The Gathering-Commander",
+              collectorNumber: "241",
+              releasedAt: "2011-06-17",
+              imageUrl: null,
+              label: "CMD #241 - Magic: The Gathering-Commander (2011-06-17)"
+            },
+            {
+              id: "edric-cmm-999",
+              name: "Edric, Spymaster of Trest",
+              setCode: "CMM",
+              setName: "Commander Masters",
+              collectorNumber: "999",
+              releasedAt: "2023-08-04",
+              imageUrl: null,
+              label: "CMM #999 - Commander Masters (2023-08-04)"
+            }
+          ]
+        });
+      }
+
+      if (url.startsWith("/api/card-printings?name=Counterspell")) {
+        return jsonResponse({
+          name: "Counterspell",
+          count: 2,
+          printings: [
+            {
+              id: "counterspell-dmr-55",
+              name: "Counterspell",
+              setCode: "DMR",
+              setName: "Dominaria Remastered",
+              collectorNumber: "55",
+              releasedAt: "2023-01-13",
+              imageUrl: null,
+              label: "DMR #55 - Dominaria Remastered (2023-01-13)"
+            },
+            {
+              id: "counterspell-clb-111",
+              name: "Counterspell",
+              setCode: "CLB",
+              setName: "Commander Legends: Battle for Baldur's Gate",
+              collectorNumber: "111",
+              releasedAt: "2022-06-10",
+              imageUrl: null,
+              label: "CLB #111 - Commander Legends: Battle for Baldur's Gate (2022-06-10)"
+            }
+          ]
         });
       }
 
@@ -327,23 +385,32 @@ describe("builder page", () => {
         const body = JSON.parse(String(init.body ?? "{}")) as { names?: string[] };
         const items = (body.names ?? []).map((name) => ({
           name,
-          manaCost: name === "Counterspell" ? "{U}{U}" : "",
-          cmc: name === "Counterspell" ? 2 : 0,
-          typeLine: name === "Counterspell" ? "Instant" : "",
+          manaCost:
+            name === "Counterspell"
+              ? "{U}{U}"
+              : name === "Ascendant Spirit"
+                ? "{S}"
+                : "",
+          cmc: name === "Counterspell" ? 2 : name === "Ascendant Spirit" ? 1 : 0,
+          typeLine: name === "Counterspell" ? "Instant" : name === "Ascendant Spirit" ? "Snow Creature — Spirit" : "",
           oracleText: "",
-          colorIdentity: name === "Counterspell" ? ["U"] : [],
+          colorIdentity: name === "Counterspell" || name === "Ascendant Spirit" ? ["U"] : [],
           setCode: name === "Edric, Spymaster of Trest" ? "CMD" : null,
           collectorNumber:
             name === "Edric, Spymaster of Trest"
               ? "241"
               : name === "Counterspell"
                 ? "55"
+                : name === "Ascendant Spirit"
+                  ? "43"
                 : null,
           printingId:
             name === "Edric, Spymaster of Trest"
               ? "edric-printing"
               : name === "Counterspell"
                 ? "counterspell-dmr-55"
+                : name === "Ascendant Spirit"
+                  ? "ascendant-spirit-khm-43"
                 : `${name.toLowerCase().replace(/[^a-z0-9]/g, "-")}-printing`,
           commanderEligible: name === "Edric, Spymaster of Trest",
           isBasicLand: false,
@@ -459,6 +526,89 @@ describe("builder page", () => {
     expect(counterspellLink?.dataset.setCode).toBe("DMR");
     expect(counterspellLink?.dataset.collectorNumber).toBe("55");
     expect(counterspellLink?.dataset.printingId).toBe("counterspell-dmr-55");
+  });
+
+  it("keeps a changed commander printing in the analyze payload", async () => {
+    const user = userEvent.setup();
+    const { default: BuilderPage } = await import("@/app/builder/page");
+
+    render(<BuilderPage />);
+
+    await user.type(screen.getByPlaceholderText(/Search commanders/i), "Edric");
+    await user.click(await screen.findByRole("button", { name: /Start Build/i }));
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith("/api/analyze", expect.any(Object));
+    });
+
+    await user.click(screen.getByRole("button", { name: /^Printing$/i }));
+
+    const printingSelect = await screen.findByLabelText(/Set \/ Printing/i);
+    await user.selectOptions(printingSelect, "edric-cmm-999");
+
+    await waitFor(() => {
+      const analyzeCalls = fetchMock.mock.calls.filter(([url]) => url === "/api/analyze");
+      const latestAnalyzeBody = JSON.parse(String(analyzeCalls.at(-1)?.[1]?.body));
+      expect(latestAnalyzeBody.decklist).toContain("1 Edric, Spymaster of Trest (CMM) 999");
+    });
+  });
+
+  it("keeps a changed deck card printing in the analyze payload", async () => {
+    const user = userEvent.setup();
+    const { default: BuilderPage } = await import("@/app/builder/page");
+
+    render(<BuilderPage />);
+
+    await user.type(screen.getByPlaceholderText(/Search commanders/i), "Edric");
+    await user.click(await screen.findByRole("button", { name: /Start Build/i }));
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith("/api/analyze", expect.any(Object));
+    });
+
+    const searchInput = screen.getByPlaceholderText(/Search cards to add/i);
+    await user.type(searchInput, "Counterspell");
+    const counterspellCard = (await screen.findAllByText("Counterspell")).find((node) => node.closest("article"));
+    expect(counterspellCard).toBeTruthy();
+    await user.click(within(counterspellCard!.closest("article") as HTMLElement).getByRole("button", { name: /^Add$/i }));
+
+    await waitFor(() => {
+      expect(screen.getAllByRole("button", { name: /^Printing$/i }).length).toBeGreaterThanOrEqual(2);
+    });
+
+    const printingButtons = screen.getAllByRole("button", { name: /^Printing$/i });
+    await user.click(printingButtons[1]);
+
+    const printingSelect = await screen.findByLabelText(/Set \/ Printing/i);
+    await user.selectOptions(printingSelect, "counterspell-clb-111");
+
+    await waitFor(() => {
+      const analyzeCalls = fetchMock.mock.calls.filter(([url]) => url === "/api/analyze");
+      const latestAnalyzeBody = JSON.parse(String(analyzeCalls.at(-1)?.[1]?.body));
+      expect(latestAnalyzeBody.decklist).toContain("1 Counterspell (CLB) 111");
+    });
+  });
+
+  it("filters snow-mana commander gameplan cards until the deck has snow support", async () => {
+    const user = userEvent.setup();
+    const { default: BuilderPage } = await import("@/app/builder/page");
+
+    render(<BuilderPage />);
+
+    await user.type(screen.getByPlaceholderText(/Search commanders/i), "Edric");
+    await user.click(await screen.findByRole("button", { name: /Start Build/i }));
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith("/api/analyze", expect.any(Object));
+    });
+
+    await user.click(screen.getByRole("tab", { name: /Commander Gameplan/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText("Tetsuko Umezawa, Fugitive")).toBeTruthy();
+    });
+
+    expect(screen.queryByText("Ascendant Spirit")).toBeNull();
   });
 
   it("refills suggestion groups after adding a suggested card", async () => {

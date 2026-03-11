@@ -122,6 +122,28 @@ type BuilderHeaderTab =
   | "game-changers"
   | "mana-base";
 
+type BuilderPrintingOption = {
+  id: string;
+  name: string;
+  setCode: string;
+  setName: string;
+  collectorNumber: string;
+  releasedAt: string | null;
+  imageUrl: string | null;
+  label: string;
+};
+
+type BuilderCardPrintingsResponse = {
+  name: string;
+  count: number;
+  printings: BuilderPrintingOption[];
+};
+
+type ActiveBuilderPrintingPicker = {
+  scope: "commander" | "deck";
+  cardName: string;
+};
+
 const CARD_TYPE_FILTERS: Array<{ value: BuilderCardTypeFilter; label: string }> = [
   { value: "", label: "All types" },
   { value: "artifact", label: "Artifacts" },
@@ -206,6 +228,10 @@ function normalizeName(name: string): string {
     .replace(/[^a-z0-9]/g, "");
 }
 
+function buildPrintingCacheKey(cardName: string): string {
+  return normalizeName(cardName);
+}
+
 function normalizeSavedBuilderCard(card: BuilderDeckCard): BuilderDeckCard {
   return {
     name: card.name,
@@ -229,6 +255,45 @@ function normalizeSavedBuilderCard(card: BuilderDeckCard): BuilderDeckCard {
   };
 }
 
+function normalizeSavedCommander(record: unknown): CardSearchRecord | null {
+  if (!record || typeof record !== "object") {
+    return null;
+  }
+
+  const commander = record as Partial<CardSearchRecord>;
+  if (typeof commander.name !== "string" || !commander.name.trim()) {
+    return null;
+  }
+
+  return {
+    name: commander.name.trim(),
+    manaCost: typeof commander.manaCost === "string" ? commander.manaCost : "",
+    cmc: typeof commander.cmc === "number" && Number.isFinite(commander.cmc) ? commander.cmc : 0,
+    typeLine: typeof commander.typeLine === "string" ? commander.typeLine : "",
+    oracleText: typeof commander.oracleText === "string" ? commander.oracleText : "",
+    colorIdentity: Array.isArray(commander.colorIdentity)
+      ? commander.colorIdentity.filter((color): color is string => typeof color === "string")
+      : [],
+    setCode: typeof commander.setCode === "string" && commander.setCode.trim() ? commander.setCode.trim().toUpperCase() : null,
+    setName: typeof commander.setName === "string" && commander.setName.trim() ? commander.setName.trim() : null,
+    setReleaseYear:
+      typeof commander.setReleaseYear === "number" && Number.isFinite(commander.setReleaseYear)
+        ? commander.setReleaseYear
+        : null,
+    collectorNumber:
+      typeof commander.collectorNumber === "string" && commander.collectorNumber.trim() ? commander.collectorNumber.trim() : null,
+    printingId: typeof commander.printingId === "string" && commander.printingId.trim() ? commander.printingId.trim() : null,
+    commanderEligible: commander.commanderEligible === true,
+    isBasicLand: commander.isBasicLand === true,
+    duplicateLimit: typeof commander.duplicateLimit === "number" ? commander.duplicateLimit : null,
+    previewImageUrl:
+      typeof commander.previewImageUrl === "string" && commander.previewImageUrl.trim() ? commander.previewImageUrl.trim() : null,
+    artUrl: typeof commander.artUrl === "string" && commander.artUrl.trim() ? commander.artUrl.trim() : null,
+    pairOptions: Array.isArray(commander.pairOptions) ? commander.pairOptions : [],
+    pairOptionsResolved: commander.pairOptionsResolved === true
+  };
+}
+
 function parseSavedBuilderDecks(raw: string | null): SavedBuilderDeck[] {
   if (!raw) {
     return [];
@@ -247,7 +312,8 @@ function parseSavedBuilderDecks(raw: string | null): SavedBuilderDeck[] {
         }
 
         const record = entry as Partial<SavedBuilderDeck>;
-        if (!record.commander || typeof record.commander !== "object") {
+        const commander = normalizeSavedCommander(record.commander);
+        if (!commander) {
           return null;
         }
 
@@ -267,7 +333,7 @@ function parseSavedBuilderDecks(raw: string | null): SavedBuilderDeck[] {
               : typeof (record.commander as { name?: unknown }).name === "string"
                 ? `${(record.commander as { name: string }).name} Builder`
                 : "Saved Build",
-          commander: record.commander as CardSearchRecord,
+          commander,
           partnerName: typeof record.partnerName === "string" && record.partnerName ? record.partnerName : null,
           cards,
           updatedAt: typeof record.updatedAt === "string" ? record.updatedAt : new Date(0).toISOString()
@@ -395,6 +461,20 @@ function isBasicLandName(name: string): boolean {
   ].some((basic) => normalizeName(basic) === normalizeName(name));
 }
 
+function deckHasSnowSupport(cards: BuilderDeckCard[]): boolean {
+  return cards.some((card) => {
+    const normalizedName = normalizeName(card.name);
+    const typeLine = (card.typeLine ?? "").toLowerCase();
+    const oracleText = (card.oracleText ?? "").toLowerCase();
+
+    return (
+      normalizedName.startsWith("snowcovered") ||
+      typeLine.includes("snow land") ||
+      oracleText.includes("{s}") ||
+      oracleText.includes("snow mana")
+    );
+  });
+}
 function basicCardTemplate(name: string, isBasicLand = false, duplicateLimit: number | null = null): CardSearchRecord {
   return {
     name,
@@ -784,7 +864,13 @@ export function CommanderDeckBuilder() {
   const [decklistActionMessage, setDecklistActionMessage] = useState("");
   const [showReportView, setShowReportView] = useState(false);
   const [resolvedCardsByName, setResolvedCardsByName] = useState<Record<string, CardSearchRecord>>({});
+  const [printingOptionsByCard, setPrintingOptionsByCard] = useState<Record<string, BuilderPrintingOption[]>>({});
+  const [printingLoadByCard, setPrintingLoadByCard] = useState<Record<string, boolean>>({});
+  const [printingErrorByCard, setPrintingErrorByCard] = useState<Record<string, string>>({});
+  const [activePrintingPicker, setActivePrintingPicker] = useState<ActiveBuilderPrintingPicker | null>(null);
   const analyzeRequestId = useRef(0);
+  const printingModalRef = useRef<HTMLDivElement | null>(null);
+  const printingCloseButtonRef = useRef<HTMLButtonElement | null>(null);
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -831,6 +917,138 @@ export function CommanderDeckBuilder() {
       cancelled = true;
     };
   }, []);
+
+  const activePrintingCardKey = activePrintingPicker ? buildPrintingCacheKey(activePrintingPicker.cardName) : "";
+  const activePrintingOptions = activePrintingCardKey ? (printingOptionsByCard[activePrintingCardKey] ?? []) : [];
+  const activePrintingLoading = activePrintingCardKey ? Boolean(printingLoadByCard[activePrintingCardKey]) : false;
+  const activePrintingError = activePrintingCardKey ? (printingErrorByCard[activePrintingCardKey] ?? "") : "";
+
+  async function ensurePrintingsLoaded(cardName: string) {
+    const cardKey = buildPrintingCacheKey(cardName);
+    if (printingOptionsByCard[cardKey] || printingLoadByCard[cardKey]) {
+      return;
+    }
+
+    setPrintingLoadByCard((previous) => ({ ...previous, [cardKey]: true }));
+    setPrintingErrorByCard((previous) => ({ ...previous, [cardKey]: "" }));
+    try {
+      const response = await fetch(`/api/card-printings?name=${encodeURIComponent(cardName)}`, {
+        method: "GET",
+        cache: "no-store"
+      });
+      const payload = (await response.json()) as BuilderCardPrintingsResponse | { error: string };
+      if (!response.ok) {
+        const message = "error" in payload && payload.error ? payload.error : "Could not load printings.";
+        setPrintingErrorByCard((previous) => ({ ...previous, [cardKey]: message }));
+        return;
+      }
+
+      setPrintingOptionsByCard((previous) => ({
+        ...previous,
+        [cardKey]: (payload as BuilderCardPrintingsResponse).printings ?? []
+      }));
+    } catch {
+      setPrintingErrorByCard((previous) => ({ ...previous, [cardKey]: "Could not load printings." }));
+    } finally {
+      setPrintingLoadByCard((previous) => ({ ...previous, [cardKey]: false }));
+    }
+  }
+
+  function openPrintingPicker(scope: ActiveBuilderPrintingPicker["scope"], cardName: string) {
+    setActivePrintingPicker({ scope, cardName });
+    void ensurePrintingsLoaded(cardName);
+  }
+
+  useEffect(() => {
+    if (!activePrintingPicker || typeof document === "undefined") {
+      return;
+    }
+
+    const previousActiveElement =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const focusableSelector =
+      'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+    const focusModal = window.setTimeout(() => {
+      const modal = printingModalRef.current;
+      if (!modal) {
+        return;
+      }
+
+      const firstFocusable = modal.querySelector<HTMLElement>(focusableSelector);
+      (firstFocusable ?? printingCloseButtonRef.current ?? modal).focus();
+    }, 0);
+
+    function onDocumentKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setActivePrintingPicker(null);
+        return;
+      }
+
+      if (event.key !== "Tab") {
+        return;
+      }
+
+      const modal = printingModalRef.current;
+      if (!modal) {
+        return;
+      }
+
+      const focusableElements = Array.from(modal.querySelectorAll<HTMLElement>(focusableSelector)).filter(
+        (element) => !element.hasAttribute("disabled") && element.tabIndex >= 0
+      );
+
+      if (focusableElements.length === 0) {
+        event.preventDefault();
+        modal.focus();
+        return;
+      }
+
+      const firstElement = focusableElements[0];
+      const lastElement = focusableElements[focusableElements.length - 1];
+      const activeElement = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+
+      if (event.shiftKey) {
+        if (!activeElement || !modal.contains(activeElement) || activeElement === firstElement) {
+          event.preventDefault();
+          lastElement.focus();
+        }
+        return;
+      }
+
+      if (!activeElement || !modal.contains(activeElement) || activeElement === lastElement) {
+        event.preventDefault();
+        firstElement.focus();
+      }
+    }
+
+    document.addEventListener("keydown", onDocumentKeyDown);
+
+    return () => {
+      window.clearTimeout(focusModal);
+      document.removeEventListener("keydown", onDocumentKeyDown);
+      previousActiveElement?.focus();
+    };
+  }, [activePrintingPicker]);
+
+  useEffect(() => {
+    setActivePrintingPicker((current) => {
+      if (!current) {
+        return null;
+      }
+
+      if (current.scope === "commander") {
+        return selectedCommander && normalizeName(selectedCommander.name) === normalizeName(current.cardName)
+          ? current
+          : null;
+      }
+
+      return deckCards.some((entry) => normalizeName(entry.name) === normalizeName(current.cardName))
+        ? current
+        : null;
+    });
+  }, [deckCards, selectedCommander]);
 
   function persistSavedDecks(next: SavedBuilderDeck[]) {
     setSavedDecks(next);
@@ -1003,16 +1221,36 @@ export function CommanderDeckBuilder() {
     [allowedColorIdentity, selectedCommander]
   );
 
+  const selectedPartnerRecord = useMemo(() => {
+    if (!selectedPairOption) {
+      return null;
+    }
+
+    return resolvedCardsByName[normalizeName(selectedPairOption.name)] ?? null;
+  }, [resolvedCardsByName, selectedPairOption]);
+
   const commanderSelection = useMemo<BuilderCommanderSelection | null>(() => {
     if (!selectedCommander) {
       return null;
     }
 
     return {
-      primary: selectedCommander.name,
-      secondary: selectedPairOption?.name ?? null
+      primary: {
+        name: selectedCommander.name,
+        setCode: selectedCommander.setCode,
+        collectorNumber: selectedCommander.collectorNumber,
+        printingId: selectedCommander.printingId
+      },
+      secondary: selectedPairOption
+        ? {
+            name: selectedPairOption.name,
+            setCode: selectedPartnerRecord?.setCode ?? null,
+            collectorNumber: selectedPartnerRecord?.collectorNumber ?? null,
+            printingId: selectedPartnerRecord?.printingId ?? null
+          }
+        : null
     };
-  }, [selectedCommander, selectedPairOption]);
+  }, [selectedCommander, selectedPairOption, selectedPartnerRecord]);
 
   const expectedMainDeckSize = selectedPairOption ? 98 : selectedCommander ? 99 : 0;
   const currentMainDeckCount = totalDeckCardCount(deckCards);
@@ -1113,9 +1351,9 @@ export function CommanderDeckBuilder() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             decklist: buildBuilderDecklist(commanderSelection, deckCards),
-            commanderName: commanderSelection.secondary
-              ? `${commanderSelection.primary} + ${commanderSelection.secondary}`
-              : commanderSelection.primary,
+            commanderName: commanderSelection.secondary?.name
+              ? `${commanderSelection.primary.name} + ${commanderSelection.secondary.name}`
+              : commanderSelection.primary.name,
             deckPriceMode: "oracle-default"
           })
         });
@@ -1267,6 +1505,7 @@ export function CommanderDeckBuilder() {
         selectedPairOption ? normalizeName(selectedPairOption.name) : ""
       ].filter(Boolean)
     );
+    const hasSnowSupport = deckHasSnowSupport(deckCards);
 
     const filterItems = (items: SuggestionCardItem[]) =>
       items.filter((item) => {
@@ -1284,7 +1523,15 @@ export function CommanderDeckBuilder() {
           return false;
         }
 
-        return record.colorIdentity.every((color) => allowedColorIdentity.includes(color));
+        if (!record.colorIdentity.every((color) => allowedColorIdentity.includes(color))) {
+          return false;
+        }
+
+        if (record.manaCost.includes("{S}") && !hasSnowSupport) {
+          return false;
+        }
+
+        return true;
       });
 
     const filterAndLimitGroup = (group: SuggestionGroup): SuggestionGroup | null => {
@@ -1386,9 +1633,9 @@ export function CommanderDeckBuilder() {
       deckPriceUsd: null,
       artUrl: selectedCommander.artUrl,
       cardImageUrl: selectedCommander.previewImageUrl,
-      setCode: null,
-      collectorNumber: null,
-      printingId: null
+      setCode: selectedCommander.setCode,
+      collectorNumber: selectedCommander.collectorNumber,
+      printingId: selectedCommander.printingId
     };
   }, [allowedColorIdentity, analysis, selectedCommander]);
   const maxCurveCount = useMemo(() => {
@@ -1403,6 +1650,21 @@ export function CommanderDeckBuilder() {
       )
     );
   }, [analysis]);
+  const activePrintingSelection = useMemo(() => {
+    if (!activePrintingPicker) {
+      return "";
+    }
+
+    if (activePrintingPicker.scope === "commander") {
+      return normalizeName(selectedCommander?.name ?? "") === normalizeName(activePrintingPicker.cardName)
+        ? selectedCommander?.printingId ?? ""
+        : "";
+    }
+
+    return (
+      deckCards.find((entry) => normalizeName(entry.name) === normalizeName(activePrintingPicker.cardName))?.printingId ?? ""
+    );
+  }, [activePrintingPicker, deckCards, selectedCommander]);
 
   function resolveCardRecord(name: string): CardSearchRecord {
     const normalized = normalizeName(name);
@@ -1410,6 +1672,96 @@ export function CommanderDeckBuilder() {
     return (
       resolvedCardsByName[normalized] ??
       basicCardTemplate(name, basicLand, basicLand ? Number.POSITIVE_INFINITY : null)
+    );
+  }
+
+  function applyDefaultPrinting(scope: ActiveBuilderPrintingPicker["scope"], cardName: string) {
+    const fallback = resolveCardRecord(cardName);
+    if (scope === "commander") {
+      setSelectedCommander((current) =>
+        current && normalizeName(current.name) === normalizeName(cardName)
+          ? {
+              ...current,
+              setCode: fallback.setCode,
+              setName: fallback.setName ?? null,
+              setReleaseYear: fallback.setReleaseYear ?? null,
+              collectorNumber: fallback.collectorNumber,
+              printingId: fallback.printingId,
+              previewImageUrl: fallback.previewImageUrl,
+              artUrl: fallback.artUrl
+            }
+          : current
+      );
+      return;
+    }
+
+    setDeckCards((current) =>
+      current.map((entry) =>
+        normalizeName(entry.name) === normalizeName(cardName)
+          ? {
+              ...entry,
+              setCode: fallback.setCode,
+              collectorNumber: fallback.collectorNumber,
+              printingId: fallback.printingId,
+              previewImageUrl: fallback.previewImageUrl,
+              artUrl: fallback.artUrl
+            }
+          : entry
+      )
+    );
+  }
+
+  function onSelectPrinting(printingId: string) {
+    if (!activePrintingPicker) {
+      return;
+    }
+
+    if (!printingId) {
+      applyDefaultPrinting(activePrintingPicker.scope, activePrintingPicker.cardName);
+      return;
+    }
+
+    const selected = activePrintingOptions.find((option) => option.id === printingId);
+    if (!selected) {
+      return;
+    }
+
+    const setCode = selected.setCode.toUpperCase();
+    const releaseYear =
+      typeof selected.releasedAt === "string" && /^\d{4}/.test(selected.releasedAt)
+        ? Number.parseInt(selected.releasedAt.slice(0, 4), 10)
+        : null;
+
+    if (activePrintingPicker.scope === "commander") {
+      setSelectedCommander((current) =>
+        current && normalizeName(current.name) === normalizeName(activePrintingPicker.cardName)
+          ? {
+              ...current,
+              setCode,
+              setName: selected.setName,
+              setReleaseYear: releaseYear,
+              collectorNumber: selected.collectorNumber,
+              printingId: selected.id,
+              previewImageUrl: selected.imageUrl ?? current.previewImageUrl,
+              artUrl: current.artUrl
+            }
+          : current
+      );
+      return;
+    }
+
+    setDeckCards((current) =>
+      current.map((entry) =>
+        normalizeName(entry.name) === normalizeName(activePrintingPicker.cardName)
+          ? {
+              ...entry,
+              setCode,
+              collectorNumber: selected.collectorNumber,
+              printingId: selected.id,
+              previewImageUrl: selected.imageUrl ?? entry.previewImageUrl
+            }
+          : entry
+      )
     );
   }
 
@@ -1437,11 +1789,6 @@ export function CommanderDeckBuilder() {
     setDeckCards((current) => addCardToDeck(current, resolveCardRecord(name)));
   }
 
-  function removeNamedCard(name: string) {
-    setDeckCards((current) =>
-      current.filter((entry) => normalizeName(entry.name) !== normalizeName(name))
-    );
-  }
 
   useEffect(() => {
     if (metadataNames.length === 0) {
@@ -2112,7 +2459,7 @@ export function CommanderDeckBuilder() {
                   <h3>Commander Zone</h3>
                   <ul className="builder-card-list">
                   <li className="builder-card-row builder-card-row-no-qty">
-                    {renderCardThumb(resolveCardRecord(selectedCommander.name), "builder-card-thumb", selectedCommander.name.charAt(0))}
+                    {renderCardThumb(selectedCommander, "builder-card-thumb", selectedCommander.name.charAt(0))}
                     <div className="builder-card-main">
                       <div className="builder-card-main-head">
                         <strong>
@@ -2128,6 +2475,15 @@ export function CommanderDeckBuilder() {
                         </div>
                       </div>
                       <p className="muted builder-card-subline">{selectedCommander.typeLine}</p>
+                      <div className="decklist-preview-printing-controls">
+                        <button type="button" className="btn-tertiary" onClick={() => openPrintingPicker("commander", selectedCommander.name)}>
+                          Printing
+                        </button>
+                        {selectedCommander.setCode ? <span className="decklist-preview-set-chip">{selectedCommander.setCode}</span> : null}
+                      </div>
+                      {formatCompactPrintingLabel(selectedCommander) ? (
+                        <p className="muted decklist-preview-printing-label">Current: {formatCompactPrintingLabel(selectedCommander)}</p>
+                      ) : null}
                     </div>
                   </li>
                   {selectedPairOption ? (
@@ -2163,6 +2519,7 @@ export function CommanderDeckBuilder() {
                       {section.cards.map((card) => {
                         const record = toDeckCardRecord(card);
                         const showQuantity = shouldShowDeckQuantity(record);
+                        const compactPrintingLabel = formatCompactPrintingLabel(record);
                         return (
                           <li
                             key={`${section.key}-${card.name}`}
@@ -2182,14 +2539,19 @@ export function CommanderDeckBuilder() {
                           </strong>
                                 <div className="builder-search-meta">
                                   {record.manaCost ? <ManaCost manaCost={record.manaCost} size={16} /> : null}
-                                  {record.colorIdentity.length > 0 ? (
-                                    <ColorIdentityIcons identity={record.colorIdentity} size={15} />
-                                  ) : null}
                                 </div>
                               </div>
                               <p className="muted builder-card-subline">
-                                {record.typeLine || "Card data pending"}
+                                <span>{record.typeLine || "Card data pending"}</span>
+                                {compactPrintingLabel ? <span className="builder-card-meta-divider">·</span> : null}
+                                {compactPrintingLabel ? <span>{compactPrintingLabel}</span> : null}
                               </p>
+                              <div className="decklist-preview-printing-controls">
+                                <button type="button" className="btn-tertiary" onClick={() => openPrintingPicker("deck", card.name)}>
+                                  Printing
+                                </button>
+                                {record.setCode ? <span className="decklist-preview-set-chip">{record.setCode}</span> : null}
+                              </div>
                             </div>
                             <div className="builder-card-actions">
                               <button
@@ -2205,13 +2567,6 @@ export function CommanderDeckBuilder() {
                                 onClick={() => setDeckCards((current) => updateCardQty(current, card.name, 1))}
                               >
                                 +
-                              </button>
-                              <button
-                                type="button"
-                                className="btn-tertiary"
-                                onClick={() => removeNamedCard(card.name)}
-                              >
-                                Remove
                               </button>
                             </div>
                           </li>
@@ -2234,7 +2589,70 @@ export function CommanderDeckBuilder() {
         </section>
       </section>
 
+      {activePrintingPicker ? (
+        <div className="printing-modal-backdrop" onClick={() => setActivePrintingPicker(null)}>
+          <div
+            ref={printingModalRef}
+            className="printing-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="builder-printing-modal-title"
+            aria-describedby="builder-printing-modal-description"
+            tabIndex={-1}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="printing-modal-head">
+              <h2 id="builder-printing-modal-title">Select Printing</h2>
+              <button
+                ref={printingCloseButtonRef}
+                type="button"
+                className="btn-tertiary"
+                onClick={() => setActivePrintingPicker(null)}
+              >
+                Close
+              </button>
+            </div>
+            <p id="builder-printing-modal-description" className="muted">
+              Choose the printing used for {activePrintingPicker.cardName} in this builder deck.
+            </p>
+            {activePrintingLoading ? <p className="muted">Loading printings...</p> : null}
+            {activePrintingError ? <p className="error">{activePrintingError}</p> : null}
+            {!activePrintingLoading && !activePrintingError ? (
+              activePrintingOptions.length > 0 ? (
+                <div>
+                  <label htmlFor="builder-printing-picker-select">Set / Printing</label>
+                  <select
+                    id="builder-printing-picker-select"
+                    value={activePrintingSelection}
+                    onChange={(event) => onSelectPrinting(event.target.value)}
+                  >
+                    <option value="">Auto/default printing</option>
+                    {activePrintingOptions.map((option) => (
+                      <option key={option.id} value={option.id}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              ) : (
+                <p className="muted">No alternate printings found for this card.</p>
+              )
+            ) : null}
+            <div className="printing-modal-actions">
+              <button type="button" className="btn-tertiary" onClick={() => setActivePrintingPicker(null)}>
+                Done
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       {showReportView && analysis ? <section className="panel builder-report-panel"><AnalysisReport result={analysis} showCommanderHero={false} /></section> : null}
     </main>
   );
 }
+
+
+
+
+

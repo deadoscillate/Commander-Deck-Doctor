@@ -8,7 +8,6 @@ import { PreconLibrary } from "@/components/PreconLibrary";
 import type { AnalyzeResponse, CommanderChoice, DeckPriceMode } from "@/lib/contracts";
 import { parseDecklist, parseDecklistWithCommander } from "@/lib/decklist";
 import type { PreconDeck } from "@/lib/preconTypes";
-import { SAMPLE_DECKLIST, SAMPLE_DECK_NAME } from "@/lib/sampleDeck";
 const SAVED_DECKS_STORAGE_KEY = "commanderDeckDoctor.savedDecks.v1";
 const MAX_SAVED_DECKS = 30;
 
@@ -862,28 +861,6 @@ export default function Page() {
     await runAnalysis();
   }
 
-  async function onTrySampleDeck() {
-    const sampleDeck = parseDecklistWithCommander(SAMPLE_DECKLIST);
-    const sampleCommander =
-      joinCommanderSelection(
-        sampleDeck.commandersFromSection[0] ?? sampleDeck.commanderFromSection,
-        sampleDeck.commandersFromSection[1] ?? null
-      ) ?? "";
-    const sampleCommanderSelection = splitCommanderSelection(sampleCommander);
-    setDeckName(SAMPLE_DECK_NAME);
-    setDecklist(SAMPLE_DECKLIST);
-    setPrintingOverrides({});
-    setPrintingOptionsByCard({});
-    setPrintingLoadByCard({});
-    setPrintingErrorByCard({});
-    setActivePrintingPicker(null);
-    setCommanderName(sampleCommanderSelection[0] ?? "");
-    setCommanderPartnerName(sampleCommanderSelection[1] ?? "");
-    setImportError("");
-    setImportInfo("Loaded sample deck. Running analysis...");
-    await runAnalysis({ decklist: SAMPLE_DECKLIST, commanderName: sampleCommander || null });
-  }
-
   async function onLoadPrecon(precon: PreconDeck) {
     const preconDeck = parseDecklistWithCommander(precon.decklist);
     const preconCommander =
@@ -932,9 +909,6 @@ export default function Page() {
           Commander Bracket guidance.
         </p>
         <div className="hero-actions">
-          <button type="button" className="btn-secondary" onClick={() => void onTrySampleDeck()}>
-            Try a sample deck
-          </button>
           <Link href="/builder" className="btn-tertiary">
             Open Deck Builder
           </Link>
@@ -979,12 +953,7 @@ export default function Page() {
           <section className="saved-decks-panel">
             <h2>Saved Decks</h2>
             {savedDecks.length === 0 ? (
-              <p className="muted">
-                No saved decks yet. Analyze a deck, then click &quot;Save Deck Locally&quot;.{" "}
-                <button type="button" className="inline-action" onClick={() => void onTrySampleDeck()}>
-                  Try sample deck
-                </button>
-              </p>
+              <p className="muted">No saved decks yet. Analyze a deck, then click &quot;Save Deck Locally&quot;.</p>
             ) : (
               <ul className="saved-decks-list">
                 {savedDecks.map((saved) => (
