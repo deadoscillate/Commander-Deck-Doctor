@@ -358,6 +358,26 @@ function formatPercent(value: number): string {
   return `${Math.round(value)}%`;
 }
 
+function formatCompactPrintingLabel(card: {
+  setCode?: string | null;
+  collectorNumber?: string | null;
+  setReleaseYear?: number | null;
+}): string | null {
+  if (!card.setCode) {
+    return null;
+  }
+
+  const chunks = [card.setCode];
+  if (card.collectorNumber) {
+    chunks.push(`#${card.collectorNumber}`);
+  }
+  if (card.setReleaseYear) {
+    chunks.push(String(card.setReleaseYear));
+  }
+
+  return chunks.join(" · ");
+}
+
 function isBasicLandName(name: string): boolean {
   return [
     "Plains",
@@ -1613,6 +1633,7 @@ export function CommanderDeckBuilder() {
               deckCards.find((entry) => normalizeName(entry.name) === normalizeName(item.name))?.qty ?? 0;
             const canAddMore = canAddMoreCopies(record, existingQty);
             const canAdd = item.action !== "none";
+            const compactPrintingLabel = formatCompactPrintingLabel(record);
 
             return (
               <article key={`${prefix}-${group.key}-${item.name}`} className="builder-search-card builder-suggestion-card">
@@ -1629,8 +1650,8 @@ export function CommanderDeckBuilder() {
                   <div className="builder-search-meta">
                     {record.manaCost ? <ManaCost manaCost={record.manaCost} size={16} /> : null}
                     {record.typeLine ? <span>{record.typeLine}</span> : null}
-                    {record.setCode ? <span>{record.setCode}</span> : null}
                   </div>
+                  {compactPrintingLabel ? <p className="muted builder-search-print">{compactPrintingLabel}</p> : null}
                   {item.note ? <p className="muted builder-suggestion-note">{item.note}</p> : null}
                 </div>
                 {canAdd ? (
@@ -1686,6 +1707,12 @@ export function CommanderDeckBuilder() {
               {cardResults.map((card) => {
                 const existingQty = deckCards.find((entry) => normalizeName(entry.name) === normalizeName(card.name))?.qty ?? 0;
                 const canAddMore = canAddMoreCopies(card, existingQty);
+                const compactPrintingLabel = formatCompactPrintingLabel(card);
+                const printingTitle = card.setCode
+                  ? card.setName
+                    ? `${card.setCode} - ${card.setName}${card.setReleaseYear ? ` (${card.setReleaseYear})` : ""}`
+                    : card.setCode
+                  : null;
 
                 return (
                   <article
@@ -1705,14 +1732,12 @@ export function CommanderDeckBuilder() {
                       <div className="builder-search-meta">
                         <ManaCost manaCost={card.manaCost} size={16} />
                         <span>{card.typeLine}</span>
-                        {card.setCode ? (
-                          <span>
-                            {card.setName
-                              ? `${card.setCode} - ${card.setName}${card.setReleaseYear ? ` (${card.setReleaseYear})` : ""}`
-                              : card.setCode}
-                          </span>
-                        ) : null}
                       </div>
+                      {compactPrintingLabel ? (
+                        <p className="muted builder-search-print" title={printingTitle ?? undefined}>
+                          {compactPrintingLabel}
+                        </p>
+                      ) : null}
                       {existingQty > 0 ? <p className="muted">In deck: {existingQty}</p> : null}
                     </div>
                     <button type="button" className="btn-secondary" disabled={!canAddMore} onClick={() => setDeckCards((current) => addCardToDeck(current, card))}>
