@@ -89,6 +89,20 @@ describe("GET /api/card-search", () => {
     expect(payload.items.every((item) => item.typeLine.toLowerCase().includes("creature"))).toBe(true);
   });
 
+  it("uses the full print library for set-specific reprint browsing", async () => {
+    const response = await GET(
+      new Request("http://localhost/api/card-search?set=CMM&q=Sol%20Ring&limit=10")
+    );
+
+    expect(response.status).toBe(200);
+    const payload = (await response.json()) as {
+      items: Array<{ name: string; setCode: string | null }>;
+    };
+
+    expect(payload.items.some((item) => item.name === "Sol Ring")).toBe(true);
+    expect(payload.items.every((item) => item.setCode === "CMM")).toBe(true);
+  });
+
   it("supports exact name lookup via POST", async () => {
     const response = await POST(
       new Request("http://localhost/api/card-search", {
@@ -111,5 +125,36 @@ describe("GET /api/card-search", () => {
     expect(payload.count).toBe(2);
     expect(payload.items.map((item) => item.name)).toEqual(["Sol Ring", "Counterspell"]);
     expect(response.headers.get("x-card-search-kind")).toBe("card-lookup");
+  });
+
+  it("resolves Edric-style suggestion cards to full card records", async () => {
+    const response = await POST(
+      new Request("http://localhost/api/card-search", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          names: ["Reconnaissance Mission", "Tetsuko Umezawa, Fugitive"],
+          allowedColors: ["G", "U"],
+          commanderOnly: false
+        })
+      })
+    );
+
+    expect(response.status).toBe(200);
+    const payload = (await response.json()) as {
+      count: number;
+      items: Array<{
+        name: string;
+        setCode: string | null;
+        previewImageUrl: string | null;
+        typeLine: string;
+      }>;
+    };
+
+    expect(payload.count).toBe(2);
+    expect(payload.items.every((item) => Boolean(item.setCode))).toBe(true);
+    expect(payload.items.every((item) => Boolean(item.previewImageUrl))).toBe(true);
+    expect(payload.items.some((item) => item.name === "Reconnaissance Mission")).toBe(true);
+    expect(payload.items.some((item) => item.name === "Tetsuko Umezawa, Fugitive")).toBe(true);
   });
 });

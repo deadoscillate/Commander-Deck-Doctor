@@ -2,6 +2,8 @@ import { CardDatabase } from "@/engine/cards/CardDatabase";
 import { evaluateCommanderConfiguration } from "@/lib/commanderConfiguration";
 import type { CommanderChoice } from "@/lib/contracts";
 import { getLocalDefaultCardByName } from "@/lib/scryfallLocalDefaultStore";
+import { getLocalPrintCardsByNames, type LocalPrintCardRecord } from "@/lib/scryfallLocalPrintIndexStore";
+import { listSqlitePrintSetRows, searchSqlitePrintCards } from "@/lib/scryfallLocalPrintSqliteStore";
 import type { ScryfallCard } from "@/lib/types";
 
 const BASIC_LANDS = new Set<string>([
@@ -67,6 +69,17 @@ let searchIndexByName: Map<string, CardSearchRecord> | null = null;
 let commanderPool: ScryfallCard[] | null = null;
 let commanderSearchIndex: CardSearchRecord[] | null = null;
 let setOptions: string[] | null = null;
+type EngineSearchMeta = {
+  oracleId: string;
+  commanderLegal: boolean;
+  commanderEligible: boolean;
+  duplicateLimit: number | null;
+  isBasicLand: boolean;
+  colorIdentity: string[];
+};
+
+let engineMetaByOracleId: Map<string, EngineSearchMeta> | null = null;
+let engineMetaByName: Map<string, EngineSearchMeta> | null = null;
 
 function normalizeName(name: string): string {
   return name
@@ -102,6 +115,19 @@ function isCommanderEligible(card: Pick<ScryfallCard, "type_line" | "oracle_text
   return oracleText.includes("can be your commander");
 }
 
+function isCommanderLegal(legalities: Record<string, string> | undefined): boolean {
+  if (!legalities) {
+    return true;
+  }
+
+  const commander = legalities.commander;
+  if (!commander) {
+    return true;
+  }
+
+  return commander === "legal" || commander === "restricted";
+}
+
 function duplicateLimitForCard(card: Pick<ScryfallCard, "oracle_text" | "card_faces">): number | null {
   const oracleText = [card.oracle_text, ...card.card_faces.map((face) => face.oracle_text ?? "")]
     .filter(Boolean)
@@ -124,6 +150,44 @@ function duplicateLimitForCard(card: Pick<ScryfallCard, "oracle_text" | "card_fa
   return NUMBER_WORDS.get(rawLimit) ?? null;
 }
 
+function ensureEngineMetaMaps(): {
+  byOracleId: Map<string, EngineSearchMeta>;
+  byName: Map<string, EngineSearchMeta>;
+} {
+  if (engineMetaByOracleId && engineMetaByName) {
+    return {
+      byOracleId: engineMetaByOracleId,
+      byName: engineMetaByName
+    };
+  }
+
+  const db = CardDatabase.loadFromCompiledFile();
+  engineMetaByOracleId = new Map();
+  engineMetaByName = new Map();
+
+  for (const card of db.allCards()) {
+    const meta: EngineSearchMeta = {
+      oracleId: card.oracleId,
+      commanderLegal: isCommanderLegal(card.legalities),
+      commanderEligible: isLegendaryCreature(card.typeLine) || card.oracleText.toLowerCase().includes("can be your commander"),
+      duplicateLimit: duplicateLimitForCard({
+        oracle_text: card.oracleText ?? "",
+        card_faces: []
+      }),
+      isBasicLand: BASIC_LANDS.has(normalizeName(card.name)),
+      colorIdentity: normalizedColorIdentity(card.colorIdentity ?? [])
+    };
+
+    engineMetaByOracleId.set(card.oracleId, meta);
+    engineMetaByName.set(normalizeName(card.name), meta);
+  }
+
+  return {
+    byOracleId: engineMetaByOracleId,
+    byName: engineMetaByName
+  };
+}
+
 function toSearchRecord(card: ScryfallCard): CardSearchRecord {
   const cardImage = card.image_uris?.normal ?? card.card_faces[0]?.image_uris?.normal ?? null;
   const artImage = card.image_uris?.art_crop ?? card.card_faces[0]?.image_uris?.normal ?? cardImage;
@@ -139,6 +203,38 @@ function toSearchRecord(card: ScryfallCard): CardSearchRecord {
     commanderEligible: isCommanderEligible(card),
     isBasicLand: BASIC_LANDS.has(normalizeName(card.name)),
     duplicateLimit: duplicateLimitForCard(card),
+    previewImageUrl: cardImage,
+    artUrl: artImage
+  };
+}
+
+function toSearchRecordFromPrintCard(
+  card: LocalPrintCardRecord,
+  meta: EngineSearchMeta | null
+): CardSearchRecord {
+  const cardImage = card.image_uris?.normal ?? card.card_faces[0]?.image_uris?.normal ?? null;
+  const artImage = card.image_uris?.art_crop ?? card.card_faces[0]?.image_uris?.normal ?? cardImage;
+
+  return {
+    name: card.name,
+    manaCost: card.mana_cost ?? "",
+    cmc: typeof card.cmc === "number" && Number.isFinite(card.cmc) ? card.cmc : 0,
+    typeLine: card.type_line ?? "",
+    oracleText: card.oracle_text ?? "",
+    colorIdentity: normalizedColorIdentity(card.color_identity ?? meta?.colorIdentity ?? []),
+    setCode: typeof card.set === "string" && card.set ? card.set.toUpperCase() : null,
+    commanderEligible: meta?.commanderEligible ?? isCommanderEligible({
+      type_line: card.type_line ?? "",
+      oracle_text: card.oracle_text ?? "",
+      card_faces: card.card_faces
+    }),
+    isBasicLand: meta?.isBasicLand ?? BASIC_LANDS.has(normalizeName(card.name)),
+    duplicateLimit:
+      meta?.duplicateLimit ??
+      duplicateLimitForCard({
+        oracle_text: card.oracle_text ?? "",
+        card_faces: card.card_faces
+      }),
     previewImageUrl: cardImage,
     artUrl: artImage
   };
@@ -214,12 +310,19 @@ function buildSearchIndex(): CardSearchRecord[] {
   }
 
   const db = CardDatabase.loadFromCompiledFile();
+  const { byOracleId } = ensureEngineMetaMaps();
   const next = db
     .allCards()
     .map((engineCard) => {
+      const meta = byOracleId.get(engineCard.oracleId) ?? null;
       const localCard = getLocalDefaultCardByName(engineCard.name);
       if (localCard) {
-        return toSearchRecord(localCard);
+        return {
+          ...toSearchRecord(localCard),
+          commanderEligible: meta?.commanderEligible ?? isCommanderEligible(localCard),
+          isBasicLand: meta?.isBasicLand ?? BASIC_LANDS.has(normalizeName(localCard.name)),
+          duplicateLimit: meta?.duplicateLimit ?? duplicateLimitForCard(localCard)
+        };
       }
 
       return {
@@ -228,11 +331,11 @@ function buildSearchIndex(): CardSearchRecord[] {
         cmc: engineCard.mv ?? 0,
         typeLine: engineCard.typeLine,
         oracleText: engineCard.oracleText ?? "",
-        colorIdentity: normalizedColorIdentity(engineCard.colorIdentity ?? []),
+        colorIdentity: meta?.colorIdentity ?? normalizedColorIdentity(engineCard.colorIdentity ?? []),
         setCode: null,
-        commanderEligible: isLegendaryCreature(engineCard.typeLine) || engineCard.oracleText.toLowerCase().includes("can be your commander"),
-        isBasicLand: BASIC_LANDS.has(normalizeName(engineCard.name)),
-        duplicateLimit: duplicateLimitForCard({
+        commanderEligible: meta?.commanderEligible ?? (isLegendaryCreature(engineCard.typeLine) || engineCard.oracleText.toLowerCase().includes("can be your commander")),
+        isBasicLand: meta?.isBasicLand ?? BASIC_LANDS.has(normalizeName(engineCard.name)),
+        duplicateLimit: meta?.duplicateLimit ?? duplicateLimitForCard({
           oracle_text: engineCard.oracleText ?? "",
           card_faces: []
         }),
@@ -244,7 +347,10 @@ function buildSearchIndex(): CardSearchRecord[] {
 
   searchIndex = next;
   searchIndexByName = new Map(next.map((card) => [normalizeName(card.name), card]));
-  commanderSearchIndex = next.filter((card) => card.commanderEligible && !isDigitalVariantName(card.name));
+  commanderSearchIndex = next.filter((card) => {
+    const meta = ensureEngineMetaMaps().byName.get(normalizeName(card.name));
+    return card.commanderEligible && !isDigitalVariantName(card.name) && (meta?.commanderLegal ?? true);
+  });
   return next;
 }
 
@@ -296,24 +402,19 @@ function searchScore(card: CardSearchRecord, query: string): number {
   return 0;
 }
 
-export function searchCards(input: SearchOptions = {}): CardSearchRecord[] {
+function searchCommanderCards(input: SearchOptions = {}): CardSearchRecord[] {
   const query = input.query?.trim() ?? "";
-  const commanderOnly = Boolean(input.commanderOnly);
   const colors = normalizedColorIdentity(input.colors ?? []);
   const allowedColors = new Set(normalizedColorIdentity(input.allowedColors ?? []));
   const setCode = input.setCode?.trim().toUpperCase() ?? "";
   const cardType = input.cardType?.trim().toLowerCase() ?? "";
   const includePairs = input.includePairs === true;
   const limit = Math.max(1, Math.min(50, Math.floor(input.limit ?? 24)));
-  const sourceRows = commanderOnly ? (commanderSearchIndex ?? buildSearchIndex().filter((card) => card.commanderEligible && !isDigitalVariantName(card.name))) : buildSearchIndex();
+  const sourceRows = commanderSearchIndex ?? buildSearchIndex().filter((card) => card.commanderEligible && !isDigitalVariantName(card.name));
 
   const rows = sourceRows
     .filter((card) => {
-      if (commanderOnly && !card.commanderEligible) {
-        return false;
-      }
-
-      if (commanderOnly && isDigitalVariantName(card.name)) {
+      if (!card.commanderEligible || isDigitalVariantName(card.name)) {
         return false;
       }
 
@@ -352,7 +453,7 @@ export function searchCards(input: SearchOptions = {}): CardSearchRecord[] {
     })
     .slice(0, limit)
     .map((card) => {
-      if (!commanderOnly || !card.commanderEligible || !includePairs) {
+      if (!card.commanderEligible || !includePairs) {
         return card;
       }
 
@@ -367,16 +468,147 @@ export function searchCards(input: SearchOptions = {}): CardSearchRecord[] {
   return rows;
 }
 
-export function lookupCardsByNames(
+export async function searchCards(input: SearchOptions = {}): Promise<CardSearchRecord[]> {
+  const commanderOnly = Boolean(input.commanderOnly);
+  if (commanderOnly) {
+    return searchCommanderCards(input);
+  }
+
+  const query = input.query?.trim() ?? "";
+  const colors = normalizedColorIdentity(input.colors ?? []);
+  const allowedColors = new Set(normalizedColorIdentity(input.allowedColors ?? []));
+  const setCode = input.setCode?.trim().toUpperCase() ?? "";
+  const cardType = input.cardType?.trim().toLowerCase() ?? "";
+  const limit = Math.max(1, Math.min(100, Math.floor(input.limit ?? 24)));
+  const { byOracleId, byName } = ensureEngineMetaMaps();
+
+  const printCards = await searchSqlitePrintCards({
+    query,
+    setCode,
+    cardType,
+    limit
+  });
+
+  if (printCards.length === 0) {
+    return buildSearchIndex()
+      .filter((card) => {
+        const meta = byName.get(normalizeName(card.name));
+        if (meta && !meta.commanderLegal) {
+          return false;
+        }
+
+        if (isDigitalVariantName(card.name)) {
+          return false;
+        }
+
+        if (colors.length > 0 && !exactIdentityMatch(card.colorIdentity, colors)) {
+          return false;
+        }
+
+        if (allowedColors.size > 0 && !subsetOf(card.colorIdentity, allowedColors)) {
+          return false;
+        }
+
+        if (setCode && card.setCode !== setCode) {
+          return false;
+        }
+
+        if (cardType && !card.typeLine.toLowerCase().includes(cardType)) {
+          return false;
+        }
+
+        if (!query) {
+          return true;
+        }
+
+        return searchScore(card, query) > 0;
+      })
+      .sort((left, right) => {
+        const scoreDelta = searchScore(right, query) - searchScore(left, query);
+        if (scoreDelta !== 0) {
+          return scoreDelta;
+        }
+
+        return left.name.localeCompare(right.name);
+      })
+      .slice(0, limit);
+  }
+
+  return printCards
+    .map((card) => {
+      const meta = byOracleId.get(card.oracle_id) ?? byName.get(normalizeName(card.name)) ?? null;
+      return {
+        record: toSearchRecordFromPrintCard(card, meta),
+        commanderLegal: meta?.commanderLegal ?? true
+      };
+    })
+    .filter(({ record, commanderLegal }) => {
+      if (!commanderLegal || isDigitalVariantName(record.name)) {
+        return false;
+      }
+
+      if (colors.length > 0 && !exactIdentityMatch(record.colorIdentity, colors)) {
+        return false;
+      }
+
+      if (allowedColors.size > 0 && !subsetOf(record.colorIdentity, allowedColors)) {
+        return false;
+      }
+
+      return true;
+    })
+    .map(({ record }) => record)
+    .slice(0, limit);
+}
+
+export async function lookupCardsByNames(
   names: string[],
   input: Pick<SearchOptions, "allowedColors" | "commanderOnly" | "includePairs"> = {}
-): CardSearchRecord[] {
+): Promise<CardSearchRecord[]> {
   const allowedColors = new Set(normalizedColorIdentity(input.allowedColors ?? []));
   const commanderOnly = Boolean(input.commanderOnly);
   const includePairs = input.includePairs === true;
   const byName = buildSearchIndexByName();
+  const { byName: engineByName } = ensureEngineMetaMaps();
   const seen = new Set<string>();
   const rows: CardSearchRecord[] = [];
+
+  if (!commanderOnly) {
+    const { byOracleId } = ensureEngineMetaMaps();
+    const printCards = await getLocalPrintCardsByNames(names);
+
+    for (const name of names) {
+      const normalized = normalizeName(name);
+      if (!normalized || seen.has(normalized)) {
+        continue;
+      }
+
+      seen.add(normalized);
+      const printRecord = printCards.get(`name:${normalized}`);
+      const meta = printRecord
+        ? byOracleId.get(printRecord.oracle_id) ?? engineByName.get(normalized) ?? null
+        : engineByName.get(normalized) ?? null;
+
+      if (meta && !meta.commanderLegal) {
+        continue;
+      }
+
+      const card = printRecord
+        ? toSearchRecordFromPrintCard(printRecord, meta)
+        : byName.get(normalized);
+      if (!card) {
+        continue;
+      }
+
+      if (allowedColors.size > 0 && !subsetOf(card.colorIdentity, allowedColors)) {
+        continue;
+      }
+
+      rows.push(card);
+    }
+
+    return rows;
+  }
 
   for (const name of names) {
     const normalized = normalizeName(name);
@@ -387,6 +619,11 @@ export function lookupCardsByNames(
     seen.add(normalized);
     const card = byName.get(normalized);
     if (!card) {
+      continue;
+    }
+
+    const meta = engineByName.get(normalized);
+    if (meta && !meta.commanderLegal) {
       continue;
     }
 
@@ -414,8 +651,14 @@ export function lookupCardsByNames(
   return rows;
 }
 
-export function listSearchSetOptions(): string[] {
+export async function listSearchSetOptions(): Promise<string[]> {
   if (setOptions) {
+    return setOptions;
+  }
+
+  const printRows = await listSqlitePrintSetRows();
+  if (printRows.length > 0) {
+    setOptions = [...new Set(printRows.map((row) => row.setCode))].sort((left, right) => left.localeCompare(right));
     return setOptions;
   }
 
@@ -423,7 +666,8 @@ export function listSearchSetOptions(): string[] {
   const output: string[] = [];
 
   for (const card of buildSearchIndex()) {
-    if (!card.setCode || seen.has(card.setCode)) {
+    const meta = ensureEngineMetaMaps().byName.get(normalizeName(card.name));
+    if (!card.setCode || seen.has(card.setCode) || (meta && !meta.commanderLegal)) {
       continue;
     }
 
@@ -441,4 +685,6 @@ export function clearCardSearchCache(): void {
   commanderPool = null;
   commanderSearchIndex = null;
   setOptions = null;
+  engineMetaByOracleId = null;
+  engineMetaByName = null;
 }

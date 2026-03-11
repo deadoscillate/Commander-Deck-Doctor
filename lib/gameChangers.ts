@@ -68,6 +68,80 @@ export const GAME_CHANGERS = new Set<string>([
   "The Tabernacle at Pendrell Vale"
 ]);
 
+const MONO_WHITE_GAME_CHANGERS = [
+  "Drannith Magistrate",
+  "Enlightened Tutor",
+  "Farewell",
+  "Humility",
+  "Serra's Sanctum",
+  "Smothering Tithe",
+  "Teferi's Protection"
+] as const;
+
+const MONO_BLUE_GAME_CHANGERS = [
+  "Consecrated Sphinx",
+  "Cyclonic Rift",
+  "Force of Will",
+  "Fierce Guardianship",
+  "Gifts Ungiven",
+  "Intuition",
+  "Mystical Tutor",
+  "Narset, Parter of Veils",
+  "Rhystic Study",
+  "Thassa's Oracle"
+] as const;
+
+const MONO_BLACK_GAME_CHANGERS = [
+  "Ad Nauseam",
+  "Bolas's Citadel",
+  "Braids, Cabal Minion",
+  "Demonic Tutor",
+  "Imperial Seal",
+  "Necropotence",
+  "Opposition Agent",
+  "Orcish Bowmasters",
+  "Tergrid, God of Fright",
+  "Vampiric Tutor"
+] as const;
+
+const MONO_RED_GAME_CHANGERS = [
+  "Gamble",
+  "Jeska's Will",
+  "Underworld Breach"
+] as const;
+
+const MONO_GREEN_GAME_CHANGERS = [
+  "Biorhythm",
+  "Crop Rotation",
+  "Gaea's Cradle",
+  "Natural Order",
+  "Seedborn Muse",
+  "Survival of the Fittest",
+  "Worldly Tutor"
+] as const;
+
+const MULTICOLOR_GAME_CHANGER_IDENTITY: Record<string, string[]> = {
+  "Aura Shards": ["G", "W"],
+  "Coalition Victory": ["W", "U", "B", "R", "G"],
+  "Grand Arbiter Augustin IV": ["W", "U"],
+  "Notion Thief": ["U", "B"]
+};
+
+const COLORLESS_GAME_CHANGERS = [
+  "Ancient Tomb",
+  "Chrome Mox",
+  "Field of the Dead",
+  "Glacial Chasm",
+  "Grim Monolith",
+  "Lion's Eye Diamond",
+  "Mana Vault",
+  "Mishra's Workshop",
+  "Mox Diamond",
+  "Panoptic Mirror",
+  "The One Ring",
+  "The Tabernacle at Pendrell Vale"
+] as const;
+
 /**
  * Normalizes names for punctuation-tolerant matching (apostrophes, accents, spacing).
  */
@@ -83,6 +157,18 @@ const GAME_CHANGER_LOOKUP = new Map<string, string>(
   [...GAME_CHANGERS].map((name) => [normalizeGameChangerName(name), name])
 );
 
+const GAME_CHANGER_COLOR_IDENTITY = new Map<string, string[]>(
+  [
+    ...MONO_WHITE_GAME_CHANGERS.map((name) => [name, ["W"]] as const),
+    ...MONO_BLUE_GAME_CHANGERS.map((name) => [name, ["U"]] as const),
+    ...MONO_BLACK_GAME_CHANGERS.map((name) => [name, ["B"]] as const),
+    ...MONO_RED_GAME_CHANGERS.map((name) => [name, ["R"]] as const),
+    ...MONO_GREEN_GAME_CHANGERS.map((name) => [name, ["G"]] as const),
+    ...Object.entries(MULTICOLOR_GAME_CHANGER_IDENTITY),
+    ...COLORLESS_GAME_CHANGERS.map((name) => [name, []] as const)
+  ].map(([name, colors]) => [normalizeGameChangerName(name), [...colors]])
+);
+
 /**
  * Returns canonical Game Changer name if matched; otherwise null.
  */
@@ -92,4 +178,8 @@ export function findGameChangerName(name: string): string | null {
 
 export function isGameChangerName(name: string): boolean {
   return findGameChangerName(name) !== null;
+}
+
+export function getGameChangerColorIdentity(name: string): string[] | null {
+  return GAME_CHANGER_COLOR_IDENTITY.get(normalizeGameChangerName(name)) ?? null;
 }

@@ -16,6 +16,7 @@ import {
   buildBuilderDecklist,
   buildCommanderStapleSuggestionNames,
   buildColorStapleSuggestionNames,
+  buildGameChangerSuggestionNames,
   buildManaBaseSuggestionNames,
   categorizeBuilderDeckCards,
   extractNeeds,
@@ -25,7 +26,6 @@ import {
   type BuilderCommanderSelection,
   type BuilderDeckCard
 } from "@/lib/builder";
-import { GAME_CHANGERS } from "@/lib/gameChangers";
 
 const BUILDER_STORAGE_KEY = "commanderDeckDoctor.builderDecks.v1";
 const MAX_SAVED_BUILDS = 20;
@@ -912,7 +912,7 @@ export function CommanderDeckBuilder() {
 
       try {
         const params = new URLSearchParams({
-          limit: "20"
+          limit: cardQuery.trim() ? "24" : "72"
         });
         if (cardQuery.trim()) {
           params.set("q", cardQuery.trim());
@@ -1101,9 +1101,11 @@ export function CommanderDeckBuilder() {
   const gameChangerSuggestions = useMemo(
     () =>
       selectedCommander
-        ? [...GAME_CHANGERS]
+        ? buildGameChangerSuggestionNames(suggestionColorIdentity).filter(
+            (name) => !deckCards.some((card) => normalizeName(card.name) === normalizeName(name))
+          )
         : [],
-    [selectedCommander]
+    [deckCards, selectedCommander, suggestionColorIdentity]
   );
   const manaBaseSuggestions = useMemo(
     () =>
@@ -1133,6 +1135,14 @@ export function CommanderDeckBuilder() {
     [analysis]
   );
   const filteredSuggestionGroups = useMemo(() => {
+    const cardsAlreadyInBuild = new Set(
+      [
+        ...deckCards.map((card) => normalizeName(card.name)),
+        selectedCommander ? normalizeName(selectedCommander.name) : "",
+        selectedPairOption ? normalizeName(selectedPairOption.name) : ""
+      ].filter(Boolean)
+    );
+
     const filterItems = (items: SuggestionCardItem[]) =>
       items.filter((item) => {
         if (item.action === "none") {
@@ -1140,9 +1150,13 @@ export function CommanderDeckBuilder() {
         }
 
         const normalized = normalizeName(item.name);
+        if (cardsAlreadyInBuild.has(normalized)) {
+          return false;
+        }
+
         const record = resolvedCardsByName[normalized];
         if (!record) {
-          return true;
+          return false;
         }
 
         return record.colorIdentity.every((color) => allowedColorIdentity.includes(color));
@@ -1186,7 +1200,7 @@ export function CommanderDeckBuilder() {
           }
         : null
     };
-  }, [allowedColorIdentity, resolvedCardsByName, suggestionGroups]);
+  }, [allowedColorIdentity, deckCards, resolvedCardsByName, selectedCommander, selectedPairOption, suggestionGroups]);
   const totalDeckCount = currentMainDeckCount + (selectedCommander ? 1 : 0) + (selectedPairOption ? 1 : 0);
   const builderPriceCoverage = selectedCommander ? 100 : 0;
   const metadataNames = useMemo(() => {

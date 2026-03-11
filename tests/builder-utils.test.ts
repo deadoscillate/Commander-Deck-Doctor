@@ -3,6 +3,7 @@ import {
   buildCommanderAbilitySuggestionGroups,
   buildColorStapleSuggestionNames,
   buildBuilderDecklist,
+  buildGameChangerSuggestionNames,
   buildManaBaseSuggestionNames,
   computePreconSimilarity,
   extractNeeds,
@@ -141,6 +142,26 @@ describe("builder utilities", () => {
     ]);
   });
 
+  it("returns only color-safe game changers for a Simic commander", () => {
+    const names = buildGameChangerSuggestionNames(["G", "U"]);
+
+    expect(names).toContain("Force of Will");
+    expect(names).toContain("Worldly Tutor");
+    expect(names).toContain("The One Ring");
+    expect(names).not.toContain("Drannith Magistrate");
+    expect(names).not.toContain("Demonic Tutor");
+    expect(names).not.toContain("Grand Arbiter Augustin IV");
+  });
+
+  it("returns only colorless game changers for a colorless commander", () => {
+    const names = buildGameChangerSuggestionNames([]);
+
+    expect(names).toContain("The One Ring");
+    expect(names).toContain("Ancient Tomb");
+    expect(names).not.toContain("Force of Will");
+    expect(names).not.toContain("Crop Rotation");
+  });
+
   it("returns exact commander packages for known commanders", () => {
     const groups = buildCommanderAbilitySuggestionGroups({
       name: "Edric, Spymaster of Trest",
@@ -167,7 +188,7 @@ describe("builder utilities", () => {
   });
 
   it("loads a seeded commander-profile dataset", () => {
-    expect(getCommanderProfileCount()).toBeGreaterThanOrEqual(370);
+    expect(getCommanderProfileCount()).toBeGreaterThanOrEqual(390);
     expect(getCommanderProfile("Prosper, Tome-Bound")?.groups[0]?.cards).toContain("Jeska's Will");
     expect(getCommanderProfile("Miirym, Sentinel Wyrm")?.groups[0]?.cards).toContain("Dragon Tempest");
     expect(getCommanderProfile("Pantlaza, Sun-Favored")?.groups[0]?.cards).toContain("Trumpeting Carnosaur");
@@ -204,5 +225,9 @@ describe("builder utilities", () => {
     expect(getCommanderProfile("Amalia Benavides Aguirre")?.groups[0]?.cards).toContain("Soul Warden");
     expect(getCommanderProfile("Ashaya, Soul of the Wild")?.groups[0]?.cards).toContain("Quirion Ranger");
     expect(getCommanderProfile("Breeches, Eager Pillager")?.groups[0]?.cards).toContain("Malcolm, Keen-Eyed Navigator");
+    expect(getCommanderProfile("Azusa, Lost but Seeking")?.groups[0]?.cards).toContain("Exploration");
+    expect(getCommanderProfile("Birgi, God of Storytelling // Harnfel, Horn of Bounty")?.groups[0]?.cards).toContain("Underworld Breach");
+    expect(getCommanderProfile("Child of Alara")?.groups[0]?.cards).toContain("Life from the Loam");
+    expect(getCommanderProfile("Captain America, First Avenger")?.groups[0]?.cards).toContain("Colossus Hammer");
   });
 });

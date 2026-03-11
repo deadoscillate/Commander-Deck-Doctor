@@ -3,6 +3,7 @@ import type { RecommendedCountRow, RoleBreakdown } from "@/lib/contracts";
 import type { DeckArchetypeReport } from "@/lib/archetypes";
 import { getCommanderProfile } from "@/lib/commanderProfiles";
 import { buildCommanderSignalPattern, COMMANDER_SIGNAL_SUGGESTION_GROUPS } from "@/lib/commanderSignals";
+import { GAME_CHANGERS, getGameChangerColorIdentity } from "@/lib/gameChangers";
 
 export type BuilderDeckCard = {
   name: string;
@@ -338,6 +339,20 @@ export function buildColorStapleSuggestionNames(colors: string[]): string[] {
   }
 
   return uniqueNames(names);
+}
+
+export function buildGameChangerSuggestionNames(colors: string[]): string[] {
+  const normalizedColors = normalizeColorIdentity(colors);
+  const allowedColors = new Set(normalizedColors.filter((color) => color !== "C"));
+
+  return [...GAME_CHANGERS].filter((name) => {
+    const colorIdentity = getGameChangerColorIdentity(name);
+    if (!colorIdentity) {
+      return false;
+    }
+
+    return colorIdentity.every((color) => allowedColors.has(color));
+  });
 }
 
 export function buildArchetypeSynergySuggestionNames(archetypes: string[]): string[] {

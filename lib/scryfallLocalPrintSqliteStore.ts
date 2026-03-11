@@ -16,6 +16,7 @@ let byNameSetStatement: SqliteStatement | null = null;
 let byNameStatement: SqliteStatement | null = null;
 let printCardsSelectClause: string | null = null;
 let printCardsFromClause = "FROM print_cards";
+let printSetOptionRowsCache: SqlitePrintSetOptionRow[] | null = null;
 
 type PrintRow = {
   printing_id?: string;
@@ -50,6 +51,17 @@ type SetCollectorLookup = {
   collectorNumber: string;
 };
 
+type PrintSearchOptions = {
+  query?: string;
+  setCode?: string;
+  cardType?: string;
+  limit?: number;
+};
+
+type SqlitePrintSetOptionRow = {
+  setCode: string;
+};
+
 function normalizeLookupName(name: string): string {
   return name
     .normalize("NFKD")
@@ -64,6 +76,10 @@ function normalizeCollectorNumber(value: string | null | undefined): string {
     .toLowerCase()
     .replace(/^#+/, "")
     .replace(/[\u2605\u2606]/g, "");
+}
+
+function escapeSqlLike(value: string): string {
+  return value.replace(/[\\%_]/g, (match) => `\\${match}`);
 }
 
 function buildIdKey(printingId: string): string {
@@ -286,6 +302,7 @@ async function ensureDb(): Promise<SqliteDatabase | null> {
       const queryParts = buildQueryParts(db);
       printCardsSelectClause = queryParts.selectClause;
       printCardsFromClause = queryParts.fromClause;
+      printSetOptionRowsCache = null;
       return db;
     } catch {
       sqliteUnavailable = true;
@@ -635,6 +652,147 @@ export async function getSqlitePrintCardsByNameSets(
   }
 
   return results;
+}
+
+export async function searchSqlitePrintCards(
+  input: PrintSearchOptions = {}
+): Promise<LocalPrintCardRecord[]> {
+  const database = await ensureDb();
+  if (!database) {
+    return [];
+  }
+
+  const limit = Math.max(1, Math.min(200, Math.floor(input.limit ?? 60)));
+  const rawLimit = Math.max(limit * 8, 200);
+  const queryParts = printCardsSelectClause
+    ? { selectClause: printCardsSelectClause, fromClause: printCardsFromClause }
+    : buildQueryParts(database);
+  const normalizedQuery = normalizeLookupName(input.query ?? "");
+  const normalizedSet = (input.setCode ?? "").trim().toLowerCase();
+  const normalizedType = (input.cardType ?? "").trim().toLowerCase();
+  const whereClauses: string[] = [];
+  const params: Array<string | number> = [];
+
+  if (normalizedSet) {
+    whereClauses.push("print_cards.set_code = ?");
+    params.push(normalizedSet);
+  }
+
+  if (normalizedType) {
+    whereClauses.push("lower(coalesce(oracle_cards.type_line, '')) LIKE ? ESCAPE '\\'");
+    params.push(`%${escapeSqlLike(normalizedType)}%`);
+  }
+
+  const dedupeAndLimit = (rows: PrintRow[]): LocalPrintCardRecord[] => {
+    const seen = new Set<string>();
+    const results: LocalPrintCardRecord[] = [];
+    for (const row of rows) {
+      const record = toLocalPrintCardRecord(row);
+      if (!record) {
+        continue;
+      }
+
+      const dedupeKey = normalizeLookupName(record.name);
+      if (!dedupeKey || seen.has(dedupeKey)) {
+        continue;
+      }
+
+      seen.add(dedupeKey);
+      results.push(record);
+      if (results.length >= limit) {
+        break;
+      }
+    }
+
+    return results;
+  };
+
+  if (normalizedQuery) {
+    const nameLike = `%${escapeSqlLike(normalizedQuery)}%`;
+    const startsWith = `${escapeSqlLike(normalizedQuery)}%`;
+    whereClauses.push(
+      "(print_cards.normalized_name LIKE ? ESCAPE '\\' OR lower(coalesce(oracle_cards.type_line, '')) LIKE ? ESCAPE '\\' OR lower(coalesce(oracle_cards.oracle_text, '')) LIKE ? ESCAPE '\\')"
+    );
+    params.push(nameLike, nameLike, nameLike);
+
+    const rows = database
+      .prepare(
+        `
+        SELECT ${queryParts.selectClause}
+        ${queryParts.fromClause}
+        ${whereClauses.length > 0 ? `WHERE ${whereClauses.join(" AND ")}` : ""}
+        ORDER BY
+          CASE
+            WHEN print_cards.normalized_name = ? THEN 0
+            WHEN print_cards.normalized_name LIKE ? ESCAPE '\\' THEN 1
+            WHEN print_cards.normalized_name LIKE ? ESCAPE '\\' THEN 2
+            WHEN lower(coalesce(oracle_cards.type_line, '')) LIKE ? ESCAPE '\\' THEN 3
+            ELSE 4
+          END,
+          print_cards.normalized_name ASC,
+          print_cards.collector_sort_rank ASC,
+          print_cards.collector_sort_suffix ASC,
+          print_cards.printing_id ASC
+        LIMIT ?
+      `
+      )
+      .all(...params, normalizedQuery, startsWith, nameLike, nameLike, rawLimit) as PrintRow[];
+
+    return dedupeAndLimit(rows);
+  }
+
+  const rows = database
+    .prepare(
+      `
+      SELECT ${queryParts.selectClause}
+      ${queryParts.fromClause}
+      ${whereClauses.length > 0 ? `WHERE ${whereClauses.join(" AND ")}` : ""}
+      ORDER BY
+        print_cards.normalized_name ASC,
+        print_cards.collector_sort_rank ASC,
+        print_cards.collector_sort_suffix ASC,
+        print_cards.printing_id ASC
+      LIMIT ?
+    `
+    )
+    .all(...params, rawLimit) as PrintRow[];
+
+  return dedupeAndLimit(rows);
+}
+
+export async function listSqlitePrintSetRows(): Promise<SqlitePrintSetOptionRow[]> {
+  if (printSetOptionRowsCache) {
+    return printSetOptionRowsCache;
+  }
+
+  const database = await ensureDb();
+  if (!database) {
+    return [];
+  }
+
+  const rows = database
+    .prepare(
+      `
+      SELECT DISTINCT
+        print_cards.set_code AS set_code
+      FROM print_cards
+      ORDER BY print_cards.set_code ASC
+    `
+    )
+    .all() as Array<{
+      set_code?: string;
+    }>;
+
+  printSetOptionRowsCache = rows
+    .filter(
+      (row): row is { set_code: string } =>
+        typeof row.set_code === "string"
+    )
+    .map((row) => ({
+      setCode: row.set_code.toUpperCase()
+    }));
+
+  return printSetOptionRowsCache;
 }
 
 export async function prewarmSqlitePrintStore(): Promise<{ available: boolean }> {

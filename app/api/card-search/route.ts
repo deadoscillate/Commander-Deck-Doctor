@@ -121,7 +121,7 @@ export async function GET(request: Request) {
   const url = new URL(request.url);
   if (url.searchParams.get("meta") === "sets") {
     const body = {
-      items: listSearchSetOptions()
+      items: await listSearchSetOptions()
     };
     const serializeStartedAt = performance.now();
     JSON.stringify(body);
@@ -158,11 +158,11 @@ export async function GET(request: Request) {
 
   const items =
     names.length > 0
-      ? lookupCardsByNames(names, {
+      ? await lookupCardsByNames(names, {
           commanderOnly,
           allowedColors
         })
-        : searchCards({
+        : await searchCards({
           query: q,
           commanderOnly,
           colors,
@@ -248,7 +248,7 @@ export async function POST(request: Request) {
   }
 
   const lookupStartedAt = performance.now();
-  const items = lookupCardsByNames(names, {
+  const items = await lookupCardsByNames(names, {
     allowedColors,
     commanderOnly,
     includePairs

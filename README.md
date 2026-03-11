@@ -130,7 +130,9 @@ The precon browser now loads the full synced library, keeps search visible while
 - Matching stock precons load in the report for side-by-side comparison without replacing the current analysis.
 - Stock-precon comparison now surfaces richer upgrade deltas, including interaction, consistency, combos, game changers, and a short upgrade snapshot.
 - The `/builder` workflow starts from a compact commander-picker toolbar, keeps a live 99-card decklist, mirrors the commander hero/background treatment from the analyzer, uses art-backed commander search result cards with full-card previews, groups the main deck by card roles, surfaces hover previews across deck sections and suggestions, and saves local builder states separately from analyzer deck saves.
+- Builder card browse/search now resolves against the full local Commander-legal print library, so set filters and suggestion card resolution are no longer limited to the default-print name index.
 - Builder suggestions are split into commander staples, color staples, role/archetype suggestions, combo suggestions, game changer suggestions, and mana-base suggestions, with land suggestions including basics, fixing staples, duals, and triomes when the color identity supports them.
+- Builder game changer suggestions are now color-safe and only surface game changers that are legal for the selected commander's color identity.
 - Builder status is condensed into a tighter live snapshot row, the commander hero stays pinned while scrolling, and the hero now shows live deck price as cards are added and removed.
 - Builder deck rows only show quantity badges when duplicates are actually legal, such as basics and explicit multi-copy exceptions.
 - Builder commander guidance now prefers curated commander profiles first, then the full generated commander-profile list, and only then falls back to generic oracle-text heuristics.
@@ -229,8 +231,10 @@ Current MVP state:
 - Builder commander search now uses art-backed result cards with full-card previews and dedicated telemetry.
 - Builder colorless commanders now resolve color-staple and mana-base suggestions correctly.
 - Builder top-row controls and status cards have been condensed to reduce wasted space.
+- Builder card search by set and suggestion card resolution now use the full local Commander-legal print library instead of the reduced default-print index.
+- Builder game changer suggestions now filter to color-legal options instead of showing the global game changer pool.
 - Builder commander suggestions now include a curated commander-profile dataset plus a generated full commander list as fallback before generic commander-text inference.
-- Curated commander profiles have been expanded to 370 reviewed entries on top of the generated full-pool dataset.
+- Curated commander profiles have been expanded to 390 reviewed entries on top of the generated full-pool dataset.
 - Precon browsing is built in, scrollable, and print-aware.
 - Stock-precon comparison is built in for commander-matched decks.
 - Stock-precon comparison now shows richer practical deltas instead of only card adds/cuts and price.
@@ -303,6 +307,7 @@ Practical target:
 - Completed: fourteenth larger curated promotion batch to push the reviewed commander-profile set past 330 entries
 - Completed: fifteenth larger curated promotion batch to push the reviewed commander-profile set past 350 entries
 - Completed: sixteenth larger curated promotion batch to push the reviewed commander-profile set past 370 entries
+- Completed: seventeenth larger curated promotion batch to push the reviewed commander-profile set past 390 entries
 - In progress: continue promoting high-value commanders from the generated full commander-profile list into curated profiles
 - Completed: add commander-profile candidate generation from local Oracle heuristics
 
@@ -312,6 +317,8 @@ Practical target:
 - Completed: builder UI parity with commander hero/background treatment, grouped deck sections, preview-backed suggestions, condensed status cards, and color-aware mana-base recommendations
 - Completed: dedicated builder commander-search telemetry for search latency and cold-start tracking
 - Completed: compact top-row commander picker, sticky builder hero, live deck-price hero pill, and builder quantity cleanup for singleton cards
+- Completed: builder card browse/search and suggestion resolution now use the full local Commander-legal print library
+- Completed: builder game changer suggestions now filter to color-legal options
 - Completed: richer stock-vs-current comparison views
 - Next: add release-quality telemetry dashboards
 

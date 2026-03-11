@@ -1011,6 +1011,29 @@
     ]
   },
   {
+    "commanderName": "Angus Mackenzie",
+    "tags": [
+      "pillowfort",
+      "fog",
+      "control"
+    ],
+    "groups": [
+      {
+        "key": "angus-fog-lock",
+        "label": "Fog Control Core",
+        "description": "Angus wants repeatable fog effects and defensive engines that let you dominate the long game while combat stays off the table.",
+        "cards": [
+          "Constant Mists",
+          "Spike Weaver",
+          "Propaganda",
+          "Ghostly Prison",
+          "Seedborn Muse",
+          "Teferi's Protection"
+        ]
+      }
+    ]
+  },
+  {
     "commanderName": "Anhelo, the Painter",
     "tags": [
       "spells",
@@ -1264,6 +1287,52 @@
     ]
   },
   {
+    "commanderName": "Arcanis the Omnipotent",
+    "tags": [
+      "big-draw",
+      "wizards",
+      "control"
+    ],
+    "groups": [
+      {
+        "key": "arcanis-draw-engine",
+        "label": "Big Draw Engine",
+        "description": "Arcanis wants untap support and no-max-hand-size payoffs so every activation buries the table in cards.",
+        "cards": [
+          "Mind Over Matter",
+          "Freed from the Real",
+          "Teferi's Ageless Insight",
+          "Psychosis Crawler",
+          "Reliquary Tower",
+          "Wizard Class"
+        ]
+      }
+    ]
+  },
+  {
+    "commanderName": "Archelos, Lagoon Mystic",
+    "tags": [
+      "tap-matters",
+      "stax",
+      "lands"
+    ],
+    "groups": [
+      {
+        "key": "archelos-tap-untap",
+        "label": "Tap-State Control",
+        "description": "Archelos wants effects that care about tapped permanents and ways to control whether the table develops at sorcery speed or instantly.",
+        "cards": [
+          "Seedborn Muse",
+          "Amulet of Vigor",
+          "Root Maze",
+          "Kiora's Follower",
+          "Wilderness Reclamation",
+          "Frozen AEther"
+        ]
+      }
+    ]
+  },
+  {
     "commanderName": "Ardenn, Intrepid Archaeologist",
     "tags": [
       "equipment",
@@ -1282,6 +1351,29 @@
           "Bloodforged Battle-Axe",
           "Sram, Senior Edificer",
           "Kediss, Emberclaw Familiar"
+        ]
+      }
+    ]
+  },
+  {
+    "commanderName": "Arni Brokenbrow",
+    "tags": [
+      "combat",
+      "big-power",
+      "aggro"
+    ],
+    "groups": [
+      {
+        "key": "arni-big-power",
+        "label": "Big Power Burst",
+        "description": "Arni wants temporary power spikes and combat support that let his boast ability turn one creature into a massive attacker.",
+        "cards": [
+          "Jeska's Will",
+          "Embercleave",
+          "Kazuul's Fury // Kazuul's Cliffs",
+          "Seize the Day",
+          "Unleash Fury",
+          "Rogue's Passage"
         ]
       }
     ]
@@ -1374,6 +1466,29 @@
           "Karlov of the Ghost Council",
           "Bolas's Citadel",
           "Kambal, Consul of Allocation"
+        ]
+      }
+    ]
+  },
+  {
+    "commanderName": "Atarka, World Render",
+    "tags": [
+      "dragons",
+      "combat",
+      "tribal"
+    ],
+    "groups": [
+      {
+        "key": "atarka-dragon-alpha",
+        "label": "Dragon Alpha Strikes",
+        "description": "Atarka wants mana acceleration and dragon payoffs that make double-striking air assaults end games immediately.",
+        "cards": [
+          "Dragon Tempest",
+          "Lathliss, Dragon Queen",
+          "Savage Ventmaw",
+          "Old Gnawbone",
+          "Miirym, Sentinel Wyrm",
+          "Selvala's Stampede"
         ]
       }
     ]
@@ -1540,6 +1655,29 @@
     ]
   },
   {
+    "commanderName": "Azusa, Lost but Seeking",
+    "tags": [
+      "lands",
+      "ramp",
+      "landfall"
+    ],
+    "groups": [
+      {
+        "key": "azusa-extra-lands",
+        "label": "Extra Land Engine",
+        "description": "Azusa wants land draw, land recursion, and landfall payoffs so the extra land drops never run dry.",
+        "cards": [
+          "Exploration",
+          "Burgeoning",
+          "Crucible of Worlds",
+          "Ramunap Excavator",
+          "Horn of Greed",
+          "Field of the Dead"
+        ]
+      }
+    ]
+  },
+  {
     "commanderName": "Baba Lysaga, Night Witch",
     "tags": [
       "sacrifice",
@@ -1563,6 +1701,75 @@
     ]
   },
   {
+    "commanderName": "Baeloth Barrityl, Entertainer",
+    "tags": [
+      "goad",
+      "treasure",
+      "background"
+    ],
+    "groups": [
+      {
+        "key": "baeloth-goad-treasure",
+        "label": "Goad and Profit",
+        "description": "Baeloth wants power scaling and goad payoffs that turn enemy combat into Treasures and free damage.",
+        "cards": [
+          "Raised by Giants",
+          "Bloodthirsty Blade",
+          "Disrupt Decorum",
+          "Agitator Ant",
+          "Kediss, Emberclaw Familiar",
+          "Professional Face-Breaker"
+        ]
+      }
+    ]
+  },
+  {
+    "commanderName": "Baird, Steward of Argive",
+    "tags": [
+      "pillowfort",
+      "tokens",
+      "go-wide"
+    ],
+    "groups": [
+      {
+        "key": "baird-pillowfort-swarm",
+        "label": "Pillowfort Tokens",
+        "description": "Baird wants taxes and token makers so opponents pay to attack while your board grows safely behind the shield.",
+        "cards": [
+          "Ghostly Prison",
+          "Norn's Annex",
+          "Smothering Tithe",
+          "Wedding Announcement // Wedding Festivity",
+          "Elspeth, Sun's Champion",
+          "Court of Grace"
+        ]
+      }
+    ]
+  },
+  {
+    "commanderName": "Balan, Wandering Knight",
+    "tags": [
+      "equipment",
+      "voltron",
+      "cats"
+    ],
+    "groups": [
+      {
+        "key": "balan-instant-armory",
+        "label": "Instant Armory Core",
+        "description": "Balan wants cheap equipment density and combat blowouts that punish the table the moment everything snaps onto one body.",
+        "cards": [
+          "Colossus Hammer",
+          "Sigarda's Aid",
+          "Hammer of Nazahn",
+          "Puresteel Paladin",
+          "Sword of Fire and Ice",
+          "Steelshaper's Gift"
+        ]
+      }
+    ]
+  },
+  {
     "commanderName": "Balmor, Battlemage Captain",
     "tags": [
       "spells",
@@ -1581,6 +1788,52 @@
           "Slip Through Space",
           "Expedite",
           "Twinferno"
+        ]
+      }
+    ]
+  },
+  {
+    "commanderName": "Barret, Avalanche Leader",
+    "tags": [
+      "equipment",
+      "tokens",
+      "combat"
+    ],
+    "groups": [
+      {
+        "key": "barret-equipment-rebels",
+        "label": "Equipment Rebel Core",
+        "description": "Barret wants cheap equipment and token payoffs so every weapon entering turns into another body ready to carry it.",
+        "cards": [
+          "Puresteel Paladin",
+          "Sigarda's Aid",
+          "Captain America, First Avenger",
+          "Kemba, Kha Enduring",
+          "Lizard Blades",
+          "Forge Anew"
+        ]
+      }
+    ]
+  },
+  {
+    "commanderName": "Bayek of Siwa",
+    "tags": [
+      "historic",
+      "equipment",
+      "combat"
+    ],
+    "groups": [
+      {
+        "key": "bayek-historic-double-strike",
+        "label": "Historic Double Strike",
+        "description": "Bayek wants historic creature density and equipment support so the team-wide double strike turns every combat into a blowout.",
+        "cards": [
+          "Ardenn, Intrepid Archaeologist",
+          "Puresteel Paladin",
+          "Sigarda's Aid",
+          "Captain America, First Avenger",
+          "Relic of Legends",
+          "Sword of the Animist"
         ]
       }
     ]
@@ -1696,6 +1949,29 @@
           "Wedding Announcement // Wedding Festivity",
           "Monastery Mentor",
           "Oketra's Monument"
+        ]
+      }
+    ]
+  },
+  {
+    "commanderName": "Birgi, God of Storytelling // Harnfel, Horn of Bounty",
+    "tags": [
+      "storm",
+      "spellslinger",
+      "discard"
+    ],
+    "groups": [
+      {
+        "key": "birgi-storm-engine",
+        "label": "Storm Engine Core",
+        "description": "Birgi wants ritual density and cheap card flow so every spell refunds mana and the back face converts dead cards into velocity.",
+        "cards": [
+          "Runaway Steam-Kin",
+          "Storm-Kiln Artist",
+          "Experimental Frenzy",
+          "Past in Flames",
+          "Ruby Medallion",
+          "Underworld Breach"
         ]
       }
     ]
@@ -1885,6 +2161,29 @@
     ]
   },
   {
+    "commanderName": "Brinelin, the Moon Kraken",
+    "tags": [
+      "big-spells",
+      "sea-monsters",
+      "tempo"
+    ],
+    "groups": [
+      {
+        "key": "brinelin-big-spells",
+        "label": "Big Spell Bounce",
+        "description": "Brinelin wants mana acceleration and expensive payoff spells so every six-drop resets the best permanent on the table.",
+        "cards": [
+          "Imoti, Celebrant of Bounty",
+          "Kiora Bests the Sea God",
+          "Apex Devastator",
+          "Zendikar Resurgent",
+          "Stormtide Leviathan",
+          "Hullbreaker Horror"
+        ]
+      }
+    ]
+  },
+  {
     "commanderName": "Brion Stoutarm",
     "tags": [
       "fling",
@@ -1926,6 +2225,29 @@
           "Rise and Shine",
           "Mechanized Production",
           "Ancient Copper Dragon"
+        ]
+      }
+    ]
+  },
+  {
+    "commanderName": "Bruenor Battlehammer",
+    "tags": [
+      "equipment",
+      "combat",
+      "voltron"
+    ],
+    "groups": [
+      {
+        "key": "bruenor-equipment-beatdown",
+        "label": "Equipment Beatdown Core",
+        "description": "Bruenor wants cheap equip activations and multiple suited-up threats so the static buff scales across the whole board.",
+        "cards": [
+          "Puresteel Paladin",
+          "Sigarda's Aid",
+          "Stoneforge Mystic",
+          "Halvar, God of Battle // Sword of the Realms",
+          "Sword of Hearth and Home",
+          "Ardenn, Intrepid Archaeologist"
         ]
       }
     ]
@@ -2046,6 +2368,52 @@
     ]
   },
   {
+    "commanderName": "Captain America, First Avenger",
+    "tags": [
+      "equipment",
+      "voltron",
+      "throw-matters"
+    ],
+    "groups": [
+      {
+        "key": "captain-america-throw",
+        "label": "Throw Equipment Core",
+        "description": "Captain America wants efficient equipment with useful mana values so every throw mode is removal and reach, not just style points.",
+        "cards": [
+          "Colossus Hammer",
+          "Nettlecyst",
+          "Loxodon Warhammer",
+          "Sigarda's Aid",
+          "Ardenn, Intrepid Archaeologist",
+          "Kediss, Emberclaw Familiar"
+        ]
+      }
+    ]
+  },
+  {
+    "commanderName": "Captain Lannery Storm",
+    "tags": [
+      "treasure",
+      "aggro",
+      "pirates"
+    ],
+    "groups": [
+      {
+        "key": "lannery-treasure-aggro",
+        "label": "Treasure Aggro Core",
+        "description": "Lannery wants cheap treasure makers and combat payoffs so every swing converts to mana and extra damage.",
+        "cards": [
+          "Professional Face-Breaker",
+          "Goldspan Dragon",
+          "Academy Manufactor",
+          "Big Score",
+          "Port Razer",
+          "Captain Storm, Cosmium Raider"
+        ]
+      }
+    ]
+  },
+  {
     "commanderName": "Carmen, Cruel Skymarcher",
     "tags": [
       "sacrifice",
@@ -2064,6 +2432,29 @@
           "Lurrus of the Dream-Den",
           "Animate Dead",
           "Skullclamp"
+        ]
+      }
+    ]
+  },
+  {
+    "commanderName": "Catti-brie of Mithral Hall",
+    "tags": [
+      "equipment",
+      "counters",
+      "voltron"
+    ],
+    "groups": [
+      {
+        "key": "catti-brie-sniper",
+        "label": "Counter Sniper Core",
+        "description": "Catti-brie wants efficient equipment and combat setup so she can stack counters quickly and convert them into removal on demand.",
+        "cards": [
+          "Sigarda's Aid",
+          "Blackblade Reforged",
+          "Sword of the Animist",
+          "Sword of Fire and Ice",
+          "Basilisk Collar",
+          "Puresteel Paladin"
         ]
       }
     ]
@@ -2138,6 +2529,52 @@
     ]
   },
   {
+    "commanderName": "Child of Alara",
+    "tags": [
+      "lands",
+      "control",
+      "wipe"
+    ],
+    "groups": [
+      {
+        "key": "child-alara-lands-control",
+        "label": "Lands Control Core",
+        "description": "Child wants land-based ramp and recursion so recurring the board wipe hurts everyone else more than it hurts you.",
+        "cards": [
+          "Life from the Loam",
+          "Crucible of Worlds",
+          "Titania, Protector of Argoth",
+          "Wrenn and Seven",
+          "Zuran Orb",
+          "High Market"
+        ]
+      }
+    ]
+  },
+  {
+    "commanderName": "Chishiro, the Shattered Blade",
+    "tags": [
+      "modified",
+      "auras",
+      "equipment"
+    ],
+    "groups": [
+      {
+        "key": "chishiro-modified-core",
+        "label": "Modified Value Core",
+        "description": "Chishiro wants cheap modifications and token payoffs so every Aura or Equipment snowballs both width and counters.",
+        "cards": [
+          "Kami of Celebration",
+          "Kodama of the West Tree",
+          "Invigorating Hot Spring",
+          "Rancor",
+          "O-Naginata",
+          "The Reaver Cleaver"
+        ]
+      }
+    ]
+  },
+  {
     "commanderName": "Chiss-Goria, Forge Tyrant",
     "tags": [
       "artifacts",
@@ -2205,6 +2642,29 @@
           "Edgar, Charmed Groom",
           "Patriarch's Bidding",
           "Anointed Procession"
+        ]
+      }
+    ]
+  },
+  {
+    "commanderName": "Cloud, Ex-SOLDIER",
+    "tags": [
+      "equipment",
+      "treasure",
+      "combat"
+    ],
+    "groups": [
+      {
+        "key": "cloud-equipment-draw",
+        "label": "Equipment Draw Core",
+        "description": "Cloud wants a dense equipment package and multiple equipped attackers so the attack trigger becomes a full reload plus Treasure burst.",
+        "cards": [
+          "Ardenn, Intrepid Archaeologist",
+          "Puresteel Paladin",
+          "Sigarda's Aid",
+          "Stoneforge Mystic",
+          "Sword of Fire and Ice",
+          "Lizard Blades"
         ]
       }
     ]
