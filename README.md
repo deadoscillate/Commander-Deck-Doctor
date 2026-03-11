@@ -232,6 +232,7 @@ Current MVP state:
 - Builder colorless commanders now resolve color-staple and mana-base suggestions correctly.
 - Builder top-row controls and status cards have been condensed to reduce wasted space, and the sticky commander hero now owns both card search and tabbed suggestion tooling.
 - Builder card search by set and suggestion card resolution now use the full local Commander-legal print library instead of the reduced default-print index.
+- Builder commander gameplan suggestions now expand curated profiles with deeper full-library backfill instead of exhausting after a short fixed list.
 - Builder game changer suggestions now filter to color-legal options instead of showing the global game changer pool.
 - Builder commander suggestions now include a curated commander-profile dataset plus a generated full commander list as fallback before generic commander-text inference.
 - Curated commander profiles have been expanded to 390 reviewed entries on top of the generated full-pool dataset.
@@ -291,23 +292,7 @@ Practical target:
 - Completed: stock-precon comparison for commander-matched decks
 - Completed: commander-options telemetry and local-only lookup path for the pre-analyze commander picker
 - Completed: stronger commander-aware suggestion ranking with real commander fixtures
-- Completed: first curated promotion batch from the generated full commander-profile list
-- Completed: second broader curated promotion batch covering more staple commanders, precon faces, and archetype anchors
-- Completed: third larger curated promotion batch to push the reviewed commander-profile set past 100 entries
-- Completed: fourth larger curated promotion batch to push the reviewed commander-profile set past 125 entries
-- Completed: fifth larger curated promotion batch to push the reviewed commander-profile set past 150 entries
-- Completed: sixth larger curated promotion batch to push the reviewed commander-profile set past 165 entries
-- Completed: seventh larger curated promotion batch to push the reviewed commander-profile set past 190 entries
-- Completed: eighth larger curated promotion batch to push the reviewed commander-profile set past 200 entries
-- Completed: ninth larger curated promotion batch to push the reviewed commander-profile set past 230 entries
-- Completed: tenth larger curated promotion batch to push the reviewed commander-profile set past 250 entries
-- Completed: eleventh larger curated promotion batch to push the reviewed commander-profile set past 270 entries
-- Completed: twelfth larger curated promotion batch to push the reviewed commander-profile set past 290 entries
-- Completed: thirteenth larger curated promotion batch to push the reviewed commander-profile set past 310 entries
-- Completed: fourteenth larger curated promotion batch to push the reviewed commander-profile set past 330 entries
-- Completed: fifteenth larger curated promotion batch to push the reviewed commander-profile set past 350 entries
-- Completed: sixteenth larger curated promotion batch to push the reviewed commander-profile set past 370 entries
-- Completed: seventeenth larger curated promotion batch to push the reviewed commander-profile set past 390 entries
+- Completed: expanded the reviewed commander-profile dataset to 390 curated commanders on top of the generated full-pool profile layer
 - In progress: continue promoting high-value commanders from the generated full commander-profile list into curated profiles
 - Completed: add commander-profile candidate generation from local Oracle heuristics
 
@@ -318,6 +303,7 @@ Practical target:
 - Completed: dedicated builder commander-search telemetry for search latency and cold-start tracking
 - Completed: compact top-row commander picker, sticky builder hero, live deck-price hero pill, and builder quantity cleanup for singleton cards
 - Completed: builder card browse/search and suggestion resolution now use the full local Commander-legal print library
+- Completed: builder commander gameplan suggestions now backfill from the full local Commander-legal library behind curated profile cards
 - Completed: builder game changer suggestions now filter to color-legal options
 - Completed: richer stock-vs-current comparison views
 - Next: add release-quality telemetry dashboards

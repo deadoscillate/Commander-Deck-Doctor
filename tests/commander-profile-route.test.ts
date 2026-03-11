@@ -10,11 +10,15 @@ describe("GET /api/commander-profile", () => {
     expect(response.status).toBe(200);
     const payload = (await response.json()) as {
       source: string;
-      profile: { groups: Array<{ key: string }> } | null;
+      profile: { groups: Array<{ key: string; cards: string[] }> } | null;
     };
 
     expect(payload.source).toBe("curated");
     expect(payload.profile?.groups.some((group) => group.key === "edric-evasion")).toBe(true);
+    const edricGroup = payload.profile?.groups.find((group) => group.key === "edric-evasion");
+    expect(edricGroup?.cards.length).toBeGreaterThan(6);
+    expect(edricGroup?.cards).toContain("Invisible Stalker");
+    expect(edricGroup?.cards).toContain("Coastal Piracy");
   });
 
   it("returns generated profiles when there is no curated override", async () => {
@@ -38,4 +42,3 @@ describe("GET /api/commander-profile", () => {
     expect(response.status).toBe(400);
   });
 });
-
