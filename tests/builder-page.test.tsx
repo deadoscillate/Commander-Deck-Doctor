@@ -541,8 +541,8 @@ describe("builder page", () => {
       expect(fetchMock).toHaveBeenCalledWith("/api/analyze", expect.any(Object));
     });
 
-    const commanderZone = screen.getByRole("heading", { name: /Commander Zone/i }).closest(".builder-deck-section");
-    const commanderPrintButton = within(commanderZone as HTMLElement).getByRole("button", { name: /^Print$/i });
+    const commanderStatusCard = screen.getByRole("heading", { name: /^Commander$/i }).closest(".builder-status-card");
+    const commanderPrintButton = within(commanderStatusCard as HTMLElement).getByRole("button", { name: /^Print$/i });
     await user.click(commanderPrintButton);
 
     const printingSelect = await screen.findByLabelText(/Set \/ Printing/i);

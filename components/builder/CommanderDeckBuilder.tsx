@@ -2260,11 +2260,6 @@ export function CommanderDeckBuilder() {
 
       {heroCommander ? (
         <div className="builder-sticky-hero">
-          <CommanderHeroHeader
-            commander={heroCommander}
-            archetypeLabel={archetypeLabel}
-            bracketLabel={analysis?.bracketReport?.estimatedLabel ?? null}
-          />
           <section className="panel builder-hero-workbench">
             <div className="builder-search-controls builder-search-controls-inline">
               <input
@@ -2310,6 +2305,11 @@ export function CommanderDeckBuilder() {
 
             {activeHeaderTab ? <div className="builder-header-tab-panel">{renderHeaderTabContent()}</div> : null}
           </section>
+          <CommanderHeroHeader
+            commander={heroCommander}
+            archetypeLabel={archetypeLabel}
+            bracketLabel={analysis?.bracketReport?.estimatedLabel ?? null}
+          />
         </div>
       ) : null}
 
@@ -2332,7 +2332,16 @@ export function CommanderDeckBuilder() {
 
           <div className="builder-status-detail-grid">
             <section className="builder-status-card">
-              <h3>Commander</h3>
+              <div className="builder-status-card-head">
+                <h3>Commander</h3>
+                <button
+                  type="button"
+                  className="btn-tertiary"
+                  onClick={() => openPrintingPicker("commander", selectedCommander.name)}
+                >
+                  Print
+                </button>
+              </div>
               <p>
                 <strong>
                   <CardLink
@@ -2441,7 +2450,7 @@ export function CommanderDeckBuilder() {
             <div className="builder-panel-head">
             <div>
               <h2>Current Deck</h2>
-              <p className="muted">Commander plus live 99-card build.</p>
+              <p className="muted">Live 99-card build.</p>
             </div>
             <div className="builder-deck-actions">
               <input type="text" value={deckName} onChange={(event) => setDeckName(event.target.value)} placeholder="Deck name" />
@@ -2455,55 +2464,6 @@ export function CommanderDeckBuilder() {
             <p className="muted">Start with a commander. The builder initializes an empty shell and keeps analysis live.</p>
           ) : (
             <>
-              <div className="builder-deck-section">
-                <h3>Commander Zone</h3>
-                  <ul className="builder-command-zone-grid">
-                  <li className="builder-stack-card builder-stack-card-commander">
-                    <div className="builder-stack-card-art">
-                      {renderCardThumb(selectedCommander, "builder-stack-thumb", selectedCommander.name.charAt(0))}
-                    </div>
-                    <div className="builder-stack-card-overlay">
-                      <div className="builder-stack-head">
-                        <span className="builder-stack-zone-chip">Commander</span>
-                        <div className="builder-stack-actions">
-                          <button type="button" className="btn-tertiary" onClick={() => openPrintingPicker("commander", selectedCommander.name)}>
-                            Print
-                          </button>
-                        </div>
-                      </div>
-                      <div className="builder-stack-caption">
-                        <strong>
-                          <CardLink
-                            name={selectedCommander.name}
-                            setCode={selectedCommander.setCode}
-                            collectorNumber={selectedCommander.collectorNumber}
-                            printingId={selectedCommander.printingId}
-                          />
-                        </strong>
-                        {formatCompactPrintingLabel(selectedCommander) ? (
-                          <p className="muted builder-stack-caption-meta">{formatCompactPrintingLabel(selectedCommander)}</p>
-                        ) : null}
-                      </div>
-                    </div>
-                  </li>
-                  {selectedPairOption ? (
-                    <li className="builder-stack-card builder-stack-card-commander">
-                      <div className="builder-stack-card-art">
-                        {renderCardThumb(resolveCardRecord(selectedPairOption.name), "builder-stack-thumb", selectedPairOption.name.charAt(0))}
-                      </div>
-                      <div className="builder-stack-card-overlay">
-                        <div className="builder-stack-head">
-                          <span className="builder-stack-zone-chip">{selectedPairOption.pairType}</span>
-                        </div>
-                        <div className="builder-stack-caption">
-                          <strong><CardLink name={selectedPairOption.name} /></strong>
-                        </div>
-                      </div>
-                    </li>
-                  ) : null}
-                </ul>
-              </div>
-
               {deckCards.length === 0 ? (
                 <div className="builder-deck-section">
                   <h3>Main Deck</h3>

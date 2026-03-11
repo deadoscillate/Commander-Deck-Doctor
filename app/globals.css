@@ -639,6 +639,18 @@ input[type="url"] {
   font-size: 0.98rem;
 }
 
+.builder-status-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.25rem;
+}
+
+.builder-status-card-head h3 {
+  margin: 0;
+}
+
 .builder-status-card p {
   margin: 0.22rem 0;
 }
