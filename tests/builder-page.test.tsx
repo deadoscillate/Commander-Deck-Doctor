@@ -245,7 +245,13 @@ describe("builder page", () => {
       const url = String(input);
 
       if (url === "/api/card-search?meta=sets") {
-        return jsonResponse({ items: ["CLB", "CMD", "DMR"] });
+        return jsonResponse({
+          items: [
+            { setCode: "CMD", setName: "Magic: The Gathering-Commander", releasedAt: "2011-06-17", releaseYear: 2011 },
+            { setCode: "CLB", setName: "Commander Legends: Battle for Baldur's Gate", releasedAt: "2022-06-10", releaseYear: 2022 },
+            { setCode: "DMR", setName: "Dominaria Remastered", releasedAt: "2023-01-13", releaseYear: 2023 }
+          ]
+        });
       }
 
       if (url.startsWith("/api/card-search?") && url.includes("commanderOnly=1")) {

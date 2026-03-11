@@ -38,6 +38,8 @@ type CardSearchRecord = {
   oracleText: string;
   colorIdentity: string[];
   setCode: string | null;
+  setName?: string | null;
+  setReleaseYear?: number | null;
   collectorNumber: string | null;
   printingId: string | null;
   commanderEligible: boolean;
@@ -53,6 +55,13 @@ type CardSearchResponse = {
   query: string;
   count: number;
   items: CardSearchRecord[];
+};
+
+type CardSearchSetOption = {
+  setCode: string;
+  setName: string;
+  releasedAt: string | null;
+  releaseYear: number | null;
 };
 
 type SavedBuilderDeck = {
@@ -742,7 +751,7 @@ export function CommanderDeckBuilder() {
   const [cardTypeFilter, setCardTypeFilter] = useState<BuilderCardTypeFilter>("");
   const [cardSetFilter, setCardSetFilter] = useState("");
   const [activeHeaderTab, setActiveHeaderTab] = useState<BuilderHeaderTab | null>("search");
-  const [setOptions, setSetOptions] = useState<string[]>([]);
+  const [setOptions, setSetOptions] = useState<CardSearchSetOption[]>([]);
   const [cardResults, setCardResults] = useState<CardSearchRecord[]>([]);
   const [cardSearchLoading, setCardSearchLoading] = useState(false);
   const [cardSearchError, setCardSearchError] = useState("");
@@ -775,9 +784,19 @@ export function CommanderDeckBuilder() {
           return;
         }
 
-        const payload = (await response.json()) as { items?: string[] };
+        const payload = (await response.json()) as { items?: CardSearchSetOption[] };
         if (!cancelled) {
-          setSetOptions(Array.isArray(payload.items) ? payload.items : []);
+          setSetOptions(
+            Array.isArray(payload.items)
+              ? payload.items.filter(
+                  (row): row is CardSearchSetOption =>
+                    Boolean(row) &&
+                    typeof row === "object" &&
+                    typeof row.setCode === "string" &&
+                    typeof row.setName === "string"
+                )
+              : []
+          );
         }
       } catch {
         if (!cancelled) {
@@ -998,7 +1017,7 @@ export function CommanderDeckBuilder() {
 
       try {
         const params = new URLSearchParams({
-          limit: cardQuery.trim() ? "24" : "72"
+          limit: cardQuery.trim() ? "60" : cardSetFilter.trim() ? "1000" : "200"
         });
         if (cardQuery.trim()) {
           params.set("q", cardQuery.trim());
@@ -1686,7 +1705,13 @@ export function CommanderDeckBuilder() {
                       <div className="builder-search-meta">
                         <ManaCost manaCost={card.manaCost} size={16} />
                         <span>{card.typeLine}</span>
-                        {card.setCode ? <span>{card.setCode}</span> : null}
+                        {card.setCode ? (
+                          <span>
+                            {card.setName
+                              ? `${card.setCode} - ${card.setName}${card.setReleaseYear ? ` (${card.setReleaseYear})` : ""}`
+                              : card.setCode}
+                          </span>
+                        ) : null}
                       </div>
                       {existingQty > 0 ? <p className="muted">In deck: {existingQty}</p> : null}
                     </div>
@@ -1885,8 +1910,10 @@ export function CommanderDeckBuilder() {
                 </select>
                 <select value={cardSetFilter} onChange={(event) => setCardSetFilter(event.target.value)} disabled={!selectedCommander}>
                   <option value="">All sets</option>
-                  {setOptions.map((setCode) => (
-                    <option key={setCode} value={setCode}>{setCode}</option>
+                  {setOptions.map((option) => (
+                    <option key={option.setCode} value={option.setCode}>
+                      {option.setCode} - {option.setName}{option.releaseYear ? ` (${option.releaseYear})` : ""}
+                    </option>
                   ))}
                 </select>
               </div>

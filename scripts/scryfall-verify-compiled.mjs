@@ -16,6 +16,12 @@ const DATASETS = [
     label: "default-cards"
   },
   {
+    compiledPath: path.resolve("data/scryfall/set-metadata.compiled.json"),
+    requiredFields: ["setCode", "setName"],
+    minRecords: 100,
+    label: "set-metadata"
+  },
+  {
     compiledPath: path.resolve("data/scryfall/prints.compiled.sqlite"),
     minRecords: 10000,
     label: "print-sqlite",

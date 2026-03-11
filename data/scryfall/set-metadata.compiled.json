@@ -1,0 +1,3908 @@
+[
+  {
+    "setCode": "LEA",
+    "setName": "Limited Edition Alpha",
+    "releasedAt": "1993-08-05",
+    "releaseYear": 1993
+  },
+  {
+    "setCode": "LEB",
+    "setName": "Limited Edition Beta",
+    "releasedAt": "1993-10-04",
+    "releaseYear": 1993
+  },
+  {
+    "setCode": "2ED",
+    "setName": "Unlimited Edition",
+    "releasedAt": "1993-12-01",
+    "releaseYear": 1993
+  },
+  {
+    "setCode": "CED",
+    "setName": "Collectors' Edition",
+    "releasedAt": "1993-12-10",
+    "releaseYear": 1993
+  },
+  {
+    "setCode": "CEI",
+    "setName": "Intl. Collectors' Edition",
+    "releasedAt": "1993-12-10",
+    "releaseYear": 1993
+  },
+  {
+    "setCode": "ARN",
+    "setName": "Arabian Nights",
+    "releasedAt": "1993-12-17",
+    "releaseYear": 1993
+  },
+  {
+    "setCode": "ATQ",
+    "setName": "Antiquities",
+    "releasedAt": "1994-03-04",
+    "releaseYear": 1994
+  },
+  {
+    "setCode": "FBB",
+    "setName": "Foreign Black Border",
+    "releasedAt": "1994-04-11",
+    "releaseYear": 1994
+  },
+  {
+    "setCode": "3ED",
+    "setName": "Revised Edition",
+    "releasedAt": "1994-04-11",
+    "releaseYear": 1994
+  },
+  {
+    "setCode": "LEG",
+    "setName": "Legends",
+    "releasedAt": "1994-06-01",
+    "releaseYear": 1994
+  },
+  {
+    "setCode": "SUM",
+    "setName": "Summer Magic / Edgar",
+    "releasedAt": "1994-06-21",
+    "releaseYear": 1994
+  },
+  {
+    "setCode": "PDRC",
+    "setName": "Dragon Con",
+    "releasedAt": "1994-07-15",
+    "releaseYear": 1994
+  },
+  {
+    "setCode": "DRK",
+    "setName": "The Dark",
+    "releasedAt": "1994-08-01",
+    "releaseYear": 1994
+  },
+  {
+    "setCode": "FEM",
+    "setName": "Fallen Empires",
+    "releasedAt": "1994-11-01",
+    "releaseYear": 1994
+  },
+  {
+    "setCode": "PHPR",
+    "setName": "HarperPrism Book Promos",
+    "releasedAt": "1994-11-01",
+    "releaseYear": 1994
+  },
+  {
+    "setCode": "4ED",
+    "setName": "Fourth Edition",
+    "releasedAt": "1995-04-01",
+    "releaseYear": 1995
+  },
+  {
+    "setCode": "4BB",
+    "setName": "Fourth Edition Foreign Black Border",
+    "releasedAt": "1995-04-01",
+    "releaseYear": 1995
+  },
+  {
+    "setCode": "ICE",
+    "setName": "Ice Age",
+    "releasedAt": "1995-06-03",
+    "releaseYear": 1995
+  },
+  {
+    "setCode": "CHR",
+    "setName": "Chronicles",
+    "releasedAt": "1995-07-01",
+    "releaseYear": 1995
+  },
+  {
+    "setCode": "BCHR",
+    "setName": "Chronicles Foreign Black Border",
+    "releasedAt": "1995-07-01",
+    "releaseYear": 1995
+  },
+  {
+    "setCode": "PMEI",
+    "setName": "Media and Collaboration Promos",
+    "releasedAt": "1995-07-01",
+    "releaseYear": 1995
+  },
+  {
+    "setCode": "O90P",
+    "setName": "Oversized 90's Promos",
+    "releasedAt": "1995-08-01",
+    "releaseYear": 1995
+  },
+  {
+    "setCode": "REN",
+    "setName": "Renaissance",
+    "releasedAt": "1995-08-01",
+    "releaseYear": 1995
+  },
+  {
+    "setCode": "RIN",
+    "setName": "Rinascimento",
+    "releasedAt": "1995-08-01",
+    "releaseYear": 1995
+  },
+  {
+    "setCode": "HML",
+    "setName": "Homelands",
+    "releasedAt": "1995-10-01",
+    "releaseYear": 1995
+  },
+  {
+    "setCode": "PTC",
+    "setName": "Pro Tour Collector Set",
+    "releasedAt": "1996-05-01",
+    "releaseYear": 1996
+  },
+  {
+    "setCode": "ALL",
+    "setName": "Alliances",
+    "releasedAt": "1996-06-10",
+    "releaseYear": 1996
+  },
+  {
+    "setCode": "PLGM",
+    "setName": "DCI Legend Membership",
+    "releasedAt": "1996-07-01",
+    "releaseYear": 1996
+  },
+  {
+    "setCode": "RQS",
+    "setName": "Rivals Quick Start Set",
+    "releasedAt": "1996-07-01",
+    "releaseYear": 1996
+  },
+  {
+    "setCode": "PARL",
+    "setName": "Arena League 1996",
+    "releasedAt": "1996-08-02",
+    "releaseYear": 1996
+  },
+  {
+    "setCode": "PRED",
+    "setName": "Redemption Program",
+    "releasedAt": "1996-10-01",
+    "releaseYear": 1996
+  },
+  {
+    "setCode": "MIR",
+    "setName": "Mirage",
+    "releasedAt": "1996-10-08",
+    "releaseYear": 1996
+  },
+  {
+    "setCode": "MGB",
+    "setName": "Multiverse Gift Box",
+    "releasedAt": "1996-11-01",
+    "releaseYear": 1996
+  },
+  {
+    "setCode": "ITP",
+    "setName": "Introductory Two-Player Set",
+    "releasedAt": "1996-12-31",
+    "releaseYear": 1996
+  },
+  {
+    "setCode": "VIS",
+    "setName": "Visions",
+    "releasedAt": "1997-02-03",
+    "releaseYear": 1997
+  },
+  {
+    "setCode": "5ED",
+    "setName": "Fifth Edition",
+    "releasedAt": "1997-03-24",
+    "releaseYear": 1997
+  },
+  {
+    "setCode": "POR",
+    "setName": "Portal",
+    "releasedAt": "1997-05-01",
+    "releaseYear": 1997
+  },
+  {
+    "setCode": "OLEP",
+    "setName": "Oversized League Prizes",
+    "releasedAt": "1997-05-30",
+    "releaseYear": 1997
+  },
+  {
+    "setCode": "WTH",
+    "setName": "Weatherlight",
+    "releasedAt": "1997-06-09",
+    "releaseYear": 1997
+  },
+  {
+    "setCode": "WC97",
+    "setName": "World Championship Decks 1997",
+    "releasedAt": "1997-08-13",
+    "releaseYear": 1997
+  },
+  {
+    "setCode": "PTMP",
+    "setName": "Tempest Promos",
+    "releasedAt": "1997-10-01",
+    "releaseYear": 1997
+  },
+  {
+    "setCode": "TMP",
+    "setName": "Tempest",
+    "releasedAt": "1997-10-14",
+    "releaseYear": 1997
+  },
+  {
+    "setCode": "JGP",
+    "setName": "Judge Gift Cards 1998",
+    "releasedAt": "1998-01-01",
+    "releaseYear": 1998
+  },
+  {
+    "setCode": "PSTH",
+    "setName": "Stronghold Promos",
+    "releasedAt": "1998-02-01",
+    "releaseYear": 1998
+  },
+  {
+    "setCode": "STH",
+    "setName": "Stronghold",
+    "releasedAt": "1998-03-02",
+    "releaseYear": 1998
+  },
+  {
+    "setCode": "PEXO",
+    "setName": "Exodus Promos",
+    "releasedAt": "1998-06-01",
+    "releaseYear": 1998
+  },
+  {
+    "setCode": "EXO",
+    "setName": "Exodus",
+    "releasedAt": "1998-06-15",
+    "releaseYear": 1998
+  },
+  {
+    "setCode": "P02",
+    "setName": "Portal Second Age",
+    "releasedAt": "1998-06-24",
+    "releaseYear": 1998
+  },
+  {
+    "setCode": "UGL",
+    "setName": "Unglued",
+    "releasedAt": "1998-08-11",
+    "releaseYear": 1998
+  },
+  {
+    "setCode": "WC98",
+    "setName": "World Championship Decks 1998",
+    "releasedAt": "1998-08-12",
+    "releaseYear": 1998
+  },
+  {
+    "setCode": "PALP",
+    "setName": "Asia Pacific Land Program",
+    "releasedAt": "1998-09-01",
+    "releaseYear": 1998
+  },
+  {
+    "setCode": "PUSG",
+    "setName": "Urza's Saga Promos",
+    "releasedAt": "1998-09-26",
+    "releaseYear": 1998
+  },
+  {
+    "setCode": "USG",
+    "setName": "Urza's Saga",
+    "releasedAt": "1998-10-12",
+    "releaseYear": 1998
+  },
+  {
+    "setCode": "ATH",
+    "setName": "Anthologies",
+    "releasedAt": "1998-11-01",
+    "releaseYear": 1998
+  },
+  {
+    "setCode": "PAL99",
+    "setName": "Arena League 1999",
+    "releasedAt": "1999-01-01",
+    "releaseYear": 1999
+  },
+  {
+    "setCode": "G99",
+    "setName": "Judge Gift Cards 1999",
+    "releasedAt": "1999-01-01",
+    "releaseYear": 1999
+  },
+  {
+    "setCode": "PSUS",
+    "setName": "Junior Super Series",
+    "releasedAt": "1999-01-01",
+    "releaseYear": 1999
+  },
+  {
+    "setCode": "PULG",
+    "setName": "Urza's Legacy Promos",
+    "releasedAt": "1999-02-06",
+    "releaseYear": 1999
+  },
+  {
+    "setCode": "ULG",
+    "setName": "Urza's Legacy",
+    "releasedAt": "1999-02-15",
+    "releaseYear": 1999
+  },
+  {
+    "setCode": "6ED",
+    "setName": "Classic Sixth Edition",
+    "releasedAt": "1999-04-21",
+    "releaseYear": 1999
+  },
+  {
+    "setCode": "PPTK",
+    "setName": "Portal Three Kingdoms Promos",
+    "releasedAt": "1999-04-29",
+    "releaseYear": 1999
+  },
+  {
+    "setCode": "PTK",
+    "setName": "Portal Three Kingdoms",
+    "releasedAt": "1999-05-01",
+    "releaseYear": 1999
+  },
+  {
+    "setCode": "PUDS",
+    "setName": "Urza's Destiny Promos",
+    "releasedAt": "1999-05-29",
+    "releaseYear": 1999
+  },
+  {
+    "setCode": "UDS",
+    "setName": "Urza's Destiny",
+    "releasedAt": "1999-06-07",
+    "releaseYear": 1999
+  },
+  {
+    "setCode": "S99",
+    "setName": "Starter 1999",
+    "releasedAt": "1999-07-01",
+    "releaseYear": 1999
+  },
+  {
+    "setCode": "PGRU",
+    "setName": "Guru",
+    "releasedAt": "1999-07-12",
+    "releaseYear": 1999
+  },
+  {
+    "setCode": "WC99",
+    "setName": "World Championship Decks 1999",
+    "releasedAt": "1999-08-04",
+    "releaseYear": 1999
+  },
+  {
+    "setCode": "PWOR",
+    "setName": "World Championship Promos",
+    "releasedAt": "1999-08-04",
+    "releaseYear": 1999
+  },
+  {
+    "setCode": "PWOS",
+    "setName": "Wizards of the Coast Online Store",
+    "releasedAt": "1999-09-04",
+    "releaseYear": 1999
+  },
+  {
+    "setCode": "PMMQ",
+    "setName": "Mercadian Masques Promos",
+    "releasedAt": "1999-09-25",
+    "releaseYear": 1999
+  },
+  {
+    "setCode": "MMQ",
+    "setName": "Mercadian Masques",
+    "releasedAt": "1999-10-04",
+    "releaseYear": 1999
+  },
+  {
+    "setCode": "BRB",
+    "setName": "Battle Royale Box Set",
+    "releasedAt": "1999-11-12",
+    "releaseYear": 1999
+  },
+  {
+    "setCode": "PAL00",
+    "setName": "Arena League 2000",
+    "releasedAt": "2000-01-01",
+    "releaseYear": 2000
+  },
+  {
+    "setCode": "FNM",
+    "setName": "Friday Night Magic 2000",
+    "releasedAt": "2000-01-01",
+    "releaseYear": 2000
+  },
+  {
+    "setCode": "G00",
+    "setName": "Judge Gift Cards 2000",
+    "releasedAt": "2000-01-01",
+    "releaseYear": 2000
+  },
+  {
+    "setCode": "PNEM",
+    "setName": "Nemesis Promos",
+    "releasedAt": "2000-01-29",
+    "releaseYear": 2000
+  },
+  {
+    "setCode": "PELP",
+    "setName": "European Land Program",
+    "releasedAt": "2000-02-05",
+    "releaseYear": 2000
+  },
+  {
+    "setCode": "NEM",
+    "setName": "Nemesis",
+    "releasedAt": "2000-02-14",
+    "releaseYear": 2000
+  },
+  {
+    "setCode": "S00",
+    "setName": "Starter 2000",
+    "releasedAt": "2000-04-01",
+    "releaseYear": 2000
+  },
+  {
+    "setCode": "PPCY",
+    "setName": "Prophecy Promos",
+    "releasedAt": "2000-05-27",
+    "releaseYear": 2000
+  },
+  {
+    "setCode": "PCY",
+    "setName": "Prophecy",
+    "releasedAt": "2000-06-05",
+    "releaseYear": 2000
+  },
+  {
+    "setCode": "WC00",
+    "setName": "World Championship Decks 2000",
+    "releasedAt": "2000-08-02",
+    "releaseYear": 2000
+  },
+  {
+    "setCode": "PINV",
+    "setName": "Invasion Promos",
+    "releasedAt": "2000-09-23",
+    "releaseYear": 2000
+  },
+  {
+    "setCode": "BTD",
+    "setName": "Beatdown Box Set",
+    "releasedAt": "2000-10-01",
+    "releaseYear": 2000
+  },
+  {
+    "setCode": "INV",
+    "setName": "Invasion",
+    "releasedAt": "2000-10-02",
+    "releaseYear": 2000
+  },
+  {
+    "setCode": "PAL01",
+    "setName": "Arena League 2001",
+    "releasedAt": "2001-01-01",
+    "releaseYear": 2001
+  },
+  {
+    "setCode": "F01",
+    "setName": "Friday Night Magic 2001",
+    "releasedAt": "2001-01-01",
+    "releaseYear": 2001
+  },
+  {
+    "setCode": "G01",
+    "setName": "Judge Gift Cards 2001",
+    "releasedAt": "2001-01-01",
+    "releaseYear": 2001
+  },
+  {
+    "setCode": "MPR",
+    "setName": "Magic Player Rewards 2001",
+    "releasedAt": "2001-01-01",
+    "releaseYear": 2001
+  },
+  {
+    "setCode": "PPLS",
+    "setName": "Planeshift Promos",
+    "releasedAt": "2001-01-27",
+    "releaseYear": 2001
+  },
+  {
+    "setCode": "PLS",
+    "setName": "Planeshift",
+    "releasedAt": "2001-02-05",
+    "releaseYear": 2001
+  },
+  {
+    "setCode": "7ED",
+    "setName": "Seventh Edition",
+    "releasedAt": "2001-04-11",
+    "releaseYear": 2001
+  },
+  {
+    "setCode": "PAPC",
+    "setName": "Apocalypse Promos",
+    "releasedAt": "2001-05-26",
+    "releaseYear": 2001
+  },
+  {
+    "setCode": "APC",
+    "setName": "Apocalypse",
+    "releasedAt": "2001-06-04",
+    "releaseYear": 2001
+  },
+  {
+    "setCode": "WC01",
+    "setName": "World Championship Decks 2001",
+    "releasedAt": "2001-08-08",
+    "releaseYear": 2001
+  },
+  {
+    "setCode": "PODY",
+    "setName": "Odyssey Promos",
+    "releasedAt": "2001-09-22",
+    "releaseYear": 2001
+  },
+  {
+    "setCode": "ODY",
+    "setName": "Odyssey",
+    "releasedAt": "2001-10-01",
+    "releaseYear": 2001
+  },
+  {
+    "setCode": "DKM",
+    "setName": "Deckmasters",
+    "releasedAt": "2001-12-01",
+    "releaseYear": 2001
+  },
+  {
+    "setCode": "PAL02",
+    "setName": "Arena League 2002",
+    "releasedAt": "2002-01-01",
+    "releaseYear": 2002
+  },
+  {
+    "setCode": "F02",
+    "setName": "Friday Night Magic 2002",
+    "releasedAt": "2002-01-01",
+    "releaseYear": 2002
+  },
+  {
+    "setCode": "G02",
+    "setName": "Judge Gift Cards 2002",
+    "releasedAt": "2002-01-01",
+    "releaseYear": 2002
+  },
+  {
+    "setCode": "PTOR",
+    "setName": "Torment Promos",
+    "releasedAt": "2002-01-26",
+    "releaseYear": 2002
+  },
+  {
+    "setCode": "TOR",
+    "setName": "Torment",
+    "releasedAt": "2002-02-04",
+    "releaseYear": 2002
+  },
+  {
+    "setCode": "PJUD",
+    "setName": "Judgment Promos",
+    "releasedAt": "2002-05-18",
+    "releaseYear": 2002
+  },
+  {
+    "setCode": "JUD",
+    "setName": "Judgment",
+    "releasedAt": "2002-05-27",
+    "releaseYear": 2002
+  },
+  {
+    "setCode": "JP1",
+    "setName": "Hobby Japan Promos",
+    "releasedAt": "2002-07-01",
+    "releaseYear": 2002
+  },
+  {
+    "setCode": "PONS",
+    "setName": "Onslaught Promos",
+    "releasedAt": "2002-09-28",
+    "releaseYear": 2002
+  },
+  {
+    "setCode": "ONS",
+    "setName": "Onslaught",
+    "releasedAt": "2002-10-07",
+    "releaseYear": 2002
+  },
+  {
+    "setCode": "WC02",
+    "setName": "World Championship Decks 2002",
+    "releasedAt": "2002-12-01",
+    "releaseYear": 2002
+  },
+  {
+    "setCode": "PAL03",
+    "setName": "Arena League 2003",
+    "releasedAt": "2003-01-01",
+    "releaseYear": 2003
+  },
+  {
+    "setCode": "F03",
+    "setName": "Friday Night Magic 2003",
+    "releasedAt": "2003-01-01",
+    "releaseYear": 2003
+  },
+  {
+    "setCode": "PJJT",
+    "setName": "Japan Junior Tournament",
+    "releasedAt": "2003-01-01",
+    "releaseYear": 2003
+  },
+  {
+    "setCode": "G03",
+    "setName": "Judge Gift Cards 2003",
+    "releasedAt": "2003-01-01",
+    "releaseYear": 2003
+  },
+  {
+    "setCode": "P03",
+    "setName": "Magic Player Rewards 2003",
+    "releasedAt": "2003-01-01",
+    "releaseYear": 2003
+  },
+  {
+    "setCode": "PLGN",
+    "setName": "Legions Promos",
+    "releasedAt": "2003-01-25",
+    "releaseYear": 2003
+  },
+  {
+    "setCode": "LGN",
+    "setName": "Legions",
+    "releasedAt": "2003-02-03",
+    "releaseYear": 2003
+  },
+  {
+    "setCode": "PSCG",
+    "setName": "Scourge Promos",
+    "releasedAt": "2003-05-17",
+    "releaseYear": 2003
+  },
+  {
+    "setCode": "SCG",
+    "setName": "Scourge",
+    "releasedAt": "2003-05-26",
+    "releaseYear": 2003
+  },
+  {
+    "setCode": "P8ED",
+    "setName": "Eighth Edition Promos",
+    "releasedAt": "2003-07-26",
+    "releaseYear": 2003
+  },
+  {
+    "setCode": "8ED",
+    "setName": "Eighth Edition",
+    "releasedAt": "2003-07-28",
+    "releaseYear": 2003
+  },
+  {
+    "setCode": "WC03",
+    "setName": "World Championship Decks 2003",
+    "releasedAt": "2003-08-06",
+    "releaseYear": 2003
+  },
+  {
+    "setCode": "PMRD",
+    "setName": "Mirrodin Promos",
+    "releasedAt": "2003-09-20",
+    "releaseYear": 2003
+  },
+  {
+    "setCode": "MRD",
+    "setName": "Mirrodin",
+    "releasedAt": "2003-10-02",
+    "releaseYear": 2003
+  },
+  {
+    "setCode": "PAL04",
+    "setName": "Arena League 2004",
+    "releasedAt": "2004-01-01",
+    "releaseYear": 2004
+  },
+  {
+    "setCode": "F04",
+    "setName": "Friday Night Magic 2004",
+    "releasedAt": "2004-01-01",
+    "releaseYear": 2004
+  },
+  {
+    "setCode": "G04",
+    "setName": "Judge Gift Cards 2004",
+    "releasedAt": "2004-01-01",
+    "releaseYear": 2004
+  },
+  {
+    "setCode": "P04",
+    "setName": "Magic Player Rewards 2004",
+    "releasedAt": "2004-01-01",
+    "releaseYear": 2004
+  },
+  {
+    "setCode": "PDST",
+    "setName": "Darksteel Promos",
+    "releasedAt": "2004-01-24",
+    "releaseYear": 2004
+  },
+  {
+    "setCode": "DST",
+    "setName": "Darksteel",
+    "releasedAt": "2004-02-06",
+    "releaseYear": 2004
+  },
+  {
+    "setCode": "P5DN",
+    "setName": "Fifth Dawn Promos",
+    "releasedAt": "2004-05-22",
+    "releaseYear": 2004
+  },
+  {
+    "setCode": "5DN",
+    "setName": "Fifth Dawn",
+    "releasedAt": "2004-06-04",
+    "releaseYear": 2004
+  },
+  {
+    "setCode": "OVNT",
+    "setName": "Vintage Championship",
+    "releasedAt": "2004-08-19",
+    "releaseYear": 2004
+  },
+  {
+    "setCode": "WC04",
+    "setName": "World Championship Decks 2004",
+    "releasedAt": "2004-09-01",
+    "releaseYear": 2004
+  },
+  {
+    "setCode": "PCHK",
+    "setName": "Champions of Kamigawa Promos",
+    "releasedAt": "2004-09-18",
+    "releaseYear": 2004
+  },
+  {
+    "setCode": "CHK",
+    "setName": "Champions of Kamigawa",
+    "releasedAt": "2004-10-01",
+    "releaseYear": 2004
+  },
+  {
+    "setCode": "UNH",
+    "setName": "Unhinged",
+    "releasedAt": "2004-11-19",
+    "releaseYear": 2004
+  },
+  {
+    "setCode": "PAL05",
+    "setName": "Arena League 2005",
+    "releasedAt": "2005-01-01",
+    "releaseYear": 2005
+  },
+  {
+    "setCode": "F05",
+    "setName": "Friday Night Magic 2005",
+    "releasedAt": "2005-01-01",
+    "releaseYear": 2005
+  },
+  {
+    "setCode": "G05",
+    "setName": "Judge Gift Cards 2005",
+    "releasedAt": "2005-01-01",
+    "releaseYear": 2005
+  },
+  {
+    "setCode": "PJSE",
+    "setName": "Junior Series Europe",
+    "releasedAt": "2005-01-01",
+    "releaseYear": 2005
+  },
+  {
+    "setCode": "P05",
+    "setName": "Magic Player Rewards 2005",
+    "releasedAt": "2005-01-01",
+    "releaseYear": 2005
+  },
+  {
+    "setCode": "PBOK",
+    "setName": "Betrayers of Kamigawa Promos",
+    "releasedAt": "2005-01-22",
+    "releaseYear": 2005
+  },
+  {
+    "setCode": "BOK",
+    "setName": "Betrayers of Kamigawa",
+    "releasedAt": "2005-02-04",
+    "releaseYear": 2005
+  },
+  {
+    "setCode": "PSOK",
+    "setName": "Saviors of Kamigawa Promos",
+    "releasedAt": "2005-05-21",
+    "releaseYear": 2005
+  },
+  {
+    "setCode": "SOK",
+    "setName": "Saviors of Kamigawa",
+    "releasedAt": "2005-06-03",
+    "releaseYear": 2005
+  },
+  {
+    "setCode": "9ED",
+    "setName": "Ninth Edition",
+    "releasedAt": "2005-07-29",
+    "releaseYear": 2005
+  },
+  {
+    "setCode": "P9ED",
+    "setName": "Ninth Edition Promos",
+    "releasedAt": "2005-07-29",
+    "releaseYear": 2005
+  },
+  {
+    "setCode": "PSAL",
+    "setName": "Salvat 2005",
+    "releasedAt": "2005-08-22",
+    "releaseYear": 2005
+  },
+  {
+    "setCode": "PRAV",
+    "setName": "Ravnica: City of Guilds Promos",
+    "releasedAt": "2005-09-24",
+    "releaseYear": 2005
+  },
+  {
+    "setCode": "PMPS",
+    "setName": "Magic Premiere Shop 2005",
+    "releasedAt": "2005-10-07",
+    "releaseYear": 2005
+  },
+  {
+    "setCode": "RAV",
+    "setName": "Ravnica: City of Guilds",
+    "releasedAt": "2005-10-07",
+    "releaseYear": 2005
+  },
+  {
+    "setCode": "P2HG",
+    "setName": "Two-Headed Giant Tournament",
+    "releasedAt": "2005-12-09",
+    "releaseYear": 2005
+  },
+  {
+    "setCode": "PAL06",
+    "setName": "Arena League 2006",
+    "releasedAt": "2006-01-01",
+    "releaseYear": 2006
+  },
+  {
+    "setCode": "F06",
+    "setName": "Friday Night Magic 2006",
+    "releasedAt": "2006-01-01",
+    "releaseYear": 2006
+  },
+  {
+    "setCode": "PHUK",
+    "setName": "Hachette UK",
+    "releasedAt": "2006-01-01",
+    "releaseYear": 2006
+  },
+  {
+    "setCode": "G06",
+    "setName": "Judge Gift Cards 2006",
+    "releasedAt": "2006-01-01",
+    "releaseYear": 2006
+  },
+  {
+    "setCode": "PJAS",
+    "setName": "Junior APAC Series",
+    "releasedAt": "2006-01-01",
+    "releaseYear": 2006
+  },
+  {
+    "setCode": "P06",
+    "setName": "Magic Player Rewards 2006",
+    "releasedAt": "2006-01-01",
+    "releaseYear": 2006
+  },
+  {
+    "setCode": "PMPS06",
+    "setName": "Magic Premiere Shop 2006",
+    "releasedAt": "2006-01-01",
+    "releaseYear": 2006
+  },
+  {
+    "setCode": "PGPT",
+    "setName": "Guildpact Promos",
+    "releasedAt": "2006-01-21",
+    "releaseYear": 2006
+  },
+  {
+    "setCode": "GPT",
+    "setName": "Guildpact",
+    "releasedAt": "2006-02-03",
+    "releaseYear": 2006
+  },
+  {
+    "setCode": "PCMP",
+    "setName": "Champs and States",
+    "releasedAt": "2006-03-18",
+    "releaseYear": 2006
+  },
+  {
+    "setCode": "PDIS",
+    "setName": "Dissension Promos",
+    "releasedAt": "2006-04-22",
+    "releaseYear": 2006
+  },
+  {
+    "setCode": "DIS",
+    "setName": "Dissension",
+    "releasedAt": "2006-05-05",
+    "releaseYear": 2006
+  },
+  {
+    "setCode": "PCSP",
+    "setName": "Coldsnap Promos",
+    "releasedAt": "2006-07-08",
+    "releaseYear": 2006
+  },
+  {
+    "setCode": "CSP",
+    "setName": "Coldsnap",
+    "releasedAt": "2006-07-21",
+    "releaseYear": 2006
+  },
+  {
+    "setCode": "CST",
+    "setName": "Coldsnap Theme Decks",
+    "releasedAt": "2006-07-21",
+    "releaseYear": 2006
+  },
+  {
+    "setCode": "PTSP",
+    "setName": "Time Spiral Promos",
+    "releasedAt": "2006-09-23",
+    "releaseYear": 2006
+  },
+  {
+    "setCode": "TSP",
+    "setName": "Time Spiral",
+    "releasedAt": "2006-10-06",
+    "releaseYear": 2006
+  },
+  {
+    "setCode": "TSB",
+    "setName": "Time Spiral Timeshifted",
+    "releasedAt": "2006-10-06",
+    "releaseYear": 2006
+  },
+  {
+    "setCode": "PPRO",
+    "setName": "Pro Tour Promos",
+    "releasedAt": "2006-10-20",
+    "releaseYear": 2006
+  },
+  {
+    "setCode": "DCI",
+    "setName": "DCI Promos",
+    "releasedAt": "2006-10-31",
+    "releaseYear": 2006
+  },
+  {
+    "setCode": "F07",
+    "setName": "Friday Night Magic 2007",
+    "releasedAt": "2007-01-01",
+    "releaseYear": 2007
+  },
+  {
+    "setCode": "G07",
+    "setName": "Judge Gift Cards 2007",
+    "releasedAt": "2007-01-01",
+    "releaseYear": 2007
+  },
+  {
+    "setCode": "P07",
+    "setName": "Magic Player Rewards 2007",
+    "releasedAt": "2007-01-01",
+    "releaseYear": 2007
+  },
+  {
+    "setCode": "PMPS07",
+    "setName": "Magic Premiere Shop 2007",
+    "releasedAt": "2007-01-01",
+    "releaseYear": 2007
+  },
+  {
+    "setCode": "PPLC",
+    "setName": "Planar Chaos Promos",
+    "releasedAt": "2007-01-20",
+    "releaseYear": 2007
+  },
+  {
+    "setCode": "PLC",
+    "setName": "Planar Chaos",
+    "releasedAt": "2007-02-02",
+    "releaseYear": 2007
+  },
+  {
+    "setCode": "PGPX",
+    "setName": "Grand Prix Promos",
+    "releasedAt": "2007-02-24",
+    "releaseYear": 2007
+  },
+  {
+    "setCode": "PFUT",
+    "setName": "Future Sight Promos",
+    "releasedAt": "2007-04-21",
+    "releaseYear": 2007
+  },
+  {
+    "setCode": "FUT",
+    "setName": "Future Sight",
+    "releasedAt": "2007-05-04",
+    "releaseYear": 2007
+  },
+  {
+    "setCode": "10E",
+    "setName": "Tenth Edition",
+    "releasedAt": "2007-07-13",
+    "releaseYear": 2007
+  },
+  {
+    "setCode": "P10E",
+    "setName": "Tenth Edition Promos",
+    "releasedAt": "2007-07-13",
+    "releaseYear": 2007
+  },
+  {
+    "setCode": "PLRW",
+    "setName": "Lorwyn Promos",
+    "releasedAt": "2007-09-27",
+    "releaseYear": 2007
+  },
+  {
+    "setCode": "LRW",
+    "setName": "Lorwyn",
+    "releasedAt": "2007-10-12",
+    "releaseYear": 2007
+  },
+  {
+    "setCode": "DD1",
+    "setName": "Duel Decks: Elves vs. Goblins",
+    "releasedAt": "2007-11-16",
+    "releaseYear": 2007
+  },
+  {
+    "setCode": "F08",
+    "setName": "Friday Night Magic 2008",
+    "releasedAt": "2008-01-01",
+    "releaseYear": 2008
+  },
+  {
+    "setCode": "G08",
+    "setName": "Judge Gift Cards 2008",
+    "releasedAt": "2008-01-01",
+    "releaseYear": 2008
+  },
+  {
+    "setCode": "P08",
+    "setName": "Magic Player Rewards 2008",
+    "releasedAt": "2008-01-01",
+    "releaseYear": 2008
+  },
+  {
+    "setCode": "PMPS08",
+    "setName": "Magic Premiere Shop 2008",
+    "releasedAt": "2008-01-01",
+    "releaseYear": 2008
+  },
+  {
+    "setCode": "PMOR",
+    "setName": "Morningtide Promos",
+    "releasedAt": "2008-01-19",
+    "releaseYear": 2008
+  },
+  {
+    "setCode": "MOR",
+    "setName": "Morningtide",
+    "releasedAt": "2008-02-01",
+    "releaseYear": 2008
+  },
+  {
+    "setCode": "P15A",
+    "setName": "15th Anniversary Cards",
+    "releasedAt": "2008-04-01",
+    "releaseYear": 2008
+  },
+  {
+    "setCode": "PSHM",
+    "setName": "Shadowmoor Promos",
+    "releasedAt": "2008-04-19",
+    "releaseYear": 2008
+  },
+  {
+    "setCode": "SHM",
+    "setName": "Shadowmoor",
+    "releasedAt": "2008-05-02",
+    "releaseYear": 2008
+  },
+  {
+    "setCode": "PEVE",
+    "setName": "Eventide Promos",
+    "releasedAt": "2008-07-12",
+    "releaseYear": 2008
+  },
+  {
+    "setCode": "EVE",
+    "setName": "Eventide",
+    "releasedAt": "2008-07-25",
+    "releaseYear": 2008
+  },
+  {
+    "setCode": "DRB",
+    "setName": "From the Vault: Dragons",
+    "releasedAt": "2008-08-29",
+    "releaseYear": 2008
+  },
+  {
+    "setCode": "P09",
+    "setName": "Magic Player Rewards 2009",
+    "releasedAt": "2008-10-03",
+    "releaseYear": 2008
+  },
+  {
+    "setCode": "ALA",
+    "setName": "Shards of Alara",
+    "releasedAt": "2008-10-03",
+    "releaseYear": 2008
+  },
+  {
+    "setCode": "PALA",
+    "setName": "Shards of Alara Promos",
+    "releasedAt": "2008-10-03",
+    "releaseYear": 2008
+  },
+  {
+    "setCode": "DD2",
+    "setName": "Duel Decks: Jace vs. Chandra",
+    "releasedAt": "2008-11-07",
+    "releaseYear": 2008
+  },
+  {
+    "setCode": "PDTP",
+    "setName": "Duels of the Planeswalkers 2009 Promos",
+    "releasedAt": "2009-01-01",
+    "releaseYear": 2009
+  },
+  {
+    "setCode": "F09",
+    "setName": "Friday Night Magic 2009",
+    "releasedAt": "2009-01-01",
+    "releaseYear": 2009
+  },
+  {
+    "setCode": "G09",
+    "setName": "Judge Gift Cards 2009",
+    "releasedAt": "2009-01-01",
+    "releaseYear": 2009
+  },
+  {
+    "setCode": "PMPS09",
+    "setName": "Magic Premiere Shop 2009",
+    "releasedAt": "2009-01-01",
+    "releaseYear": 2009
+  },
+  {
+    "setCode": "PURL",
+    "setName": "URL/Convention Promos",
+    "releasedAt": "2009-01-01",
+    "releaseYear": 2009
+  },
+  {
+    "setCode": "PCON",
+    "setName": "Conflux Promos",
+    "releasedAt": "2009-01-31",
+    "releaseYear": 2009
+  },
+  {
+    "setCode": "CON",
+    "setName": "Conflux",
+    "releasedAt": "2009-02-06",
+    "releaseYear": 2009
+  },
+  {
+    "setCode": "DDC",
+    "setName": "Duel Decks: Divine vs. Demonic",
+    "releasedAt": "2009-04-10",
+    "releaseYear": 2009
+  },
+  {
+    "setCode": "PARB",
+    "setName": "Alara Reborn Promos",
+    "releasedAt": "2009-04-25",
+    "releaseYear": 2009
+  },
+  {
+    "setCode": "ARB",
+    "setName": "Alara Reborn",
+    "releasedAt": "2009-04-30",
+    "releaseYear": 2009
+  },
+  {
+    "setCode": "PM10",
+    "setName": "Magic 2010 Promos",
+    "releasedAt": "2009-07-16",
+    "releaseYear": 2009
+  },
+  {
+    "setCode": "M10",
+    "setName": "Magic 2010",
+    "releasedAt": "2009-07-17",
+    "releaseYear": 2009
+  },
+  {
+    "setCode": "V09",
+    "setName": "From the Vault: Exiled",
+    "releasedAt": "2009-08-28",
+    "releaseYear": 2009
+  },
+  {
+    "setCode": "HOP",
+    "setName": "Planechase",
+    "releasedAt": "2009-09-04",
+    "releaseYear": 2009
+  },
+  {
+    "setCode": "ZEN",
+    "setName": "Zendikar",
+    "releasedAt": "2009-10-02",
+    "releaseYear": 2009
+  },
+  {
+    "setCode": "PZEN",
+    "setName": "Zendikar Promos",
+    "releasedAt": "2009-10-02",
+    "releaseYear": 2009
+  },
+  {
+    "setCode": "DDD",
+    "setName": "Duel Decks: Garruk vs. Liliana",
+    "releasedAt": "2009-10-30",
+    "releaseYear": 2009
+  },
+  {
+    "setCode": "H09",
+    "setName": "Premium Deck Series: Slivers",
+    "releasedAt": "2009-11-20",
+    "releaseYear": 2009
+  },
+  {
+    "setCode": "PDP10",
+    "setName": "Duels of the Planeswalkers 2010 Promos",
+    "releasedAt": "2010-01-01",
+    "releaseYear": 2010
+  },
+  {
+    "setCode": "F10",
+    "setName": "Friday Night Magic 2010",
+    "releasedAt": "2010-01-01",
+    "releaseYear": 2010
+  },
+  {
+    "setCode": "G10",
+    "setName": "Judge Gift Cards 2010",
+    "releasedAt": "2010-01-01",
+    "releaseYear": 2010
+  },
+  {
+    "setCode": "PM11",
+    "setName": "Magic 2011 Promos",
+    "releasedAt": "2010-01-01",
+    "releaseYear": 2010
+  },
+  {
+    "setCode": "P10",
+    "setName": "Magic Player Rewards 2010",
+    "releasedAt": "2010-01-01",
+    "releaseYear": 2010
+  },
+  {
+    "setCode": "PMPS10",
+    "setName": "Magic Premiere Shop 2010",
+    "releasedAt": "2010-01-01",
+    "releaseYear": 2010
+  },
+  {
+    "setCode": "WWK",
+    "setName": "Worldwake",
+    "releasedAt": "2010-02-05",
+    "releaseYear": 2010
+  },
+  {
+    "setCode": "PWWK",
+    "setName": "Worldwake Promos",
+    "releasedAt": "2010-02-05",
+    "releaseYear": 2010
+  },
+  {
+    "setCode": "DDE",
+    "setName": "Duel Decks: Phyrexia vs. the Coalition",
+    "releasedAt": "2010-03-19",
+    "releaseYear": 2010
+  },
+  {
+    "setCode": "ROE",
+    "setName": "Rise of the Eldrazi",
+    "releasedAt": "2010-04-23",
+    "releaseYear": 2010
+  },
+  {
+    "setCode": "PROE",
+    "setName": "Rise of the Eldrazi Promos",
+    "releasedAt": "2010-04-23",
+    "releaseYear": 2010
+  },
+  {
+    "setCode": "DPA",
+    "setName": "Duels of the Planeswalkers",
+    "releasedAt": "2010-06-04",
+    "releaseYear": 2010
+  },
+  {
+    "setCode": "ARC",
+    "setName": "Archenemy",
+    "releasedAt": "2010-06-18",
+    "releaseYear": 2010
+  },
+  {
+    "setCode": "M11",
+    "setName": "Magic 2011",
+    "releasedAt": "2010-07-16",
+    "releaseYear": 2010
+  },
+  {
+    "setCode": "V10",
+    "setName": "From the Vault: Relics",
+    "releasedAt": "2010-08-27",
+    "releaseYear": 2010
+  },
+  {
+    "setCode": "DDF",
+    "setName": "Duel Decks: Elspeth vs. Tezzeret",
+    "releasedAt": "2010-09-03",
+    "releaseYear": 2010
+  },
+  {
+    "setCode": "PSOM",
+    "setName": "Scars of Mirrodin Promos",
+    "releasedAt": "2010-09-30",
+    "releaseYear": 2010
+  },
+  {
+    "setCode": "SOM",
+    "setName": "Scars of Mirrodin",
+    "releasedAt": "2010-10-01",
+    "releaseYear": 2010
+  },
+  {
+    "setCode": "PD2",
+    "setName": "Premium Deck Series: Fire and Lightning",
+    "releasedAt": "2010-11-19",
+    "releaseYear": 2010
+  },
+  {
+    "setCode": "PDP12",
+    "setName": "Duels of the Planeswalkers 2012 Promos",
+    "releasedAt": "2011-01-01",
+    "releaseYear": 2011
+  },
+  {
+    "setCode": "F11",
+    "setName": "Friday Night Magic 2011",
+    "releasedAt": "2011-01-01",
+    "releaseYear": 2011
+  },
+  {
+    "setCode": "G11",
+    "setName": "Judge Gift Cards 2011",
+    "releasedAt": "2011-01-01",
+    "releaseYear": 2011
+  },
+  {
+    "setCode": "P11",
+    "setName": "Magic Player Rewards 2011",
+    "releasedAt": "2011-01-01",
+    "releaseYear": 2011
+  },
+  {
+    "setCode": "PMPS11",
+    "setName": "Magic Premiere Shop 2011",
+    "releasedAt": "2011-01-01",
+    "releaseYear": 2011
+  },
+  {
+    "setCode": "PS11",
+    "setName": "Salvat 2011",
+    "releasedAt": "2011-01-01",
+    "releaseYear": 2011
+  },
+  {
+    "setCode": "PMBS",
+    "setName": "Mirrodin Besieged Promos",
+    "releasedAt": "2011-02-03",
+    "releaseYear": 2011
+  },
+  {
+    "setCode": "MBS",
+    "setName": "Mirrodin Besieged",
+    "releasedAt": "2011-02-04",
+    "releaseYear": 2011
+  },
+  {
+    "setCode": "DDG",
+    "setName": "Duel Decks: Knights vs. Dragons",
+    "releasedAt": "2011-04-01",
+    "releaseYear": 2011
+  },
+  {
+    "setCode": "PNPH",
+    "setName": "New Phyrexia Promos",
+    "releasedAt": "2011-05-12",
+    "releaseYear": 2011
+  },
+  {
+    "setCode": "NPH",
+    "setName": "New Phyrexia",
+    "releasedAt": "2011-05-13",
+    "releaseYear": 2011
+  },
+  {
+    "setCode": "CMD",
+    "setName": "Commander 2011",
+    "releasedAt": "2011-06-17",
+    "releaseYear": 2011
+  },
+  {
+    "setCode": "PCMD",
+    "setName": "Commander 2011 Launch Party",
+    "releasedAt": "2011-06-17",
+    "releaseYear": 2011
+  },
+  {
+    "setCode": "OCMD",
+    "setName": "Commander 2011 Oversized",
+    "releasedAt": "2011-06-17",
+    "releaseYear": 2011
+  },
+  {
+    "setCode": "PM12",
+    "setName": "Magic 2012 Promos",
+    "releasedAt": "2011-07-14",
+    "releaseYear": 2011
+  },
+  {
+    "setCode": "M12",
+    "setName": "Magic 2012",
+    "releasedAt": "2011-07-15",
+    "releaseYear": 2011
+  },
+  {
+    "setCode": "OLGC",
+    "setName": "Legacy Championship",
+    "releasedAt": "2011-08-06",
+    "releaseYear": 2011
+  },
+  {
+    "setCode": "V11",
+    "setName": "From the Vault: Legends",
+    "releasedAt": "2011-08-26",
+    "releaseYear": 2011
+  },
+  {
+    "setCode": "DDH",
+    "setName": "Duel Decks: Ajani vs. Nicol Bolas",
+    "releasedAt": "2011-09-02",
+    "releaseYear": 2011
+  },
+  {
+    "setCode": "PISD",
+    "setName": "Innistrad Promos",
+    "releasedAt": "2011-09-24",
+    "releaseYear": 2011
+  },
+  {
+    "setCode": "ISD",
+    "setName": "Innistrad",
+    "releasedAt": "2011-09-30",
+    "releaseYear": 2011
+  },
+  {
+    "setCode": "PW11",
+    "setName": "Wizards Play Network 2011",
+    "releasedAt": "2011-09-30",
+    "releaseYear": 2011
+  },
+  {
+    "setCode": "PD3",
+    "setName": "Premium Deck Series: Graveborn",
+    "releasedAt": "2011-11-18",
+    "releaseYear": 2011
+  },
+  {
+    "setCode": "PDP13",
+    "setName": "Duels of the Planeswalkers 2013 Promos",
+    "releasedAt": "2012-01-01",
+    "releaseYear": 2012
+  },
+  {
+    "setCode": "F12",
+    "setName": "Friday Night Magic 2012",
+    "releasedAt": "2012-01-01",
+    "releaseYear": 2012
+  },
+  {
+    "setCode": "J12",
+    "setName": "Judge Gift Cards 2012",
+    "releasedAt": "2012-01-01",
+    "releaseYear": 2012
+  },
+  {
+    "setCode": "PW12",
+    "setName": "Wizards Play Network 2012",
+    "releasedAt": "2012-01-01",
+    "releaseYear": 2012
+  },
+  {
+    "setCode": "PDKA",
+    "setName": "Dark Ascension Promos",
+    "releasedAt": "2012-01-28",
+    "releaseYear": 2012
+  },
+  {
+    "setCode": "PIDW",
+    "setName": "IDW Comics Inserts",
+    "releasedAt": "2012-02-01",
+    "releaseYear": 2012
+  },
+  {
+    "setCode": "DKA",
+    "setName": "Dark Ascension",
+    "releasedAt": "2012-02-03",
+    "releaseYear": 2012
+  },
+  {
+    "setCode": "DDI",
+    "setName": "Duel Decks: Venser vs. Koth",
+    "releasedAt": "2012-03-30",
+    "releaseYear": 2012
+  },
+  {
+    "setCode": "PAVR",
+    "setName": "Avacyn Restored Promos",
+    "releasedAt": "2012-04-28",
+    "releaseYear": 2012
+  },
+  {
+    "setCode": "PHEL",
+    "setName": "Open the Helvault",
+    "releasedAt": "2012-04-28",
+    "releaseYear": 2012
+  },
+  {
+    "setCode": "AVR",
+    "setName": "Avacyn Restored",
+    "releasedAt": "2012-05-04",
+    "releaseYear": 2012
+  },
+  {
+    "setCode": "PC2",
+    "setName": "Planechase 2012",
+    "releasedAt": "2012-06-01",
+    "releaseYear": 2012
+  },
+  {
+    "setCode": "PM13",
+    "setName": "Magic 2013 Promos",
+    "releasedAt": "2012-07-12",
+    "releaseYear": 2012
+  },
+  {
+    "setCode": "M13",
+    "setName": "Magic 2013",
+    "releasedAt": "2012-07-13",
+    "releaseYear": 2012
+  },
+  {
+    "setCode": "V12",
+    "setName": "From the Vault: Realms",
+    "releasedAt": "2012-08-31",
+    "releaseYear": 2012
+  },
+  {
+    "setCode": "DDJ",
+    "setName": "Duel Decks: Izzet vs. Golgari",
+    "releasedAt": "2012-09-07",
+    "releaseYear": 2012
+  },
+  {
+    "setCode": "RTR",
+    "setName": "Return to Ravnica",
+    "releasedAt": "2012-10-05",
+    "releaseYear": 2012
+  },
+  {
+    "setCode": "PRTR",
+    "setName": "Return to Ravnica Promos",
+    "releasedAt": "2012-10-05",
+    "releaseYear": 2012
+  },
+  {
+    "setCode": "CM1",
+    "setName": "Commander's Arsenal",
+    "releasedAt": "2012-11-02",
+    "releaseYear": 2012
+  },
+  {
+    "setCode": "OCM1",
+    "setName": "Commander's Arsenal Oversized",
+    "releasedAt": "2012-11-02",
+    "releaseYear": 2012
+  },
+  {
+    "setCode": "PDP14",
+    "setName": "Duels of the Planeswalkers 2014 Promos",
+    "releasedAt": "2013-01-01",
+    "releaseYear": 2013
+  },
+  {
+    "setCode": "F13",
+    "setName": "Friday Night Magic 2013",
+    "releasedAt": "2013-01-01",
+    "releaseYear": 2013
+  },
+  {
+    "setCode": "J13",
+    "setName": "Judge Gift Cards 2013",
+    "releasedAt": "2013-01-01",
+    "releaseYear": 2013
+  },
+  {
+    "setCode": "PGTC",
+    "setName": "Gatecrash Promos",
+    "releasedAt": "2013-01-26",
+    "releaseYear": 2013
+  },
+  {
+    "setCode": "GTC",
+    "setName": "Gatecrash",
+    "releasedAt": "2013-02-01",
+    "releaseYear": 2013
+  },
+  {
+    "setCode": "DDK",
+    "setName": "Duel Decks: Sorin vs. Tibalt",
+    "releasedAt": "2013-03-15",
+    "releaseYear": 2013
+  },
+  {
+    "setCode": "WMC",
+    "setName": "World Magic Cup Qualifiers",
+    "releasedAt": "2013-04-06",
+    "releaseYear": 2013
+  },
+  {
+    "setCode": "PDGM",
+    "setName": "Dragon's Maze Promos",
+    "releasedAt": "2013-04-27",
+    "releaseYear": 2013
+  },
+  {
+    "setCode": "DGM",
+    "setName": "Dragon's Maze",
+    "releasedAt": "2013-05-03",
+    "releaseYear": 2013
+  },
+  {
+    "setCode": "MMA",
+    "setName": "Modern Masters",
+    "releasedAt": "2013-06-07",
+    "releaseYear": 2013
+  },
+  {
+    "setCode": "PM14",
+    "setName": "Magic 2014 Promos",
+    "releasedAt": "2013-07-18",
+    "releaseYear": 2013
+  },
+  {
+    "setCode": "PSDC",
+    "setName": "San Diego Comic-Con 2013",
+    "releasedAt": "2013-07-18",
+    "releaseYear": 2013
+  },
+  {
+    "setCode": "M14",
+    "setName": "Magic 2014",
+    "releasedAt": "2013-07-19",
+    "releaseYear": 2013
+  },
+  {
+    "setCode": "V13",
+    "setName": "From the Vault: Twenty",
+    "releasedAt": "2013-08-23",
+    "releaseYear": 2013
+  },
+  {
+    "setCode": "DDL",
+    "setName": "Duel Decks: Heroes vs. Monsters",
+    "releasedAt": "2013-09-06",
+    "releaseYear": 2013
+  },
+  {
+    "setCode": "PTHS",
+    "setName": "Theros Promos",
+    "releasedAt": "2013-09-21",
+    "releaseYear": 2013
+  },
+  {
+    "setCode": "THS",
+    "setName": "Theros",
+    "releasedAt": "2013-09-27",
+    "releaseYear": 2013
+  },
+  {
+    "setCode": "C13",
+    "setName": "Commander 2013",
+    "releasedAt": "2013-11-01",
+    "releaseYear": 2013
+  },
+  {
+    "setCode": "OC13",
+    "setName": "Commander 2013 Oversized",
+    "releasedAt": "2013-11-01",
+    "releaseYear": 2013
+  },
+  {
+    "setCode": "F14",
+    "setName": "Friday Night Magic 2014",
+    "releasedAt": "2014-01-01",
+    "releaseYear": 2014
+  },
+  {
+    "setCode": "J14",
+    "setName": "Judge Gift Cards 2014",
+    "releasedAt": "2014-01-01",
+    "releaseYear": 2014
+  },
+  {
+    "setCode": "PBNG",
+    "setName": "Born of the Gods Promos",
+    "releasedAt": "2014-02-01",
+    "releaseYear": 2014
+  },
+  {
+    "setCode": "BNG",
+    "setName": "Born of the Gods",
+    "releasedAt": "2014-02-07",
+    "releaseYear": 2014
+  },
+  {
+    "setCode": "DDM",
+    "setName": "Duel Decks: Jace vs. Vraska",
+    "releasedAt": "2014-03-14",
+    "releaseYear": 2014
+  },
+  {
+    "setCode": "PJOU",
+    "setName": "Journey into Nyx Promos",
+    "releasedAt": "2014-04-26",
+    "releaseYear": 2014
+  },
+  {
+    "setCode": "JOU",
+    "setName": "Journey into Nyx",
+    "releasedAt": "2014-05-02",
+    "releaseYear": 2014
+  },
+  {
+    "setCode": "MD1",
+    "setName": "Modern Event Deck 2014",
+    "releasedAt": "2014-05-30",
+    "releaseYear": 2014
+  },
+  {
+    "setCode": "CNS",
+    "setName": "Conspiracy",
+    "releasedAt": "2014-06-06",
+    "releaseYear": 2014
+  },
+  {
+    "setCode": "PCNS",
+    "setName": "Conspiracy Promos",
+    "releasedAt": "2014-06-06",
+    "releaseYear": 2014
+  },
+  {
+    "setCode": "PS14",
+    "setName": "San Diego Comic-Con 2014",
+    "releasedAt": "2014-07-08",
+    "releaseYear": 2014
+  },
+  {
+    "setCode": "PDP15",
+    "setName": "Duels of the Planeswalkers 2015 Promos",
+    "releasedAt": "2014-07-09",
+    "releaseYear": 2014
+  },
+  {
+    "setCode": "PM15",
+    "setName": "Magic 2015 Promos",
+    "releasedAt": "2014-07-17",
+    "releaseYear": 2014
+  },
+  {
+    "setCode": "M15",
+    "setName": "Magic 2015",
+    "releasedAt": "2014-07-18",
+    "releaseYear": 2014
+  },
+  {
+    "setCode": "CP1",
+    "setName": "Magic 2015 Clash Pack",
+    "releasedAt": "2014-07-18",
+    "releaseYear": 2014
+  },
+  {
+    "setCode": "V14",
+    "setName": "From the Vault: Annihilation",
+    "releasedAt": "2014-08-22",
+    "releaseYear": 2014
+  },
+  {
+    "setCode": "DDN",
+    "setName": "Duel Decks: Speed vs. Cunning",
+    "releasedAt": "2014-09-05",
+    "releaseYear": 2014
+  },
+  {
+    "setCode": "KTK",
+    "setName": "Khans of Tarkir",
+    "releasedAt": "2014-09-26",
+    "releaseYear": 2014
+  },
+  {
+    "setCode": "PKTK",
+    "setName": "Khans of Tarkir Promos",
+    "releasedAt": "2014-09-26",
+    "releaseYear": 2014
+  },
+  {
+    "setCode": "C14",
+    "setName": "Commander 2014",
+    "releasedAt": "2014-11-07",
+    "releaseYear": 2014
+  },
+  {
+    "setCode": "OC14",
+    "setName": "Commander 2014 Oversized",
+    "releasedAt": "2014-11-07",
+    "releaseYear": 2014
+  },
+  {
+    "setCode": "DVD",
+    "setName": "Duel Decks Anthology: Divine vs. Demonic",
+    "releasedAt": "2014-12-05",
+    "releaseYear": 2014
+  },
+  {
+    "setCode": "EVG",
+    "setName": "Duel Decks Anthology: Elves vs. Goblins",
+    "releasedAt": "2014-12-05",
+    "releaseYear": 2014
+  },
+  {
+    "setCode": "GVL",
+    "setName": "Duel Decks Anthology: Garruk vs. Liliana",
+    "releasedAt": "2014-12-05",
+    "releaseYear": 2014
+  },
+  {
+    "setCode": "JVC",
+    "setName": "Duel Decks Anthology: Jace vs. Chandra",
+    "releasedAt": "2014-12-05",
+    "releaseYear": 2014
+  },
+  {
+    "setCode": "F15",
+    "setName": "Friday Night Magic 2015",
+    "releasedAt": "2015-01-01",
+    "releaseYear": 2015
+  },
+  {
+    "setCode": "J15",
+    "setName": "Judge Gift Cards 2015",
+    "releasedAt": "2015-01-01",
+    "releaseYear": 2015
+  },
+  {
+    "setCode": "UGIN",
+    "setName": "Ugin's Fate",
+    "releasedAt": "2015-01-17",
+    "releaseYear": 2015
+  },
+  {
+    "setCode": "FRF",
+    "setName": "Fate Reforged",
+    "releasedAt": "2015-01-23",
+    "releaseYear": 2015
+  },
+  {
+    "setCode": "CP2",
+    "setName": "Fate Reforged Clash Pack",
+    "releasedAt": "2015-01-23",
+    "releaseYear": 2015
+  },
+  {
+    "setCode": "PFRF",
+    "setName": "Fate Reforged Promos",
+    "releasedAt": "2015-01-23",
+    "releaseYear": 2015
+  },
+  {
+    "setCode": "DDO",
+    "setName": "Duel Decks: Elspeth vs. Kiora",
+    "releasedAt": "2015-02-27",
+    "releaseYear": 2015
+  },
+  {
+    "setCode": "DTK",
+    "setName": "Dragons of Tarkir",
+    "releasedAt": "2015-03-27",
+    "releaseYear": 2015
+  },
+  {
+    "setCode": "PDTK",
+    "setName": "Dragons of Tarkir Promos",
+    "releasedAt": "2015-03-27",
+    "releaseYear": 2015
+  },
+  {
+    "setCode": "PTKDF",
+    "setName": "Tarkir Dragonfury",
+    "releasedAt": "2015-04-03",
+    "releaseYear": 2015
+  },
+  {
+    "setCode": "MM2",
+    "setName": "Modern Masters 2015",
+    "releasedAt": "2015-05-22",
+    "releaseYear": 2015
+  },
+  {
+    "setCode": "PS15",
+    "setName": "San Diego Comic-Con 2015",
+    "releasedAt": "2015-07-09",
+    "releaseYear": 2015
+  },
+  {
+    "setCode": "ORI",
+    "setName": "Magic Origins",
+    "releasedAt": "2015-07-17",
+    "releaseYear": 2015
+  },
+  {
+    "setCode": "CP3",
+    "setName": "Magic Origins Clash Pack",
+    "releasedAt": "2015-07-17",
+    "releaseYear": 2015
+  },
+  {
+    "setCode": "PORI",
+    "setName": "Magic Origins Promos",
+    "releasedAt": "2015-07-17",
+    "releaseYear": 2015
+  },
+  {
+    "setCode": "V15",
+    "setName": "From the Vault: Angels",
+    "releasedAt": "2015-08-21",
+    "releaseYear": 2015
+  },
+  {
+    "setCode": "DDP",
+    "setName": "Duel Decks: Zendikar vs. Eldrazi",
+    "releasedAt": "2015-08-28",
+    "releaseYear": 2015
+  },
+  {
+    "setCode": "BFZ",
+    "setName": "Battle for Zendikar",
+    "releasedAt": "2015-10-02",
+    "releaseYear": 2015
+  },
+  {
+    "setCode": "PBFZ",
+    "setName": "Battle for Zendikar Promos",
+    "releasedAt": "2015-10-02",
+    "releaseYear": 2015
+  },
+  {
+    "setCode": "PSS1",
+    "setName": "BFZ Standard Series",
+    "releasedAt": "2015-10-02",
+    "releaseYear": 2015
+  },
+  {
+    "setCode": "EXP",
+    "setName": "Zendikar Expeditions",
+    "releasedAt": "2015-10-02",
+    "releaseYear": 2015
+  },
+  {
+    "setCode": "C15",
+    "setName": "Commander 2015",
+    "releasedAt": "2015-11-13",
+    "releaseYear": 2015
+  },
+  {
+    "setCode": "OC15",
+    "setName": "Commander 2015 Oversized",
+    "releasedAt": "2015-11-13",
+    "releaseYear": 2015
+  },
+  {
+    "setCode": "F16",
+    "setName": "Friday Night Magic 2016",
+    "releasedAt": "2016-01-01",
+    "releaseYear": 2016
+  },
+  {
+    "setCode": "J16",
+    "setName": "Judge Gift Cards 2016",
+    "releasedAt": "2016-01-01",
+    "releaseYear": 2016
+  },
+  {
+    "setCode": "OGW",
+    "setName": "Oath of the Gatewatch",
+    "releasedAt": "2016-01-22",
+    "releaseYear": 2016
+  },
+  {
+    "setCode": "POGW",
+    "setName": "Oath of the Gatewatch Promos",
+    "releasedAt": "2016-01-22",
+    "releaseYear": 2016
+  },
+  {
+    "setCode": "DDQ",
+    "setName": "Duel Decks: Blessed vs. Cursed",
+    "releasedAt": "2016-02-26",
+    "releaseYear": 2016
+  },
+  {
+    "setCode": "SOI",
+    "setName": "Shadows over Innistrad",
+    "releasedAt": "2016-04-08",
+    "releaseYear": 2016
+  },
+  {
+    "setCode": "PSOI",
+    "setName": "Shadows over Innistrad Promos",
+    "releasedAt": "2016-04-08",
+    "releaseYear": 2016
+  },
+  {
+    "setCode": "W16",
+    "setName": "Welcome Deck 2016",
+    "releasedAt": "2016-04-08",
+    "releaseYear": 2016
+  },
+  {
+    "setCode": "EMA",
+    "setName": "Eternal Masters",
+    "releasedAt": "2016-06-10",
+    "releaseYear": 2016
+  },
+  {
+    "setCode": "EMN",
+    "setName": "Eldritch Moon",
+    "releasedAt": "2016-07-22",
+    "releaseYear": 2016
+  },
+  {
+    "setCode": "PEMN",
+    "setName": "Eldritch Moon Promos",
+    "releasedAt": "2016-07-22",
+    "releaseYear": 2016
+  },
+  {
+    "setCode": "V16",
+    "setName": "From the Vault: Lore",
+    "releasedAt": "2016-08-19",
+    "releaseYear": 2016
+  },
+  {
+    "setCode": "CN2",
+    "setName": "Conspiracy: Take the Crown",
+    "releasedAt": "2016-08-26",
+    "releaseYear": 2016
+  },
+  {
+    "setCode": "DDR",
+    "setName": "Duel Decks: Nissa vs. Ob Nixilis",
+    "releasedAt": "2016-09-02",
+    "releaseYear": 2016
+  },
+  {
+    "setCode": "KLD",
+    "setName": "Kaladesh",
+    "releasedAt": "2016-09-30",
+    "releaseYear": 2016
+  },
+  {
+    "setCode": "MPS",
+    "setName": "Kaladesh Inventions",
+    "releasedAt": "2016-09-30",
+    "releaseYear": 2016
+  },
+  {
+    "setCode": "PKLD",
+    "setName": "Kaladesh Promos",
+    "releasedAt": "2016-09-30",
+    "releaseYear": 2016
+  },
+  {
+    "setCode": "PS16",
+    "setName": "San Diego Comic-Con 2016",
+    "releasedAt": "2016-10-01",
+    "releaseYear": 2016
+  },
+  {
+    "setCode": "C16",
+    "setName": "Commander 2016",
+    "releasedAt": "2016-11-11",
+    "releaseYear": 2016
+  },
+  {
+    "setCode": "OC16",
+    "setName": "Commander 2016 Oversized",
+    "releasedAt": "2016-11-11",
+    "releaseYear": 2016
+  },
+  {
+    "setCode": "PCA",
+    "setName": "Planechase Anthology",
+    "releasedAt": "2016-11-25",
+    "releaseYear": 2016
+  },
+  {
+    "setCode": "F17",
+    "setName": "Friday Night Magic 2017",
+    "releasedAt": "2017-01-01",
+    "releaseYear": 2017
+  },
+  {
+    "setCode": "J17",
+    "setName": "Judge Gift Cards 2017",
+    "releasedAt": "2017-01-01",
+    "releaseYear": 2017
+  },
+  {
+    "setCode": "AER",
+    "setName": "Aether Revolt",
+    "releasedAt": "2017-01-20",
+    "releaseYear": 2017
+  },
+  {
+    "setCode": "PAER",
+    "setName": "Aether Revolt Promos",
+    "releasedAt": "2017-01-20",
+    "releaseYear": 2017
+  },
+  {
+    "setCode": "MM3",
+    "setName": "Modern Masters 2017",
+    "releasedAt": "2017-03-17",
+    "releaseYear": 2017
+  },
+  {
+    "setCode": "DDS",
+    "setName": "Duel Decks: Mind vs. Might",
+    "releasedAt": "2017-03-31",
+    "releaseYear": 2017
+  },
+  {
+    "setCode": "W17",
+    "setName": "Welcome Deck 2017",
+    "releasedAt": "2017-04-15",
+    "releaseYear": 2017
+  },
+  {
+    "setCode": "AKH",
+    "setName": "Amonkhet",
+    "releasedAt": "2017-04-28",
+    "releaseYear": 2017
+  },
+  {
+    "setCode": "MP2",
+    "setName": "Amonkhet Invocations",
+    "releasedAt": "2017-04-28",
+    "releaseYear": 2017
+  },
+  {
+    "setCode": "PAKH",
+    "setName": "Amonkhet Promos",
+    "releasedAt": "2017-04-28",
+    "releaseYear": 2017
+  },
+  {
+    "setCode": "CMA",
+    "setName": "Commander Anthology",
+    "releasedAt": "2017-06-09",
+    "releaseYear": 2017
+  },
+  {
+    "setCode": "E01",
+    "setName": "Archenemy: Nicol Bolas",
+    "releasedAt": "2017-06-16",
+    "releaseYear": 2017
+  },
+  {
+    "setCode": "HOU",
+    "setName": "Hour of Devastation",
+    "releasedAt": "2017-07-14",
+    "releaseYear": 2017
+  },
+  {
+    "setCode": "PHOU",
+    "setName": "Hour of Devastation Promos",
+    "releasedAt": "2017-07-14",
+    "releaseYear": 2017
+  },
+  {
+    "setCode": "PS17",
+    "setName": "San Diego Comic-Con 2017",
+    "releasedAt": "2017-07-20",
+    "releaseYear": 2017
+  },
+  {
+    "setCode": "C17",
+    "setName": "Commander 2017",
+    "releasedAt": "2017-08-25",
+    "releaseYear": 2017
+  },
+  {
+    "setCode": "OC17",
+    "setName": "Commander 2017 Oversized",
+    "releasedAt": "2017-08-25",
+    "releaseYear": 2017
+  },
+  {
+    "setCode": "XLN",
+    "setName": "Ixalan",
+    "releasedAt": "2017-09-29",
+    "releaseYear": 2017
+  },
+  {
+    "setCode": "PXLN",
+    "setName": "Ixalan Promos",
+    "releasedAt": "2017-09-29",
+    "releaseYear": 2017
+  },
+  {
+    "setCode": "PSS2",
+    "setName": "XLN Standard Showdown",
+    "releasedAt": "2017-09-29",
+    "releaseYear": 2017
+  },
+  {
+    "setCode": "G17",
+    "setName": "2017 Gift Pack",
+    "releasedAt": "2017-10-20",
+    "releaseYear": 2017
+  },
+  {
+    "setCode": "DDT",
+    "setName": "Duel Decks: Merfolk vs. Goblins",
+    "releasedAt": "2017-10-24",
+    "releaseYear": 2017
+  },
+  {
+    "setCode": "IMA",
+    "setName": "Iconic Masters",
+    "releasedAt": "2017-11-17",
+    "releaseYear": 2017
+  },
+  {
+    "setCode": "E02",
+    "setName": "Explorers of Ixalan",
+    "releasedAt": "2017-11-24",
+    "releaseYear": 2017
+  },
+  {
+    "setCode": "V17",
+    "setName": "From the Vault: Transform",
+    "releasedAt": "2017-11-24",
+    "releaseYear": 2017
+  },
+  {
+    "setCode": "PXTC",
+    "setName": "XLN Treasure Chest",
+    "releasedAt": "2017-11-24",
+    "releaseYear": 2017
+  },
+  {
+    "setCode": "UST",
+    "setName": "Unstable",
+    "releasedAt": "2017-12-08",
+    "releaseYear": 2017
+  },
+  {
+    "setCode": "J18",
+    "setName": "Judge Gift Cards 2018",
+    "releasedAt": "2018-01-01",
+    "releaseYear": 2018
+  },
+  {
+    "setCode": "RIX",
+    "setName": "Rivals of Ixalan",
+    "releasedAt": "2018-01-19",
+    "releaseYear": 2018
+  },
+  {
+    "setCode": "PRIX",
+    "setName": "Rivals of Ixalan Promos",
+    "releasedAt": "2018-01-19",
+    "releaseYear": 2018
+  },
+  {
+    "setCode": "PNAT",
+    "setName": "Nationals Promos",
+    "releasedAt": "2018-01-25",
+    "releaseYear": 2018
+  },
+  {
+    "setCode": "A25",
+    "setName": "Masters 25",
+    "releasedAt": "2018-03-16",
+    "releaseYear": 2018
+  },
+  {
+    "setCode": "DDU",
+    "setName": "Duel Decks: Elves vs. Inventors",
+    "releasedAt": "2018-04-06",
+    "releaseYear": 2018
+  },
+  {
+    "setCode": "DOM",
+    "setName": "Dominaria",
+    "releasedAt": "2018-04-27",
+    "releaseYear": 2018
+  },
+  {
+    "setCode": "PDOM",
+    "setName": "Dominaria Promos",
+    "releasedAt": "2018-04-27",
+    "releaseYear": 2018
+  },
+  {
+    "setCode": "BBD",
+    "setName": "Battlebond",
+    "releasedAt": "2018-06-08",
+    "releaseYear": 2018
+  },
+  {
+    "setCode": "PBBD",
+    "setName": "Battlebond Promos",
+    "releasedAt": "2018-06-08",
+    "releaseYear": 2018
+  },
+  {
+    "setCode": "CM2",
+    "setName": "Commander Anthology Volume II",
+    "releasedAt": "2018-06-08",
+    "releaseYear": 2018
+  },
+  {
+    "setCode": "SS1",
+    "setName": "Signature Spellbook: Jace",
+    "releasedAt": "2018-06-15",
+    "releaseYear": 2018
+  },
+  {
+    "setCode": "GS1",
+    "setName": "Global Series Jiang Yanggu & Mu Yanling",
+    "releasedAt": "2018-06-22",
+    "releaseYear": 2018
+  },
+  {
+    "setCode": "PM19",
+    "setName": "Core Set 2019 Promos",
+    "releasedAt": "2018-07-01",
+    "releaseYear": 2018
+  },
+  {
+    "setCode": "M19",
+    "setName": "Core Set 2019",
+    "releasedAt": "2018-07-13",
+    "releaseYear": 2018
+  },
+  {
+    "setCode": "PSS3",
+    "setName": "M19 Standard Showdown",
+    "releasedAt": "2018-07-13",
+    "releaseYear": 2018
+  },
+  {
+    "setCode": "PS18",
+    "setName": "San Diego Comic-Con 2018",
+    "releasedAt": "2018-07-19",
+    "releaseYear": 2018
+  },
+  {
+    "setCode": "OC18",
+    "setName": "Commander 2018 Oversized",
+    "releasedAt": "2018-08-09",
+    "releaseYear": 2018
+  },
+  {
+    "setCode": "C18",
+    "setName": "Commander 2018",
+    "releasedAt": "2018-08-10",
+    "releaseYear": 2018
+  },
+  {
+    "setCode": "GRN",
+    "setName": "Guilds of Ravnica",
+    "releasedAt": "2018-10-05",
+    "releaseYear": 2018
+  },
+  {
+    "setCode": "PGRN",
+    "setName": "Guilds of Ravnica Promos",
+    "releasedAt": "2018-10-05",
+    "releaseYear": 2018
+  },
+  {
+    "setCode": "MED",
+    "setName": "Mythic Edition",
+    "releasedAt": "2018-10-05",
+    "releaseYear": 2018
+  },
+  {
+    "setCode": "GK1",
+    "setName": "GRN Guild Kit",
+    "releasedAt": "2018-11-02",
+    "releaseYear": 2018
+  },
+  {
+    "setCode": "PRWK",
+    "setName": "GRN Ravnica Weekend",
+    "releasedAt": "2018-11-09",
+    "releaseYear": 2018
+  },
+  {
+    "setCode": "GNT",
+    "setName": "Game Night",
+    "releasedAt": "2018-11-16",
+    "releaseYear": 2018
+  },
+  {
+    "setCode": "G18",
+    "setName": "M19 Gift Pack",
+    "releasedAt": "2018-11-16",
+    "releaseYear": 2018
+  },
+  {
+    "setCode": "PUMA",
+    "setName": "Ultimate Box Topper",
+    "releasedAt": "2018-12-07",
+    "releaseYear": 2018
+  },
+  {
+    "setCode": "UMA",
+    "setName": "Ultimate Masters",
+    "releasedAt": "2018-12-07",
+    "releaseYear": 2018
+  },
+  {
+    "setCode": "PF19",
+    "setName": "MagicFest 2019",
+    "releasedAt": "2019-01-01",
+    "releaseYear": 2019
+  },
+  {
+    "setCode": "RNA",
+    "setName": "Ravnica Allegiance",
+    "releasedAt": "2019-01-25",
+    "releaseYear": 2019
+  },
+  {
+    "setCode": "PRNA",
+    "setName": "Ravnica Allegiance Promos",
+    "releasedAt": "2019-01-25",
+    "releaseYear": 2019
+  },
+  {
+    "setCode": "GK2",
+    "setName": "RNA Guild Kit",
+    "releasedAt": "2019-02-15",
+    "releaseYear": 2019
+  },
+  {
+    "setCode": "PRW2",
+    "setName": "RNA Ravnica Weekend",
+    "releasedAt": "2019-02-16",
+    "releaseYear": 2019
+  },
+  {
+    "setCode": "J19",
+    "setName": "Judge Gift Cards 2019",
+    "releasedAt": "2019-04-10",
+    "releaseYear": 2019
+  },
+  {
+    "setCode": "WAR",
+    "setName": "War of the Spark",
+    "releasedAt": "2019-05-03",
+    "releaseYear": 2019
+  },
+  {
+    "setCode": "PWAR",
+    "setName": "War of the Spark Promos",
+    "releasedAt": "2019-05-03",
+    "releaseYear": 2019
+  },
+  {
+    "setCode": "MH1",
+    "setName": "Modern Horizons",
+    "releasedAt": "2019-06-14",
+    "releaseYear": 2019
+  },
+  {
+    "setCode": "PMH1",
+    "setName": "Modern Horizons Promos",
+    "releasedAt": "2019-06-14",
+    "releaseYear": 2019
+  },
+  {
+    "setCode": "SS2",
+    "setName": "Signature Spellbook: Gideon",
+    "releasedAt": "2019-06-28",
+    "releaseYear": 2019
+  },
+  {
+    "setCode": "M20",
+    "setName": "Core Set 2020",
+    "releasedAt": "2019-07-12",
+    "releaseYear": 2019
+  },
+  {
+    "setCode": "PM20",
+    "setName": "Core Set 2020 Promos",
+    "releasedAt": "2019-07-12",
+    "releaseYear": 2019
+  },
+  {
+    "setCode": "PPP1",
+    "setName": "M20 Promo Packs",
+    "releasedAt": "2019-07-12",
+    "releaseYear": 2019
+  },
+  {
+    "setCode": "PS19",
+    "setName": "San Diego Comic-Con 2019",
+    "releasedAt": "2019-07-18",
+    "releaseYear": 2019
+  },
+  {
+    "setCode": "C19",
+    "setName": "Commander 2019",
+    "releasedAt": "2019-08-23",
+    "releaseYear": 2019
+  },
+  {
+    "setCode": "OC19",
+    "setName": "Commander 2019 Oversized",
+    "releasedAt": "2019-08-31",
+    "releaseYear": 2019
+  },
+  {
+    "setCode": "PWCS",
+    "setName": "Planeswalker Championship Promos",
+    "releasedAt": "2019-10-01",
+    "releaseYear": 2019
+  },
+  {
+    "setCode": "ELD",
+    "setName": "Throne of Eldraine",
+    "releasedAt": "2019-10-04",
+    "releaseYear": 2019
+  },
+  {
+    "setCode": "PELD",
+    "setName": "Throne of Eldraine Promos",
+    "releasedAt": "2019-10-04",
+    "releaseYear": 2019
+  },
+  {
+    "setCode": "PLST",
+    "setName": "The List",
+    "releasedAt": "2019-11-07",
+    "releaseYear": 2019
+  },
+  {
+    "setCode": "GN2",
+    "setName": "Game Night 2019",
+    "releasedAt": "2019-11-15",
+    "releaseYear": 2019
+  },
+  {
+    "setCode": "SLD",
+    "setName": "Secret Lair Drop",
+    "releasedAt": "2019-12-03",
+    "releaseYear": 2019
+  },
+  {
+    "setCode": "J20",
+    "setName": "Judge Gift Cards 2020",
+    "releasedAt": "2020-01-01",
+    "releaseYear": 2020
+  },
+  {
+    "setCode": "PF20",
+    "setName": "MagicFest 2020",
+    "releasedAt": "2020-01-01",
+    "releaseYear": 2020
+  },
+  {
+    "setCode": "THB",
+    "setName": "Theros Beyond Death",
+    "releasedAt": "2020-01-24",
+    "releaseYear": 2020
+  },
+  {
+    "setCode": "PTHB",
+    "setName": "Theros Beyond Death Promos",
+    "releasedAt": "2020-01-24",
+    "releaseYear": 2020
+  },
+  {
+    "setCode": "UND",
+    "setName": "Unsanctioned",
+    "releasedAt": "2020-02-29",
+    "releaseYear": 2020
+  },
+  {
+    "setCode": "C20",
+    "setName": "Commander 2020",
+    "releasedAt": "2020-04-17",
+    "releaseYear": 2020
+  },
+  {
+    "setCode": "OC20",
+    "setName": "Commander 2020 Oversized",
+    "releasedAt": "2020-04-17",
+    "releaseYear": 2020
+  },
+  {
+    "setCode": "IKO",
+    "setName": "Ikoria: Lair of Behemoths",
+    "releasedAt": "2020-04-24",
+    "releaseYear": 2020
+  },
+  {
+    "setCode": "PIKO",
+    "setName": "Ikoria: Lair of Behemoths Promos",
+    "releasedAt": "2020-04-24",
+    "releaseYear": 2020
+  },
+  {
+    "setCode": "PLG20",
+    "setName": "Love Your LGS 2020",
+    "releasedAt": "2020-05-18",
+    "releaseYear": 2020
+  },
+  {
+    "setCode": "SLU",
+    "setName": "Secret Lair: Ultimate Edition",
+    "releasedAt": "2020-06-12",
+    "releaseYear": 2020
+  },
+  {
+    "setCode": "SS3",
+    "setName": "Signature Spellbook: Chandra",
+    "releasedAt": "2020-06-26",
+    "releaseYear": 2020
+  },
+  {
+    "setCode": "M21",
+    "setName": "Core Set 2021",
+    "releasedAt": "2020-07-03",
+    "releaseYear": 2020
+  },
+  {
+    "setCode": "PM21",
+    "setName": "Core Set 2021 Promos",
+    "releasedAt": "2020-07-03",
+    "releaseYear": 2020
+  },
+  {
+    "setCode": "JMP",
+    "setName": "Jumpstart",
+    "releasedAt": "2020-07-17",
+    "releaseYear": 2020
+  },
+  {
+    "setCode": "2XM",
+    "setName": "Double Masters",
+    "releasedAt": "2020-08-07",
+    "releaseYear": 2020
+  },
+  {
+    "setCode": "ZNR",
+    "setName": "Zendikar Rising",
+    "releasedAt": "2020-09-25",
+    "releaseYear": 2020
+  },
+  {
+    "setCode": "ZNC",
+    "setName": "Zendikar Rising Commander",
+    "releasedAt": "2020-09-25",
+    "releaseYear": 2020
+  },
+  {
+    "setCode": "ZNE",
+    "setName": "Zendikar Rising Expeditions",
+    "releasedAt": "2020-09-25",
+    "releaseYear": 2020
+  },
+  {
+    "setCode": "PZNR",
+    "setName": "Zendikar Rising Promos",
+    "releasedAt": "2020-09-25",
+    "releaseYear": 2020
+  },
+  {
+    "setCode": "CMR",
+    "setName": "Commander Legends",
+    "releasedAt": "2020-11-20",
+    "releaseYear": 2020
+  },
+  {
+    "setCode": "CC1",
+    "setName": "Commander Collection: Green",
+    "releasedAt": "2020-12-04",
+    "releaseYear": 2020
+  },
+  {
+    "setCode": "PJ21",
+    "setName": "Judge Gift Cards 2021",
+    "releasedAt": "2021-01-01",
+    "releaseYear": 2021
+  },
+  {
+    "setCode": "PLG21",
+    "setName": "Love Your LGS 2021",
+    "releasedAt": "2021-01-01",
+    "releaseYear": 2021
+  },
+  {
+    "setCode": "PL21",
+    "setName": "Year of the Ox 2021",
+    "releasedAt": "2021-01-25",
+    "releaseYear": 2021
+  },
+  {
+    "setCode": "PKHM",
+    "setName": "Kaldheim Promos",
+    "releasedAt": "2021-01-29",
+    "releaseYear": 2021
+  },
+  {
+    "setCode": "KHM",
+    "setName": "Kaldheim",
+    "releasedAt": "2021-02-05",
+    "releaseYear": 2021
+  },
+  {
+    "setCode": "KHC",
+    "setName": "Kaldheim Commander",
+    "releasedAt": "2021-02-05",
+    "releaseYear": 2021
+  },
+  {
+    "setCode": "TSR",
+    "setName": "Time Spiral Remastered",
+    "releasedAt": "2021-03-19",
+    "releaseYear": 2021
+  },
+  {
+    "setCode": "C21",
+    "setName": "Commander 2021",
+    "releasedAt": "2021-04-23",
+    "releaseYear": 2021
+  },
+  {
+    "setCode": "OC21",
+    "setName": "Commander 2021 Display Commanders",
+    "releasedAt": "2021-04-23",
+    "releaseYear": 2021
+  },
+  {
+    "setCode": "STA",
+    "setName": "Strixhaven Mystical Archive",
+    "releasedAt": "2021-04-23",
+    "releaseYear": 2021
+  },
+  {
+    "setCode": "STX",
+    "setName": "Strixhaven: School of Mages",
+    "releasedAt": "2021-04-23",
+    "releaseYear": 2021
+  },
+  {
+    "setCode": "PSTX",
+    "setName": "Strixhaven: School of Mages Promos",
+    "releasedAt": "2021-04-23",
+    "releaseYear": 2021
+  },
+  {
+    "setCode": "PMH2",
+    "setName": "Modern Horizons 2 Promos",
+    "releasedAt": "2021-05-06",
+    "releaseYear": 2021
+  },
+  {
+    "setCode": "H1R",
+    "setName": "Modern Horizons 1 Timeshifts",
+    "releasedAt": "2021-06-18",
+    "releaseYear": 2021
+  },
+  {
+    "setCode": "MH2",
+    "setName": "Modern Horizons 2",
+    "releasedAt": "2021-06-18",
+    "releaseYear": 2021
+  },
+  {
+    "setCode": "PW21",
+    "setName": "Wizards Play Network 2021",
+    "releasedAt": "2021-06-18",
+    "releaseYear": 2021
+  },
+  {
+    "setCode": "AFR",
+    "setName": "Adventures in the Forgotten Realms",
+    "releasedAt": "2021-07-23",
+    "releaseYear": 2021
+  },
+  {
+    "setCode": "PAFR",
+    "setName": "Adventures in the Forgotten Realms Promos",
+    "releasedAt": "2021-07-23",
+    "releaseYear": 2021
+  },
+  {
+    "setCode": "AFC",
+    "setName": "Forgotten Realms Commander",
+    "releasedAt": "2021-07-23",
+    "releaseYear": 2021
+  },
+  {
+    "setCode": "OAFC",
+    "setName": "Forgotten Realms Commander Display Commanders",
+    "releasedAt": "2021-07-23",
+    "releaseYear": 2021
+  },
+  {
+    "setCode": "MID",
+    "setName": "Innistrad: Midnight Hunt",
+    "releasedAt": "2021-09-24",
+    "releaseYear": 2021
+  },
+  {
+    "setCode": "PMID",
+    "setName": "Innistrad: Midnight Hunt Promos",
+    "releasedAt": "2021-09-24",
+    "releaseYear": 2021
+  },
+  {
+    "setCode": "MIC",
+    "setName": "Midnight Hunt Commander",
+    "releasedAt": "2021-09-24",
+    "releaseYear": 2021
+  },
+  {
+    "setCode": "OMIC",
+    "setName": "Midnight Hunt Commander Display Commanders",
+    "releasedAt": "2021-09-24",
+    "releaseYear": 2021
+  },
+  {
+    "setCode": "Q06",
+    "setName": "Pioneer Challenger Decks 2021",
+    "releasedAt": "2021-10-15",
+    "releaseYear": 2021
+  },
+  {
+    "setCode": "VOC",
+    "setName": "Crimson Vow Commander",
+    "releasedAt": "2021-11-19",
+    "releaseYear": 2021
+  },
+  {
+    "setCode": "OVOC",
+    "setName": "Crimson Vow Commander Display Commanders",
+    "releasedAt": "2021-11-19",
+    "releaseYear": 2021
+  },
+  {
+    "setCode": "VOW",
+    "setName": "Innistrad: Crimson Vow",
+    "releasedAt": "2021-11-19",
+    "releaseYear": 2021
+  },
+  {
+    "setCode": "PVOW",
+    "setName": "Innistrad: Crimson Vow Promos",
+    "releasedAt": "2021-11-19",
+    "releaseYear": 2021
+  },
+  {
+    "setCode": "P22",
+    "setName": "Judge Gift Cards 2022",
+    "releasedAt": "2022-01-01",
+    "releaseYear": 2022
+  },
+  {
+    "setCode": "CC2",
+    "setName": "Commander Collection: Black",
+    "releasedAt": "2022-01-28",
+    "releaseYear": 2022
+  },
+  {
+    "setCode": "DBL",
+    "setName": "Innistrad: Double Feature",
+    "releasedAt": "2022-01-28",
+    "releaseYear": 2022
+  },
+  {
+    "setCode": "NEO",
+    "setName": "Kamigawa: Neon Dynasty",
+    "releasedAt": "2022-02-18",
+    "releaseYear": 2022
+  },
+  {
+    "setCode": "PNEO",
+    "setName": "Kamigawa: Neon Dynasty Promos",
+    "releasedAt": "2022-02-18",
+    "releaseYear": 2022
+  },
+  {
+    "setCode": "NEC",
+    "setName": "Neon Dynasty Commander",
+    "releasedAt": "2022-02-18",
+    "releaseYear": 2022
+  },
+  {
+    "setCode": "PL22",
+    "setName": "Year of the Tiger 2022",
+    "releasedAt": "2022-02-25",
+    "releaseYear": 2022
+  },
+  {
+    "setCode": "SLX",
+    "setName": "Universes Within",
+    "releasedAt": "2022-03-03",
+    "releaseYear": 2022
+  },
+  {
+    "setCode": "PW22",
+    "setName": "Wizards Play Network 2022",
+    "releasedAt": "2022-03-05",
+    "releaseYear": 2022
+  },
+  {
+    "setCode": "GDY",
+    "setName": "Game Day Promos",
+    "releasedAt": "2022-04-08",
+    "releaseYear": 2022
+  },
+  {
+    "setCode": "NCC",
+    "setName": "New Capenna Commander",
+    "releasedAt": "2022-04-29",
+    "releaseYear": 2022
+  },
+  {
+    "setCode": "PNCC",
+    "setName": "New Capenna Commander Promos",
+    "releasedAt": "2022-04-29",
+    "releaseYear": 2022
+  },
+  {
+    "setCode": "SNC",
+    "setName": "Streets of New Capenna",
+    "releasedAt": "2022-04-29",
+    "releaseYear": 2022
+  },
+  {
+    "setCode": "PSNC",
+    "setName": "Streets of New Capenna Promos",
+    "releasedAt": "2022-04-29",
+    "releaseYear": 2022
+  },
+  {
+    "setCode": "PCLB",
+    "setName": "Battle for Baldur's Gate Promos",
+    "releasedAt": "2022-06-10",
+    "releaseYear": 2022
+  },
+  {
+    "setCode": "CLB",
+    "setName": "Commander Legends: Battle for Baldur's Gate",
+    "releasedAt": "2022-06-10",
+    "releaseYear": 2022
+  },
+  {
+    "setCode": "PLG22",
+    "setName": "Love Your LGS 2022",
+    "releasedAt": "2022-07-01",
+    "releaseYear": 2022
+  },
+  {
+    "setCode": "2X2",
+    "setName": "Double Masters 2022",
+    "releasedAt": "2022-07-08",
+    "releaseYear": 2022
+  },
+  {
+    "setCode": "SCH",
+    "setName": "Store Championships",
+    "releasedAt": "2022-07-09",
+    "releaseYear": 2022
+  },
+  {
+    "setCode": "PSVC",
+    "setName": "Summer Vacation Promos 2022",
+    "releasedAt": "2022-08-01",
+    "releaseYear": 2022
+  },
+  {
+    "setCode": "PCEL",
+    "setName": "Celebration Cards",
+    "releasedAt": "2022-08-16",
+    "releaseYear": 2022
+  },
+  {
+    "setCode": "P30A",
+    "setName": "30th Anniversary Play Promos",
+    "releasedAt": "2022-09-02",
+    "releaseYear": 2022
+  },
+  {
+    "setCode": "DMU",
+    "setName": "Dominaria United",
+    "releasedAt": "2022-09-09",
+    "releaseYear": 2022
+  },
+  {
+    "setCode": "DMC",
+    "setName": "Dominaria United Commander",
+    "releasedAt": "2022-09-09",
+    "releaseYear": 2022
+  },
+  {
+    "setCode": "PDMU",
+    "setName": "Dominaria United Promos",
+    "releasedAt": "2022-09-09",
+    "releaseYear": 2022
+  },
+  {
+    "setCode": "PRCQ",
+    "setName": "Regional Championship Qualifiers 2022",
+    "releasedAt": "2022-10-01",
+    "releaseYear": 2022
+  },
+  {
+    "setCode": "UNF",
+    "setName": "Unfinity",
+    "releasedAt": "2022-10-07",
+    "releaseYear": 2022
+  },
+  {
+    "setCode": "40K",
+    "setName": "Warhammer 40,000 Commander",
+    "releasedAt": "2022-10-07",
+    "releaseYear": 2022
+  },
+  {
+    "setCode": "GN3",
+    "setName": "Game Night: Free-for-All",
+    "releasedAt": "2022-10-14",
+    "releaseYear": 2022
+  },
+  {
+    "setCode": "P30M",
+    "setName": "30th Anniversary Misc Promos",
+    "releasedAt": "2022-10-28",
+    "releaseYear": 2022
+  },
+  {
+    "setCode": "SLC",
+    "setName": "Secret Lair Countdown",
+    "releasedAt": "2022-11-01",
+    "releaseYear": 2022
+  },
+  {
+    "setCode": "BRO",
+    "setName": "The Brothers' War",
+    "releasedAt": "2022-11-18",
+    "releaseYear": 2022
+  },
+  {
+    "setCode": "BRC",
+    "setName": "The Brothers' War Commander",
+    "releasedAt": "2022-11-18",
+    "releaseYear": 2022
+  },
+  {
+    "setCode": "PBRO",
+    "setName": "The Brothers' War Promos",
+    "releasedAt": "2022-11-18",
+    "releaseYear": 2022
+  },
+  {
+    "setCode": "BRR",
+    "setName": "The Brothers' War Retro Artifacts",
+    "releasedAt": "2022-11-18",
+    "releaseYear": 2022
+  },
+  {
+    "setCode": "BOT",
+    "setName": "Transformers",
+    "releasedAt": "2022-11-18",
+    "releaseYear": 2022
+  },
+  {
+    "setCode": "PEWK",
+    "setName": "Eternal Weekend",
+    "releasedAt": "2022-11-26",
+    "releaseYear": 2022
+  },
+  {
+    "setCode": "30A",
+    "setName": "30th Anniversary Edition",
+    "releasedAt": "2022-11-28",
+    "releaseYear": 2022
+  },
+  {
+    "setCode": "J22",
+    "setName": "Jumpstart 2022",
+    "releasedAt": "2022-12-02",
+    "releaseYear": 2022
+  },
+  {
+    "setCode": "SCD",
+    "setName": "Starter Commander Decks",
+    "releasedAt": "2022-12-02",
+    "releaseYear": 2022
+  },
+  {
+    "setCode": "P23",
+    "setName": "Judge Gift Cards 2023",
+    "releasedAt": "2023-01-01",
+    "releaseYear": 2023
+  },
+  {
+    "setCode": "PW23",
+    "setName": "Wizards Play Network 2023",
+    "releasedAt": "2023-01-01",
+    "releaseYear": 2023
+  },
+  {
+    "setCode": "PR23",
+    "setName": "Regional Championship Qualifiers 2023",
+    "releasedAt": "2023-01-07",
+    "releaseYear": 2023
+  },
+  {
+    "setCode": "DMR",
+    "setName": "Dominaria Remastered",
+    "releasedAt": "2023-01-13",
+    "releaseYear": 2023
+  },
+  {
+    "setCode": "ONE",
+    "setName": "Phyrexia: All Will Be One",
+    "releasedAt": "2023-02-03",
+    "releaseYear": 2023
+  },
+  {
+    "setCode": "ONC",
+    "setName": "Phyrexia: All Will Be One Commander",
+    "releasedAt": "2023-02-10",
+    "releaseYear": 2023
+  },
+  {
+    "setCode": "PONE",
+    "setName": "Phyrexia: All Will Be One Promos",
+    "releasedAt": "2023-02-10",
+    "releaseYear": 2023
+  },
+  {
+    "setCode": "PL23",
+    "setName": "Year of the Rabbit 2023",
+    "releasedAt": "2023-02-10",
+    "releaseYear": 2023
+  },
+  {
+    "setCode": "SLP",
+    "setName": "Secret Lair Promo",
+    "releasedAt": "2023-02-19",
+    "releaseYear": 2023
+  },
+  {
+    "setCode": "P30H",
+    "setName": "30th Anniversary History Promos",
+    "releasedAt": "2023-03-21",
+    "releaseYear": 2023
+  },
+  {
+    "setCode": "MOM",
+    "setName": "March of the Machine",
+    "releasedAt": "2023-04-21",
+    "releaseYear": 2023
+  },
+  {
+    "setCode": "MOC",
+    "setName": "March of the Machine Commander",
+    "releasedAt": "2023-04-21",
+    "releaseYear": 2023
+  },
+  {
+    "setCode": "PMOM",
+    "setName": "March of the Machine Promos",
+    "releasedAt": "2023-04-21",
+    "releaseYear": 2023
+  },
+  {
+    "setCode": "MUL",
+    "setName": "Multiverse Legends",
+    "releasedAt": "2023-04-21",
+    "releaseYear": 2023
+  },
+  {
+    "setCode": "MAT",
+    "setName": "March of the Machine: The Aftermath",
+    "releasedAt": "2023-05-12",
+    "releaseYear": 2023
+  },
+  {
+    "setCode": "LTC",
+    "setName": "Tales of Middle-earth Commander",
+    "releasedAt": "2023-06-23",
+    "releaseYear": 2023
+  },
+  {
+    "setCode": "PLTR",
+    "setName": "Tales of Middle-earth Promos",
+    "releasedAt": "2023-06-23",
+    "releaseYear": 2023
+  },
+  {
+    "setCode": "LTR",
+    "setName": "The Lord of the Rings: Tales of Middle-earth",
+    "releasedAt": "2023-06-23",
+    "releaseYear": 2023
+  },
+  {
+    "setCode": "PF23",
+    "setName": "MagicFest 2023",
+    "releasedAt": "2023-07-01",
+    "releaseYear": 2023
+  },
+  {
+    "setCode": "CMM",
+    "setName": "Commander Masters",
+    "releasedAt": "2023-08-04",
+    "releaseYear": 2023
+  },
+  {
+    "setCode": "P30T",
+    "setName": "30th Anniversary Celebration Tokyo",
+    "releasedAt": "2023-09-01",
+    "releaseYear": 2023
+  },
+  {
+    "setCode": "PMDA",
+    "setName": "Magic × Duel Masters Promos",
+    "releasedAt": "2023-09-08",
+    "releaseYear": 2023
+  },
+  {
+    "setCode": "PTSR",
+    "setName": "Time Spiral Remastered Promos",
+    "releasedAt": "2023-09-08",
+    "releaseYear": 2023
+  },
+  {
+    "setCode": "WOE",
+    "setName": "Wilds of Eldraine",
+    "releasedAt": "2023-09-08",
+    "releaseYear": 2023
+  },
+  {
+    "setCode": "WOC",
+    "setName": "Wilds of Eldraine Commander",
+    "releasedAt": "2023-09-08",
+    "releaseYear": 2023
+  },
+  {
+    "setCode": "PWOE",
+    "setName": "Wilds of Eldraine Promos",
+    "releasedAt": "2023-09-08",
+    "releaseYear": 2023
+  },
+  {
+    "setCode": "WOT",
+    "setName": "Wilds of Eldraine: Enchanting Tales",
+    "releasedAt": "2023-09-08",
+    "releaseYear": 2023
+  },
+  {
+    "setCode": "PW24",
+    "setName": "Wizards Play Network 2024",
+    "releasedAt": "2023-10-01",
+    "releaseYear": 2023
+  },
+  {
+    "setCode": "WHO",
+    "setName": "Doctor Who",
+    "releasedAt": "2023-10-13",
+    "releaseYear": 2023
+  },
+  {
+    "setCode": "REX",
+    "setName": "Jurassic World Collection",
+    "releasedAt": "2023-11-17",
+    "releaseYear": 2023
+  },
+  {
+    "setCode": "PMAT",
+    "setName": "March of the Machine: The Aftermath Promos",
+    "releasedAt": "2023-11-17",
+    "releaseYear": 2023
+  },
+  {
+    "setCode": "SPG",
+    "setName": "Special Guests",
+    "releasedAt": "2023-11-17",
+    "releaseYear": 2023
+  },
+  {
+    "setCode": "LCI",
+    "setName": "The Lost Caverns of Ixalan",
+    "releasedAt": "2023-11-17",
+    "releaseYear": 2023
+  },
+  {
+    "setCode": "LCC",
+    "setName": "The Lost Caverns of Ixalan Commander",
+    "releasedAt": "2023-11-17",
+    "releaseYear": 2023
+  },
+  {
+    "setCode": "PLCI",
+    "setName": "The Lost Caverns of Ixalan Promos",
+    "releasedAt": "2023-11-17",
+    "releaseYear": 2023
+  },
+  {
+    "setCode": "RVR",
+    "setName": "Ravnica Remastered",
+    "releasedAt": "2024-01-12",
+    "releaseYear": 2024
+  },
+  {
+    "setCode": "PL24",
+    "setName": "Year of the Dragon 2024",
+    "releasedAt": "2024-02-08",
+    "releaseYear": 2024
+  },
+  {
+    "setCode": "PCMR",
+    "setName": "Commander Legends Promos",
+    "releasedAt": "2024-02-09",
+    "releaseYear": 2024
+  },
+  {
+    "setCode": "MKM",
+    "setName": "Murders at Karlov Manor",
+    "releasedAt": "2024-02-09",
+    "releaseYear": 2024
+  },
+  {
+    "setCode": "MKC",
+    "setName": "Murders at Karlov Manor Commander",
+    "releasedAt": "2024-02-09",
+    "releaseYear": 2024
+  },
+  {
+    "setCode": "PMKM",
+    "setName": "Murders at Karlov Manor Promos",
+    "releasedAt": "2024-02-09",
+    "releaseYear": 2024
+  },
+  {
+    "setCode": "PSS4",
+    "setName": "MKM Standard Showdown",
+    "releasedAt": "2024-02-10",
+    "releaseYear": 2024
+  },
+  {
+    "setCode": "PF24",
+    "setName": "MagicFest 2024",
+    "releasedAt": "2024-02-23",
+    "releaseYear": 2024
+  },
+  {
+    "setCode": "CLU",
+    "setName": "Ravnica: Clue Edition",
+    "releasedAt": "2024-02-23",
+    "releaseYear": 2024
+  },
+  {
+    "setCode": "PIP",
+    "setName": "Fallout",
+    "releasedAt": "2024-03-08",
+    "releaseYear": 2024
+  },
+  {
+    "setCode": "OTP",
+    "setName": "Breaking News",
+    "releasedAt": "2024-04-19",
+    "releaseYear": 2024
+  },
+  {
+    "setCode": "PLG24",
+    "setName": "Love Your LGS 2024",
+    "releasedAt": "2024-04-19",
+    "releaseYear": 2024
+  },
+  {
+    "setCode": "OTJ",
+    "setName": "Outlaws of Thunder Junction",
+    "releasedAt": "2024-04-19",
+    "releaseYear": 2024
+  },
+  {
+    "setCode": "OTC",
+    "setName": "Outlaws of Thunder Junction Commander",
+    "releasedAt": "2024-04-19",
+    "releaseYear": 2024
+  },
+  {
+    "setCode": "POTJ",
+    "setName": "Outlaws of Thunder Junction Promos",
+    "releasedAt": "2024-04-19",
+    "releaseYear": 2024
+  },
+  {
+    "setCode": "BIG",
+    "setName": "The Big Score",
+    "releasedAt": "2024-04-19",
+    "releaseYear": 2024
+  },
+  {
+    "setCode": "H2R",
+    "setName": "Modern Horizons 2 Timeshifts",
+    "releasedAt": "2024-06-07",
+    "releaseYear": 2024
+  },
+  {
+    "setCode": "MH3",
+    "setName": "Modern Horizons 3",
+    "releasedAt": "2024-06-14",
+    "releaseYear": 2024
+  },
+  {
+    "setCode": "M3C",
+    "setName": "Modern Horizons 3 Commander",
+    "releasedAt": "2024-06-14",
+    "releaseYear": 2024
+  },
+  {
+    "setCode": "PMH3",
+    "setName": "Modern Horizons 3 Promos",
+    "releasedAt": "2024-06-14",
+    "releaseYear": 2024
+  },
+  {
+    "setCode": "ACR",
+    "setName": "Assassin's Creed",
+    "releasedAt": "2024-07-05",
+    "releaseYear": 2024
+  },
+  {
+    "setCode": "BLB",
+    "setName": "Bloomburrow",
+    "releasedAt": "2024-08-02",
+    "releaseYear": 2024
+  },
+  {
+    "setCode": "BLC",
+    "setName": "Bloomburrow Commander",
+    "releasedAt": "2024-08-02",
+    "releaseYear": 2024
+  },
+  {
+    "setCode": "PBLB",
+    "setName": "Bloomburrow Promos",
+    "releasedAt": "2024-08-02",
+    "releaseYear": 2024
+  },
+  {
+    "setCode": "PCBB",
+    "setName": "Cowboy Bebop",
+    "releasedAt": "2024-08-02",
+    "releaseYear": 2024
+  },
+  {
+    "setCode": "MB2",
+    "setName": "Mystery Booster 2",
+    "releasedAt": "2024-08-02",
+    "releaseYear": 2024
+  },
+  {
+    "setCode": "DSK",
+    "setName": "Duskmourn: House of Horror",
+    "releasedAt": "2024-09-27",
+    "releaseYear": 2024
+  },
+  {
+    "setCode": "DSC",
+    "setName": "Duskmourn: House of Horror Commander",
+    "releasedAt": "2024-09-27",
+    "releaseYear": 2024
+  },
+  {
+    "setCode": "PDSK",
+    "setName": "Duskmourn: House of Horror Promos",
+    "releasedAt": "2024-09-27",
+    "releaseYear": 2024
+  },
+  {
+    "setCode": "PLTC",
+    "setName": "Tales of Middle-earth Deluxe Commander Kit",
+    "releasedAt": "2024-10-16",
+    "releaseYear": 2024
+  },
+  {
+    "setCode": "FDN",
+    "setName": "Foundations",
+    "releasedAt": "2024-11-15",
+    "releaseYear": 2024
+  },
+  {
+    "setCode": "FDC",
+    "setName": "Foundations Commander",
+    "releasedAt": "2024-11-15",
+    "releaseYear": 2024
+  },
+  {
+    "setCode": "J25",
+    "setName": "Foundations Jumpstart",
+    "releasedAt": "2024-11-15",
+    "releaseYear": 2024
+  },
+  {
+    "setCode": "PFDN",
+    "setName": "Foundations Promos",
+    "releasedAt": "2024-11-15",
+    "releaseYear": 2024
+  },
+  {
+    "setCode": "PF25",
+    "setName": "MagicFest 2025",
+    "releasedAt": "2025-01-01",
+    "releaseYear": 2025
+  },
+  {
+    "setCode": "PW25",
+    "setName": "Wizards Play Network 2025",
+    "releasedAt": "2025-01-01",
+    "releaseYear": 2025
+  },
+  {
+    "setCode": "PSPL",
+    "setName": "Spotlight Series",
+    "releasedAt": "2025-01-03",
+    "releaseYear": 2025
+  },
+  {
+    "setCode": "INR",
+    "setName": "Innistrad Remastered",
+    "releasedAt": "2025-01-24",
+    "releaseYear": 2025
+  },
+  {
+    "setCode": "PJSC",
+    "setName": "Japan Standard Cup",
+    "releasedAt": "2025-02-09",
+    "releaseYear": 2025
+  },
+  {
+    "setCode": "DFT",
+    "setName": "Aetherdrift",
+    "releasedAt": "2025-02-14",
+    "releaseYear": 2025
+  },
+  {
+    "setCode": "DRC",
+    "setName": "Aetherdrift Commander",
+    "releasedAt": "2025-02-14",
+    "releaseYear": 2025
+  },
+  {
+    "setCode": "PDFT",
+    "setName": "Aetherdrift Promos",
+    "releasedAt": "2025-02-14",
+    "releaseYear": 2025
+  },
+  {
+    "setCode": "PL25",
+    "setName": "Year of the Snake 2025",
+    "releasedAt": "2025-02-14",
+    "releaseYear": 2025
+  },
+  {
+    "setCode": "PLG25",
+    "setName": "Love Your LGS 2025",
+    "releasedAt": "2025-04-11",
+    "releaseYear": 2025
+  },
+  {
+    "setCode": "TDM",
+    "setName": "Tarkir: Dragonstorm",
+    "releasedAt": "2025-04-11",
+    "releaseYear": 2025
+  },
+  {
+    "setCode": "TDC",
+    "setName": "Tarkir: Dragonstorm Commander",
+    "releasedAt": "2025-04-11",
+    "releaseYear": 2025
+  },
+  {
+    "setCode": "PTDM",
+    "setName": "Tarkir: Dragonstorm Promos",
+    "releasedAt": "2025-04-11",
+    "releaseYear": 2025
+  },
+  {
+    "setCode": "PSS5",
+    "setName": "FIN Standard Showdown",
+    "releasedAt": "2025-06-13",
+    "releaseYear": 2025
+  },
+  {
+    "setCode": "FIN",
+    "setName": "Final Fantasy",
+    "releasedAt": "2025-06-13",
+    "releaseYear": 2025
+  },
+  {
+    "setCode": "FIC",
+    "setName": "Final Fantasy Commander",
+    "releasedAt": "2025-06-13",
+    "releaseYear": 2025
+  },
+  {
+    "setCode": "PFIN",
+    "setName": "Final Fantasy Promos",
+    "releasedAt": "2025-06-13",
+    "releaseYear": 2025
+  },
+  {
+    "setCode": "RFIN",
+    "setName": "Final Fantasy Regional Promos",
+    "releasedAt": "2025-06-13",
+    "releaseYear": 2025
+  },
+  {
+    "setCode": "FCA",
+    "setName": "Final Fantasy: Through the Ages",
+    "releasedAt": "2025-06-13",
+    "releaseYear": 2025
+  },
+  {
+    "setCode": "EOE",
+    "setName": "Edge of Eternities",
+    "releasedAt": "2025-08-01",
+    "releaseYear": 2025
+  },
+  {
+    "setCode": "EOC",
+    "setName": "Edge of Eternities Commander",
+    "releasedAt": "2025-08-01",
+    "releaseYear": 2025
+  },
+  {
+    "setCode": "PEOE",
+    "setName": "Edge of Eternities Promos",
+    "releasedAt": "2025-08-01",
+    "releaseYear": 2025
+  },
+  {
+    "setCode": "EOS",
+    "setName": "Edge of Eternities: Stellar Sights",
+    "releasedAt": "2025-08-01",
+    "releaseYear": 2025
+  },
+  {
+    "setCode": "PBIG",
+    "setName": "The Big Score Promos",
+    "releasedAt": "2025-08-01",
+    "releaseYear": 2025
+  },
+  {
+    "setCode": "MAR",
+    "setName": "Marvel Universe",
+    "releasedAt": "2025-09-26",
+    "releaseYear": 2025
+  },
+  {
+    "setCode": "SPM",
+    "setName": "Marvel's Spider-Man",
+    "releasedAt": "2025-09-26",
+    "releaseYear": 2025
+  },
+  {
+    "setCode": "SPE",
+    "setName": "Marvel's Spider-Man Eternal",
+    "releasedAt": "2025-09-26",
+    "releaseYear": 2025
+  },
+  {
+    "setCode": "PSPM",
+    "setName": "Marvel's Spider-Man Promos",
+    "releasedAt": "2025-09-26",
+    "releaseYear": 2025
+  },
+  {
+    "setCode": "LMAR",
+    "setName": "Marvel Legends Series Inserts",
+    "releasedAt": "2025-09-30",
+    "releaseYear": 2025
+  },
+  {
+    "setCode": "TLA",
+    "setName": "Avatar: The Last Airbender",
+    "releasedAt": "2025-11-21",
+    "releaseYear": 2025
+  },
+  {
+    "setCode": "TLE",
+    "setName": "Avatar: The Last Airbender Eternal",
+    "releasedAt": "2025-11-21",
+    "releaseYear": 2025
+  },
+  {
+    "setCode": "PTLA",
+    "setName": "Avatar: The Last Airbender Promos",
+    "releasedAt": "2025-11-21",
+    "releaseYear": 2025
+  },
+  {
+    "setCode": "PW26",
+    "setName": "Wizards Play Network 2026",
+    "releasedAt": "2026-01-01",
+    "releaseYear": 2026
+  },
+  {
+    "setCode": "ECL",
+    "setName": "Lorwyn Eclipsed",
+    "releasedAt": "2026-01-23",
+    "releaseYear": 2026
+  },
+  {
+    "setCode": "ECC",
+    "setName": "Lorwyn Eclipsed Commander",
+    "releasedAt": "2026-01-23",
+    "releaseYear": 2026
+  },
+  {
+    "setCode": "PECL",
+    "setName": "Lorwyn Eclipsed Promos",
+    "releasedAt": "2026-01-23",
+    "releaseYear": 2026
+  },
+  {
+    "setCode": "PL26",
+    "setName": "Year of the Horse 2026",
+    "releasedAt": "2026-02-17",
+    "releaseYear": 2026
+  },
+  {
+    "setCode": "TMT",
+    "setName": "Teenage Mutant Ninja Turtles",
+    "releasedAt": "2026-03-06",
+    "releaseYear": 2026
+  },
+  {
+    "setCode": "TMC",
+    "setName": "Teenage Mutant Ninja Turtles Eternal",
+    "releasedAt": "2026-03-06",
+    "releaseYear": 2026
+  },
+  {
+    "setCode": "PZA",
+    "setName": "Teenage Mutant Ninja Turtles Source Material",
+    "releasedAt": "2026-03-06",
+    "releaseYear": 2026
+  },
+  {
+    "setCode": "SOC",
+    "setName": "Secrets of Strixhaven Commander",
+    "releasedAt": "2026-04-24",
+    "releaseYear": 2026
+  },
+  {
+    "setCode": "SOA",
+    "setName": "Secrets of Strixhaven Mystical Archive",
+    "releasedAt": "2026-04-24",
+    "releaseYear": 2026
+  },
+  {
+    "setCode": "PF26",
+    "setName": "MagicFest 2026",
+    "releasedAt": "2026-05-01",
+    "releaseYear": 2026
+  }
+]

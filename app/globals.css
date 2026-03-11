@@ -904,9 +904,9 @@ input[type="url"] {
 }
 
 .builder-search-card {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr) auto;
+  align-items: center;
   gap: 0.7rem;
   border: 1px solid rgba(99, 132, 167, 0.5);
   border-radius: 14px;
@@ -930,6 +930,8 @@ input[type="url"] {
 .builder-search-card .btn-secondary,
 .builder-search-card .btn-tertiary {
   flex: 0 0 auto;
+  align-self: center;
+  min-width: 5.5rem;
 }
 
 .builder-commander-card {

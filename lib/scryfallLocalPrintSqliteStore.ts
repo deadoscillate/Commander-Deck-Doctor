@@ -17,11 +17,13 @@ let byNameStatement: SqliteStatement | null = null;
 let printCardsSelectClause: string | null = null;
 let printCardsFromClause = "FROM print_cards";
 let printSetOptionRowsCache: SqlitePrintSetOptionRow[] | null = null;
+let printCardsHasDigitalColumn = false;
 
 type PrintRow = {
   printing_id?: string;
   set_code?: string;
   collector_number?: string;
+  digital?: number | null;
   oracle_id?: string;
   name?: string;
   type_line?: string | null;
@@ -60,6 +62,9 @@ type PrintSearchOptions = {
 
 type SqlitePrintSetOptionRow = {
   setCode: string;
+  oracleId: string;
+  name: string;
+  typeLine: string | null;
 };
 
 function normalizeLookupName(name: string): string {
@@ -198,7 +203,7 @@ function toLocalPrintCardRecord(row: PrintRow | undefined): LocalPrintCardRecord
   };
 }
 
-function buildQueryParts(database: SqliteDatabase): { selectClause: string; fromClause: string } {
+function buildQueryParts(database: SqliteDatabase): { selectClause: string; fromClause: string; hasDigitalColumn: boolean } {
   const tableRows = database.prepare("SELECT name FROM sqlite_master WHERE type = 'table'").all() as Array<{
     name?: string;
   }>;
@@ -269,7 +274,8 @@ function buildQueryParts(database: SqliteDatabase): { selectClause: string; from
     ].join(", "),
     fromClause: hasOracleTable
       ? "FROM print_cards LEFT JOIN oracle_cards ON oracle_cards.oracle_id = print_cards.oracle_id"
-      : "FROM print_cards"
+      : "FROM print_cards",
+    hasDigitalColumn: availableColumns.has("digital")
   };
 }
 
@@ -302,6 +308,7 @@ async function ensureDb(): Promise<SqliteDatabase | null> {
       const queryParts = buildQueryParts(db);
       printCardsSelectClause = queryParts.selectClause;
       printCardsFromClause = queryParts.fromClause;
+      printCardsHasDigitalColumn = queryParts.hasDigitalColumn;
       printSetOptionRowsCache = null;
       return db;
     } catch {
@@ -430,8 +437,12 @@ export async function getSqlitePrintCardsByIds(
   }
 
   const placeholders = normalizedIds.map(() => "?").join(", ");
-  const queryParts = printCardsSelectClause
-    ? { selectClause: printCardsSelectClause, fromClause: printCardsFromClause }
+  const queryParts: { selectClause: string; fromClause: string; hasDigitalColumn: boolean } = printCardsSelectClause
+    ? {
+        selectClause: printCardsSelectClause,
+        fromClause: printCardsFromClause,
+        hasDigitalColumn: printCardsHasDigitalColumn
+      }
     : buildQueryParts(database);
   const rows = database
     .prepare(
@@ -497,8 +508,12 @@ export async function getSqlitePrintCardsBySetCollectors(
     .map(() => "(set_code = ? AND normalized_collector_number = ?)")
     .join(" OR ");
   const params = [...deduped.values()].flatMap((lookup) => [lookup.setCode, lookup.collectorNumber]);
-  const queryParts = printCardsSelectClause
-    ? { selectClause: printCardsSelectClause, fromClause: printCardsFromClause }
+  const queryParts: { selectClause: string; fromClause: string; hasDigitalColumn: boolean } = printCardsSelectClause
+    ? {
+        selectClause: printCardsSelectClause,
+        fromClause: printCardsFromClause,
+        hasDigitalColumn: printCardsHasDigitalColumn
+      }
     : buildQueryParts(database);
   const rows = database
     .prepare(
@@ -569,8 +584,12 @@ export async function getSqlitePrintCardsByNames(
   }
 
   const placeholders = [...deduped.keys()].map(() => "?").join(", ");
-  const queryParts = printCardsSelectClause
-    ? { selectClause: printCardsSelectClause, fromClause: printCardsFromClause }
+  const queryParts: { selectClause: string; fromClause: string; hasDigitalColumn: boolean } = printCardsSelectClause
+    ? {
+        selectClause: printCardsSelectClause,
+        fromClause: printCardsFromClause,
+        hasDigitalColumn: printCardsHasDigitalColumn
+      }
     : buildQueryParts(database);
   const rows = database
     .prepare(
@@ -662,16 +681,24 @@ export async function searchSqlitePrintCards(
     return [];
   }
 
-  const limit = Math.max(1, Math.min(200, Math.floor(input.limit ?? 60)));
-  const rawLimit = Math.max(limit * 8, 200);
-  const queryParts = printCardsSelectClause
-    ? { selectClause: printCardsSelectClause, fromClause: printCardsFromClause }
+  const limit = Math.max(1, Math.min(1000, Math.floor(input.limit ?? 60)));
+  const rawLimit = Math.max(limit * 8, 400);
+  const queryParts: { selectClause: string; fromClause: string; hasDigitalColumn: boolean } = printCardsSelectClause
+    ? {
+        selectClause: printCardsSelectClause,
+        fromClause: printCardsFromClause,
+        hasDigitalColumn: printCardsHasDigitalColumn
+      }
     : buildQueryParts(database);
   const normalizedQuery = normalizeLookupName(input.query ?? "");
   const normalizedSet = (input.setCode ?? "").trim().toLowerCase();
   const normalizedType = (input.cardType ?? "").trim().toLowerCase();
   const whereClauses: string[] = [];
   const params: Array<string | number> = [];
+
+  if (queryParts.hasDigitalColumn) {
+    whereClauses.push("coalesce(print_cards.digital, 0) = 0");
+  }
 
   if (normalizedSet) {
     whereClauses.push("print_cards.set_code = ?");
@@ -686,18 +713,22 @@ export async function searchSqlitePrintCards(
   const dedupeAndLimit = (rows: PrintRow[]): LocalPrintCardRecord[] => {
     const seen = new Set<string>();
     const results: LocalPrintCardRecord[] = [];
+    const shouldDedupeByName = !normalizedSet;
     for (const row of rows) {
       const record = toLocalPrintCardRecord(row);
       if (!record) {
         continue;
       }
 
-      const dedupeKey = normalizeLookupName(record.name);
-      if (!dedupeKey || seen.has(dedupeKey)) {
-        continue;
+      if (shouldDedupeByName) {
+        const dedupeKey = normalizeLookupName(record.name);
+        if (!dedupeKey || seen.has(dedupeKey)) {
+          continue;
+        }
+
+        seen.add(dedupeKey);
       }
 
-      seen.add(dedupeKey);
       results.push(record);
       if (results.length >= limit) {
         break;
@@ -774,22 +805,32 @@ export async function listSqlitePrintSetRows(): Promise<SqlitePrintSetOptionRow[
     .prepare(
       `
       SELECT DISTINCT
-        print_cards.set_code AS set_code
+        print_cards.set_code AS set_code,
+        print_cards.oracle_id AS oracle_id,
+        print_cards.name AS name,
+        oracle_cards.type_line AS type_line
       FROM print_cards
+      LEFT JOIN oracle_cards ON oracle_cards.oracle_id = print_cards.oracle_id
       ORDER BY print_cards.set_code ASC
     `
     )
     .all() as Array<{
       set_code?: string;
+      oracle_id?: string;
+      name?: string;
+      type_line?: string | null;
     }>;
 
   printSetOptionRowsCache = rows
     .filter(
-      (row): row is { set_code: string } =>
-        typeof row.set_code === "string"
+      (row): row is { set_code: string; oracle_id: string; name: string; type_line?: string | null } =>
+        typeof row.set_code === "string" && typeof row.oracle_id === "string" && typeof row.name === "string"
     )
     .map((row) => ({
-      setCode: row.set_code.toUpperCase()
+      setCode: row.set_code.toUpperCase(),
+      oracleId: row.oracle_id,
+      name: row.name,
+      typeLine: row.type_line ?? null
     }));
 
   return printSetOptionRowsCache;

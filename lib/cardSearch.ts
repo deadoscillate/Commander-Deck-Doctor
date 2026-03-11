@@ -1,9 +1,10 @@
 import { CardDatabase } from "@/engine/cards/CardDatabase";
 import { evaluateCommanderConfiguration } from "@/lib/commanderConfiguration";
 import type { CommanderChoice } from "@/lib/contracts";
-import { getLocalDefaultCardByName } from "@/lib/scryfallLocalDefaultStore";
+import { getLocalDefaultCardByName, getLocalDefaultCardsByNames } from "@/lib/scryfallLocalDefaultStore";
 import { getLocalPrintCardsByNames, type LocalPrintCardRecord } from "@/lib/scryfallLocalPrintIndexStore";
-import { listSqlitePrintSetRows, searchSqlitePrintCards } from "@/lib/scryfallLocalPrintSqliteStore";
+import { searchSqlitePrintCards } from "@/lib/scryfallLocalPrintSqliteStore";
+import { getScryfallSetName, getScryfallSetOption, listScryfallSetMetadata, type ScryfallSetOption } from "@/lib/scryfallSetMetadata";
 import type { ScryfallCard } from "@/lib/types";
 
 const BASIC_LANDS = new Set<string>([
@@ -44,6 +45,8 @@ export type CardSearchRecord = {
   oracleText: string;
   colorIdentity: string[];
   setCode: string | null;
+  setName?: string | null;
+  setReleaseYear?: number | null;
   collectorNumber: string | null;
   printingId: string | null;
   commanderEligible: boolean;
@@ -70,7 +73,7 @@ let searchIndex: CardSearchRecord[] | null = null;
 let searchIndexByName: Map<string, CardSearchRecord> | null = null;
 let commanderPool: ScryfallCard[] | null = null;
 let commanderSearchIndex: CardSearchRecord[] | null = null;
-let setOptions: string[] | null = null;
+let setOptions: ScryfallSetOption[] | null = null;
 type EngineSearchMeta = {
   oracleId: string;
   commanderLegal: boolean;
@@ -102,6 +105,11 @@ function isDigitalVariantName(name: string): boolean {
 function isLegendaryCreature(typeLine: string): boolean {
   const lower = typeLine.toLowerCase();
   return lower.includes("legendary") && lower.includes("creature");
+}
+
+function isBuilderSearchExcludedType(typeLine: string | null | undefined): boolean {
+  const lower = (typeLine ?? "").toLowerCase();
+  return lower.includes("stickers") || lower.includes("attraction");
 }
 
 function isCommanderEligible(card: Pick<ScryfallCard, "type_line" | "oracle_text" | "card_faces">): boolean {
@@ -193,6 +201,7 @@ function ensureEngineMetaMaps(): {
 function toSearchRecord(card: ScryfallCard): CardSearchRecord {
   const cardImage = card.image_uris?.normal ?? card.card_faces[0]?.image_uris?.normal ?? null;
   const artImage = card.image_uris?.art_crop ?? card.card_faces[0]?.image_uris?.normal ?? cardImage;
+  const setOption = getScryfallSetOption(card.set);
 
   return {
     name: card.name,
@@ -202,8 +211,10 @@ function toSearchRecord(card: ScryfallCard): CardSearchRecord {
     oracleText: card.oracle_text ?? "",
     colorIdentity: normalizedColorIdentity(card.color_identity ?? []),
     setCode: typeof card.set === "string" && card.set ? card.set.toUpperCase() : null,
-    collectorNumber: null,
-    printingId: null,
+    setName: setOption?.setName ?? getScryfallSetName(card.set),
+    setReleaseYear: setOption?.releaseYear ?? null,
+    collectorNumber: typeof card.collector_number === "string" && card.collector_number ? card.collector_number : null,
+    printingId: typeof card.id === "string" && card.id ? card.id : null,
     commanderEligible: isCommanderEligible(card),
     isBasicLand: BASIC_LANDS.has(normalizeName(card.name)),
     duplicateLimit: duplicateLimitForCard(card),
@@ -218,6 +229,7 @@ function toSearchRecordFromPrintCard(
 ): CardSearchRecord {
   const cardImage = card.image_uris?.normal ?? card.card_faces[0]?.image_uris?.normal ?? null;
   const artImage = card.image_uris?.art_crop ?? card.card_faces[0]?.image_uris?.normal ?? cardImage;
+  const setOption = getScryfallSetOption(card.set);
 
   return {
     name: card.name,
@@ -227,6 +239,8 @@ function toSearchRecordFromPrintCard(
     oracleText: card.oracle_text ?? "",
     colorIdentity: normalizedColorIdentity(card.color_identity ?? meta?.colorIdentity ?? []),
     setCode: typeof card.set === "string" && card.set ? card.set.toUpperCase() : null,
+    setName: setOption?.setName ?? getScryfallSetName(card.set),
+    setReleaseYear: setOption?.releaseYear ?? null,
     collectorNumber: card.collector_number ?? null,
     printingId: card.id ?? null,
     commanderEligible: meta?.commanderEligible ?? isCommanderEligible({
@@ -339,6 +353,8 @@ function buildSearchIndex(): CardSearchRecord[] {
         oracleText: engineCard.oracleText ?? "",
         colorIdentity: meta?.colorIdentity ?? normalizedColorIdentity(engineCard.colorIdentity ?? []),
         setCode: null,
+        setName: null,
+        setReleaseYear: null,
         collectorNumber: null,
         printingId: null,
         commanderEligible: meta?.commanderEligible ?? (isLegendaryCreature(engineCard.typeLine) || engineCard.oracleText.toLowerCase().includes("can be your commander")),
@@ -487,7 +503,7 @@ export async function searchCards(input: SearchOptions = {}): Promise<CardSearch
   const allowedColors = new Set(normalizedColorIdentity(input.allowedColors ?? []));
   const setCode = input.setCode?.trim().toUpperCase() ?? "";
   const cardType = input.cardType?.trim().toLowerCase() ?? "";
-  const limit = Math.max(1, Math.min(100, Math.floor(input.limit ?? 24)));
+  const limit = Math.max(1, Math.min(1000, Math.floor(input.limit ?? 24)));
   const { byOracleId, byName } = ensureEngineMetaMaps();
 
   const printCards = await searchSqlitePrintCards({
@@ -498,6 +514,10 @@ export async function searchCards(input: SearchOptions = {}): Promise<CardSearch
   });
 
   if (printCards.length === 0) {
+    if (setCode) {
+      return [];
+    }
+
     return buildSearchIndex()
       .filter((card) => {
         const meta = byName.get(normalizeName(card.name));
@@ -505,7 +525,7 @@ export async function searchCards(input: SearchOptions = {}): Promise<CardSearch
           return false;
         }
 
-        if (isDigitalVariantName(card.name)) {
+        if (isDigitalVariantName(card.name) || isBuilderSearchExcludedType(card.typeLine)) {
           return false;
         }
 
@@ -551,7 +571,7 @@ export async function searchCards(input: SearchOptions = {}): Promise<CardSearch
       };
     })
     .filter(({ record, commanderLegal }) => {
-      if (!commanderLegal || isDigitalVariantName(record.name)) {
+      if (!commanderLegal || isDigitalVariantName(record.name) || isBuilderSearchExcludedType(record.typeLine)) {
         return false;
       }
 
@@ -583,6 +603,7 @@ export async function lookupCardsByNames(
 
   if (!commanderOnly) {
     const { byOracleId } = ensureEngineMetaMaps();
+    const defaultCards = getLocalDefaultCardsByNames(names);
     const printCards = await getLocalPrintCardsByNames(names);
 
     for (const name of names) {
@@ -592,19 +613,28 @@ export async function lookupCardsByNames(
       }
 
       seen.add(normalized);
+      const defaultRecord = defaultCards.get(`name:${normalized}`) ?? null;
       const printRecord = printCards.get(`name:${normalized}`);
-      const meta = printRecord
-        ? byOracleId.get(printRecord.oracle_id) ?? engineByName.get(normalized) ?? null
-        : engineByName.get(normalized) ?? null;
+      const meta =
+        (defaultRecord?.oracle_id ? byOracleId.get(defaultRecord.oracle_id) : null) ??
+        (printRecord?.oracle_id ? byOracleId.get(printRecord.oracle_id) : null) ??
+        engineByName.get(normalized) ??
+        null;
 
       if (meta && !meta.commanderLegal) {
         continue;
       }
 
-      const card = printRecord
-        ? toSearchRecordFromPrintCard(printRecord, meta)
-        : byName.get(normalized);
+      const card = defaultRecord
+        ? toSearchRecord(defaultRecord)
+        : printRecord
+          ? toSearchRecordFromPrintCard(printRecord, meta)
+          : byName.get(normalized);
       if (!card) {
+        continue;
+      }
+
+      if (isBuilderSearchExcludedType(card.typeLine)) {
         continue;
       }
 
@@ -659,31 +689,49 @@ export async function lookupCardsByNames(
   return rows;
 }
 
-export async function listSearchSetOptions(): Promise<string[]> {
+export async function listSearchSetOptions(): Promise<ScryfallSetOption[]> {
   if (setOptions) {
     return setOptions;
   }
 
-  const printRows = await listSqlitePrintSetRows();
-  if (printRows.length > 0) {
-    setOptions = [...new Set(printRows.map((row) => row.setCode))].sort((left, right) => left.localeCompare(right));
+  const metadata = listScryfallSetMetadata();
+  if (metadata.length > 0) {
+    setOptions = metadata;
     return setOptions;
   }
 
   const seen = new Set<string>();
-  const output: string[] = [];
+  const output: ScryfallSetOption[] = [];
 
   for (const card of buildSearchIndex()) {
     const meta = ensureEngineMetaMaps().byName.get(normalizeName(card.name));
-    if (!card.setCode || seen.has(card.setCode) || (meta && !meta.commanderLegal)) {
+    if (
+      !card.setCode ||
+      seen.has(card.setCode) ||
+      (meta && !meta.commanderLegal) ||
+      isBuilderSearchExcludedType(card.typeLine)
+    ) {
       continue;
     }
 
     seen.add(card.setCode);
-    output.push(card.setCode);
+    output.push({
+      setCode: card.setCode,
+      setName: card.setName ?? getScryfallSetName(card.setCode) ?? card.setCode,
+      releasedAt: null,
+      releaseYear: card.setReleaseYear ?? null
+    });
   }
 
-  setOptions = output.sort((left, right) => left.localeCompare(right));
+  setOptions = output.sort((left, right) => {
+    const leftYear = left.releaseYear ?? Number.MAX_SAFE_INTEGER;
+    const rightYear = right.releaseYear ?? Number.MAX_SAFE_INTEGER;
+    if (leftYear !== rightYear) {
+      return leftYear - rightYear;
+    }
+
+    return left.setCode.localeCompare(right.setCode);
+  });
   return setOptions;
 }
 

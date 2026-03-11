@@ -14,6 +14,7 @@ data/scryfall/*
 !data/scryfall/oracle-cards.compiled.json
 !data/scryfall/default-cards.compiled.json.gz
 !data/scryfall/prints.compiled.sqlite
+!data/scryfall/set-metadata.compiled.json
 !data/scryfall/print-index/
 data/scryfall/print-index/*
 !data/scryfall/print-index/manifest.compiled.json.gz

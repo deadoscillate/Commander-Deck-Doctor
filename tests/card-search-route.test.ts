@@ -6,10 +6,18 @@ describe("GET /api/card-search", () => {
     const response = await GET(new Request("http://localhost/api/card-search?meta=sets"));
 
     expect(response.status).toBe(200);
-    const payload = (await response.json()) as { items: string[] };
+    const payload = (await response.json()) as {
+      items: Array<{ setCode: string; setName: string; releaseYear: number | null }>;
+    };
 
     expect(payload.items.length).toBeGreaterThan(0);
-    expect(payload.items).toContain("CLB");
+    expect(payload.items.some((item) => item.setCode === "CLB" && item.setName.length > 0)).toBe(true);
+    expect(payload.items.some((item) => item.setCode === "SUNF")).toBe(false);
+    for (let index = 1; index < payload.items.length; index += 1) {
+      const previous = payload.items[index - 1]?.releaseYear ?? Number.MAX_SAFE_INTEGER;
+      const current = payload.items[index]?.releaseYear ?? Number.MAX_SAFE_INTEGER;
+      expect(previous).toBeLessThanOrEqual(current);
+    }
   });
 
   it("returns commander-only results with legal pair metadata", async () => {
@@ -111,6 +119,20 @@ describe("GET /api/card-search", () => {
     expect(payload.items.every((item) => item.setCode === "CMM")).toBe(true);
     expect(payload.items.every((item) => Boolean(item.collectorNumber))).toBe(true);
     expect(payload.items.every((item) => Boolean(item.printingId))).toBe(true);
+  });
+
+  it("does not truncate set browsing to a tiny subset for large sets", async () => {
+    const response = await GET(
+      new Request("http://localhost/api/card-search?set=MH1&allowedColors=G,U&limit=200")
+    );
+
+    expect(response.status).toBe(200);
+    const payload = (await response.json()) as {
+      items: Array<{ setCode: string | null; name: string }>;
+    };
+
+    expect(payload.items.length).toBeGreaterThan(72);
+    expect(payload.items.every((item) => item.setCode === "MH1")).toBe(true);
   });
 
   it("supports exact name lookup via POST", async () => {

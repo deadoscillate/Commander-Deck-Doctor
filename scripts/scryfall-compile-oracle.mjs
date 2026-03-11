@@ -4,6 +4,7 @@ import zlib from "node:zlib";
 
 const OUTPUT_DIR = path.resolve("data/scryfall");
 const PRINT_SQLITE_PATH = path.join(OUTPUT_DIR, "prints.compiled.sqlite");
+const SET_METADATA_PATH = path.join(OUTPUT_DIR, "set-metadata.compiled.json");
 const PRINT_INDEX_DIR = path.join(OUTPUT_DIR, "print-index");
 const PRINT_INDEX_MANIFEST_PATH = path.join(PRINT_INDEX_DIR, "manifest.compiled.json.gz");
 const PRINT_INDEX_SHARD_DIR = path.join(PRINT_INDEX_DIR, "shards");
@@ -163,6 +164,10 @@ function defaultPrintPenalty(card) {
     ? card.finishes.filter((value) => typeof value === "string").map((value) => value.toLowerCase())
     : [];
   const setCode = typeof card?.set === "string" ? card.set.toLowerCase() : "";
+
+  if (card?.digital === true) {
+    penalty += 1000;
+  }
 
   if (card?.promo === true || setCode.startsWith("p")) {
     penalty += 100;
@@ -439,6 +444,7 @@ function compilePrintIndexCard(card) {
     name,
     set: setCode,
     collector_number: collectorNumber,
+    digital: card?.digital === true,
     image_uris: pickImageUris(card.image_uris, ["normal", "art_crop"]) ?? null,
     card_faces: cardFaces,
     prices: prices ?? null,
@@ -534,6 +540,83 @@ async function compilePrintIndexArtifacts() {
   );
 }
 
+async function compileSetMetadataArtifact() {
+  const rawPath = path.join(OUTPUT_DIR, "default-cards.raw.json");
+  try {
+    await fs.access(rawPath);
+  } catch {
+    fail(`Missing raw Scryfall file: ${rawPath}. Run: npm run scryfall:download`);
+  }
+
+  const raw = JSON.parse(await fs.readFile(rawPath, "utf8"));
+  if (!Array.isArray(raw)) {
+    fail("Unexpected set metadata source format: expected top-level array");
+  }
+
+  const setMap = new Map();
+  for (const card of raw) {
+    const setCode = typeof card?.set === "string" ? card.set.trim().toUpperCase() : "";
+    const setName = typeof card?.set_name === "string" ? card.set_name.trim() : "";
+    const releasedAt = typeof card?.released_at === "string" && card.released_at.trim() ? card.released_at.trim() : null;
+    const typeLine = typeof card?.type_line === "string" ? card.type_line.toLowerCase() : "";
+    const commanderLegality = typeof card?.legalities?.commander === "string" ? card.legalities.commander : "";
+    if (!setCode || !setName) {
+      continue;
+    }
+
+    if (card?.digital === true) {
+      continue;
+    }
+
+    if (!(commanderLegality === "legal" || commanderLegality === "restricted")) {
+      continue;
+    }
+
+    if (typeLine.includes("stickers") || typeLine.includes("attraction")) {
+      continue;
+    }
+
+    if (!setMap.has(setCode)) {
+      setMap.set(setCode, {
+        setCode,
+        setName,
+        releasedAt,
+        releaseYear: releasedAt ? Number.parseInt(releasedAt.slice(0, 4), 10) : null
+      });
+      continue;
+    }
+
+    const existing = setMap.get(setCode);
+    if (releasedAt && (!existing.releasedAt || releasedAt < existing.releasedAt)) {
+      existing.releasedAt = releasedAt;
+      existing.releaseYear = Number.parseInt(releasedAt.slice(0, 4), 10);
+    }
+  }
+
+  const output = [...setMap.values()].sort((left, right) => {
+    const leftYear = left.releaseYear ?? Number.MAX_SAFE_INTEGER;
+    const rightYear = right.releaseYear ?? Number.MAX_SAFE_INTEGER;
+    if (leftYear !== rightYear) {
+      return leftYear - rightYear;
+    }
+
+    const leftDate = left.releasedAt ?? "";
+    const rightDate = right.releasedAt ?? "";
+    if (leftDate !== rightDate) {
+      return leftDate.localeCompare(rightDate);
+    }
+
+    const nameOrder = left.setName.localeCompare(right.setName);
+    if (nameOrder !== 0) {
+      return nameOrder;
+    }
+
+    return left.setCode.localeCompare(right.setCode);
+  });
+  await fs.writeFile(SET_METADATA_PATH, JSON.stringify(output, null, 2), "utf8");
+  console.log(`Compiled ${output.length} set metadata rows to: ${SET_METADATA_PATH}`);
+}
+
 async function compilePrintSqliteArtifact() {
   const rawPath = path.join(OUTPUT_DIR, "default-cards.raw.json");
   try {
@@ -572,6 +655,7 @@ async function compilePrintSqliteArtifact() {
         printing_id TEXT PRIMARY KEY,
         set_code TEXT NOT NULL,
         collector_number TEXT NOT NULL,
+        digital INTEGER NOT NULL DEFAULT 0,
         normalized_collector_number TEXT NOT NULL,
         normalized_name TEXT NOT NULL,
         collector_sort_rank INTEGER NOT NULL,
@@ -616,6 +700,7 @@ async function compilePrintSqliteArtifact() {
         printing_id,
         set_code,
         collector_number,
+        digital,
         normalized_collector_number,
         normalized_name,
         collector_sort_rank,
@@ -630,7 +715,7 @@ async function compilePrintSqliteArtifact() {
         tcgplayer_url,
         cardkingdom_url,
         card_faces_json
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     let recordCount = 0;
@@ -665,6 +750,7 @@ async function compilePrintSqliteArtifact() {
         compiled.id.toLowerCase(),
         compiled.set,
         compiled.collector_number,
+        compiled.digital ? 1 : 0,
         normalizeCollectorNumber(compiled.collector_number),
         normalizeLookupName(compiled.name),
         collectorSort.rank,
@@ -732,6 +818,7 @@ async function main() {
   for (const dataset of DATASETS) {
     await compileDataset(dataset);
   }
+  await compileSetMetadataArtifact();
   await compilePrintIndexArtifacts();
   await compilePrintSqliteArtifact();
 }
