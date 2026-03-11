@@ -5,7 +5,10 @@ const DECK_LIST_URL = "https://mtgjson.com/api/v5/DeckList.json";
 const DECK_FILE_BASE_URL = "https://mtgjson.com/api/v5/decks";
 const OUTPUT_PATH = path.join(process.cwd(), "data", "precons", "commander-precons.json");
 const INCLUDED_TYPES = new Set(["Commander Deck", "MTGO Commander Deck"]);
-const DEFAULT_CONCURRENCY = 8;
+const DEFAULT_CONCURRENCY = Number(process.env.PRECONS_SYNC_CONCURRENCY || 4);
+const FETCH_TIMEOUT_MS = Number(process.env.PRECONS_SYNC_TIMEOUT_MS || 30000);
+const MAX_FETCH_RETRIES = Number(process.env.PRECONS_SYNC_RETRIES || 5);
+const RETRYABLE_STATUS_CODES = new Set([408, 425, 429, 500, 502, 503, 504]);
 
 function slugify(value) {
   return value
@@ -77,19 +80,58 @@ function buildDecklist(deck) {
   return ["Commander", ...commanderLines, "", ...mainBoardLines].join("\n").trim();
 }
 
-async function fetchJson(url) {
-  const response = await fetch(url, {
-    headers: {
-      Accept: "application/json",
-      "User-Agent": "CommanderDeckDoctor/1.0"
-    }
-  });
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
-  if (!response.ok) {
-    throw new Error(`Failed to fetch ${url}: ${response.status} ${response.statusText}`);
+function retryDelayMs(attempt, response) {
+  const retryAfter = response?.headers?.get?.("retry-after");
+  if (retryAfter) {
+    const seconds = Number(retryAfter);
+    if (Number.isFinite(seconds) && seconds > 0) {
+      return seconds * 1000;
+    }
   }
 
-  return response.json();
+  return Math.min(1000 * 2 ** (attempt - 1), 10000);
+}
+
+async function fetchJson(url, attempt = 1) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+
+  try {
+    const response = await fetch(url, {
+      headers: {
+        Accept: "application/json",
+        "User-Agent": "CommanderDeckDoctor/1.0"
+      },
+      signal: controller.signal
+    });
+
+    if (!response.ok) {
+      if (attempt < MAX_FETCH_RETRIES && RETRYABLE_STATUS_CODES.has(response.status)) {
+        await sleep(retryDelayMs(attempt, response));
+        return fetchJson(url, attempt + 1);
+      }
+
+      throw new Error(`Failed to fetch ${url}: ${response.status} ${response.statusText}`);
+    }
+
+    return response.json();
+  } catch (error) {
+    const isAbort = error?.name === "AbortError";
+    const isNetworkError = error instanceof TypeError || isAbort;
+
+    if (attempt < MAX_FETCH_RETRIES && isNetworkError) {
+      await sleep(retryDelayMs(attempt));
+      return fetchJson(url, attempt + 1);
+    }
+
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 async function mapWithConcurrency(items, concurrency, mapper) {
