@@ -38,7 +38,7 @@ jobs:
       TELEMETRY_REPORT_BRANCH: ${{ vars.TELEMETRY_REPORT_BRANCH }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Resolve report settings
         shell: bash
