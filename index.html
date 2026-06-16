@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Commander Deck Doctor Telemetry</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #06101b;
+        --panel: rgba(10, 24, 40, 0.88);
+        --border: rgba(102, 176, 255, 0.28);
+        --text: #d8e7f7;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        padding: 24px;
+        font-family: system-ui, sans-serif;
+        background: linear-gradient(180deg, #07111d 0%, #0a1b2d 100%);
+        color: var(--text);
+      }
+      main {
+        max-width: 1100px;
+        margin: 0 auto;
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 20px;
+        padding: 24px;
+        box-shadow: 0 24px 80px rgba(0, 0, 0, 0.35);
+      }
+      h1 {
+        margin: 0 0 16px;
+        font-size: 28px;
+      }
+      p {
+        margin: 0 0 16px;
+        color: #9db6cf;
+      }
+      pre {
+        margin: 0;
+        white-space: pre-wrap;
+        word-break: break-word;
+        font: 14px/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Telemetry Summary</h1>
+      <p>This branch is generated for telemetry reporting. It is not an application deployment target.</p>
+      <pre># Analyze Telemetry Summary
+
+Generated at: 2026-06-16T18:39:57.990Z
+Window: last 7 day(s)
+Requests sampled: 0
+First sample: n/a
+Last sample: n/a
+
+## Cache Mix
+| Cache | Requests | Avg Total (ms) | P50 Total (ms) | P95 Total (ms) |
+| --- | ---: | ---: | ---: | ---: |
+
+## By Pricing Mode
+| Pricing Mode | Cache | Requests | P50 Total (ms) | P95 Total (ms) | P95 Lookup (ms) | P95 Compute (ms) |
+| --- | --- | ---: | ---: | ---: | ---: | ---: |
+
+## Cold Start Misses
+| Cold Start | Requests | Avg Total (ms) | P50 Total (ms) | P95 Total (ms) | P95 Lookup (ms) |
+| --- | ---: | ---: | ---: | ---: | ---: |
+
+## Slow Miss Shapes
+| Pricing Mode | Set Overrides | Deck Size | Commander Source | Requests | Avg Total (ms) | P95 Total (ms) |
+| --- | ---: | ---: | --- | ---: | ---: | ---: |
+
+## Daily Trend
+| Day | Requests | P95 Total (ms) | P95 Lookup (ms) |
+| --- | ---: | ---: | ---: |
+
+## Commander Options Telemetry
+Requests sampled: 0 | First sample: n/a | Last sample: n/a
+
+### Commander Options Cache Mix
+| Cache | Requests | Avg Total (ms) | P50 Total (ms) | P95 Total (ms) |
+| --- | ---: | ---: | ---: | ---: |
+
+### Commander Options Cold Start Misses
+| Cold Start | Requests | Avg Total (ms) | P50 Total (ms) | P95 Total (ms) | P95 Lookup (ms) |
+| --- | ---: | ---: | ---: | ---: | ---: |
+
+## Builder Card Search Telemetry
+Requests sampled: 0 | First sample: n/a | Last sample: n/a
+
+### Card Search By Route Kind
+| Route Kind | Requests | Avg Total (ms) | P50 Total (ms) | P95 Total (ms) | P95 Lookup (ms) |
+| --- | ---: | ---: | ---: | ---: | ---: |
+
+### Card Search Cold Starts
+| Cold Start | Requests | Avg Total (ms) | P50 Total (ms) | P95 Total (ms) |
+| --- | ---: | ---: | ---: | ---: |
+</pre>
+    </main>
+  </body>
+</html>
